@@ -2444,7 +2444,7 @@ def admin_required(f):
     @wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
-        if current_user.role not in ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
             flash('Administrator or Senior Leadership access required.', 'error')
             return redirect(url_for('serve_index'))
         return f(*args, **kwargs)
@@ -2466,8 +2466,8 @@ def admin_required_json(f):
             logger.warning(f"Unauthenticated access attempt to {request.path} from {request.remote_addr}. Session keys: {list(session.keys())}")
             return jsonify({'error': 'Authentication required. Please sign in.'}), 401
         
-        # Check if user has admin role
-        if role not in ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        # Check if user has admin role (including superadmin)
+        if role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
             logger.warning(f"Non-admin access attempt to {request.path} by user {username} (role: {role})")
             return jsonify({'error': 'Administrator access required'}), 403
         
