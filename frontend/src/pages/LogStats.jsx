@@ -181,6 +181,24 @@ const LogStats = () => {
     }
   }, [selectedRegion, allCampuses, regions]);
 
+  // Reset stats when campus changes (so service times update)
+  useEffect(() => {
+    if (selectedCampus) {
+      // Reset all service time fields when campus changes
+      const serviceTimes = getCampusServiceTimes();
+      const resetStats = { ...quickInputStats };
+      
+      // Clear all service time fields
+      Object.keys(resetStats).forEach(key => {
+        if (key.includes(':') || key.startsWith('Kids ')) {
+          resetStats[key] = '';
+        }
+      });
+      
+      setQuickInputStats(resetStats);
+    }
+  }, [selectedCampus]);
+
   // Load recent entries when campus changes
   useEffect(() => {
     if (selectedCampus) {
