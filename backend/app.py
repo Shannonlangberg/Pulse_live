@@ -2307,7 +2307,7 @@ def get_active_campuses():
         
         for row in cursor.fetchall():
             campus_id = row[0]
-            active_campuses.append({
+            campus_data = {
                 'id': campus_id,
                 'name': row[2],  # display_name
                 'full_name': row[1],  # name
@@ -2315,7 +2315,9 @@ def get_active_campuses():
                 'region_code': row[4],  # region_code (AU, US, etc.)
                 'service_times': service_times_map.get(campus_id, []),
                 'description': campuses_db.get('campuses', {}).get(campus_id, {}).get('description', None)
-            })
+            }
+            print(f"[Backend] Campus {campus_id}: region_id={row[3]}, region_code={row[4]}")
+            active_campuses.append(campus_data)
         
         conn.close()
         
