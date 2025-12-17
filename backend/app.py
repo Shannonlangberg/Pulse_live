@@ -2474,6 +2474,25 @@ def admin_required_json(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def login_required_json(f):
+    """Decorator to require authentication only - returns JSON for API endpoints"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check if user is authenticated via Flask-Login
+        is_auth = current_user.is_authenticated
+        user_id = getattr(current_user, 'id', None)
+        username = getattr(current_user, 'username', None)
+        role = getattr(current_user, 'role', None)
+        
+        logger.info(f"login_required_json check for {request.path}: authenticated={is_auth}, user_id={user_id}, username={username}, role={role}")
+        
+        if not is_auth:
+            logger.warning(f"Unauthenticated access attempt to {request.path} from {request.remote_addr}")
+            return jsonify({'error': 'Authentication required. Please sign in.'}), 401
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
 def can_recall_data(campus=None):
     """Check if current user can recall data for specified campus"""
     if not current_user.is_authenticated:
@@ -12530,6 +12549,296 @@ def get_dashboard_api_data():
         logger.error(f"Dashboard API error: {e}")
         return jsonify({"error": "Failed to load dashboard data"}), 500
 
+@app.route('/api/dashboard/regional')
+def get_regional_dashboard_data():
+    """
+    Regional dashboard - aggregates stats for all campuses in a region
+    Accessible by region_leader role (for their region) or global roles (any region)
+    """
+    try:
+        from models import Region, CampusV2, AttendanceRecord
+        from sqlalchemy import func
+        from utils.rbac import rbac_manager, validate_region_access
+        
+        # Get request parameters
+        region_code = request.args.get('region', request.args.get('region_code', 'AU'))
+        date_filter = request.args.get('date_filter', 'last_12_months')
+        custom_start_date = request.args.get('custom_start_date', '')
+        custom_end_date = request.args.get('custom_end_date', '')
+        
+        # Get user context
+        user_role = getattr(g, 'user_role', 'member')
+        user_region_id = getattr(g, 'user_region_id', None)
+        
+        # Find the region
+        region = Region.query.filter_by(code=region_code.upper()).first()
+        if not region:
+            return jsonify({"error": "Region not found"}), 404
+        
+        # Check access permissions
+        if not rbac_manager.can_cross_region(user_role):
+            if not validate_region_access(region.id, user_role, user_region_id):
+                return jsonify({"error": "Access denied to this region"}), 403
+        
+        # Calculate date range
+        end_date = datetime.now().date()
+        if date_filter == 'last_7_days':
+            start_date = end_date - timedelta(days=7)
+        elif date_filter == 'last_30_days':
+            start_date = end_date - timedelta(days=30)
+        elif date_filter == 'last_90_days':
+            start_date = end_date - timedelta(days=90)
+        elif date_filter == 'this_year':
+            start_date = datetime(end_date.year, 1, 1).date()
+        elif date_filter == 'last_12_months':
+            start_date = end_date - timedelta(days=365)
+        elif custom_start_date and custom_end_date:
+            start_date = datetime.strptime(custom_start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(custom_end_date, '%Y-%m-%d').date()
+        else:
+            start_date = end_date - timedelta(days=365)
+        
+        # Query attendance records for this region
+        records = AttendanceRecord.query.filter(
+            AttendanceRecord.region_id == region.id,
+            AttendanceRecord.date >= start_date,
+            AttendanceRecord.date <= end_date
+        ).all()
+        
+        # Get campuses in this region
+        campuses = CampusV2.query.filter_by(region_id=region.id, active=True).all()
+        
+        # Aggregate statistics
+        total_attendance = sum(r.total_attendance or 0 for r in records)
+        total_kids = sum(r.kids_attendance or 0 for r in records)
+        total_youth = sum(r.youth_attendance or 0 for r in records)
+        total_salvations = sum((r.first_time_christians or 0) + (r.rededications or 0) for r in records)
+        total_baptisms = sum(r.baptisms or 0 for r in records)
+        total_visitors = sum(r.first_time_visitors or 0 for r in records)
+        total_giving = sum(float(r.tithe or 0) for r in records)
+        
+        # Calculate averages
+        week_count = max(1, len(set(r.date for r in records)))
+        avg_attendance = total_attendance / week_count if week_count > 0 else 0
+        avg_giving = total_giving / week_count if week_count > 0 else 0
+        
+        # Get campus breakdown
+        campus_stats = []
+        for campus in campuses:
+            campus_records = [r for r in records if r.campus_id == campus.id]
+            if campus_records:
+                campus_total = sum(r.total_attendance or 0 for r in campus_records)
+                campus_avg = campus_total / len(campus_records) if campus_records else 0
+                campus_stats.append({
+                    'campus_id': campus.campus_id,
+                    'campus_name': campus.display_name,
+                    'total_attendance': campus_total,
+                    'avg_attendance': round(campus_avg, 1),
+                    'record_count': len(campus_records)
+                })
+        
+        # Sort campuses by total attendance
+        campus_stats.sort(key=lambda x: x['total_attendance'], reverse=True)
+        
+        # Build response
+        response = {
+            'region': {
+                'code': region.code,
+                'name': region.display_name,
+                'timezone': region.timezone,
+                'currency': region.currency
+            },
+            'date_range': {
+                'start': start_date.isoformat(),
+                'end': end_date.isoformat(),
+                'filter': date_filter
+            },
+            'stats': {
+                'total_attendance': total_attendance,
+                'avg_weekly_attendance': round(avg_attendance, 1),
+                'total_kids': total_kids,
+                'total_youth': total_youth,
+                'total_salvations': total_salvations,
+                'total_baptisms': total_baptisms,
+                'total_visitors': total_visitors,
+                'total_giving': round(total_giving, 2),
+                'avg_weekly_giving': round(avg_giving, 2),
+                'week_count': week_count,
+                'campus_count': len(campuses),
+                'active_campuses': len([c for c in campus_stats if c['record_count'] > 0])
+            },
+            'campuses': campus_stats,
+            'recent_records': len(records)
+        }
+        
+        return jsonify(response)
+    
+    except Exception as e:
+        logger.error(f"Regional dashboard error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load regional dashboard data"}), 500
+
+@app.route('/api/dashboard/global')
+def get_global_dashboard_data():
+    """
+    Global dashboard - aggregates stats across ALL regions
+    Accessible only by global roles (admin, senior_leadership, senior_pastor, lead_pastor)
+    """
+    try:
+        from models import Region, CampusV2, AttendanceRecord
+        from sqlalchemy import func
+        from utils.rbac import rbac_manager
+        
+        # Get request parameters
+        date_filter = request.args.get('date_filter', 'last_12_months')
+        custom_start_date = request.args.get('custom_start_date', '')
+        custom_end_date = request.args.get('custom_end_date', '')
+        
+        # Get user context
+        user_role = getattr(g, 'user_role', 'member')
+        
+        # Check global access permissions
+        if not rbac_manager.can_cross_region(user_role):
+            return jsonify({"error": "Access denied - global access required"}), 403
+        
+        # Calculate date range
+        end_date = datetime.now().date()
+        if date_filter == 'last_7_days':
+            start_date = end_date - timedelta(days=7)
+        elif date_filter == 'last_30_days':
+            start_date = end_date - timedelta(days=30)
+        elif date_filter == 'last_90_days':
+            start_date = end_date - timedelta(days=90)
+        elif date_filter == 'this_year':
+            start_date = datetime(end_date.year, 1, 1).date()
+        elif date_filter == 'last_12_months':
+            start_date = end_date - timedelta(days=365)
+        elif custom_start_date and custom_end_date:
+            start_date = datetime.strptime(custom_start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(custom_end_date, '%Y-%m-%d').date()
+        else:
+            start_date = end_date - timedelta(days=365)
+        
+        # Query all attendance records
+        all_records = AttendanceRecord.query.filter(
+            AttendanceRecord.date >= start_date,
+            AttendanceRecord.date <= end_date
+        ).all()
+        
+        # Get all regions and campuses
+        regions = Region.query.filter_by(active=True).all()
+        all_campuses = CampusV2.query.filter_by(active=True).all()
+        
+        # Global aggregate statistics
+        total_attendance = sum(r.total_attendance or 0 for r in all_records)
+        total_kids = sum(r.kids_attendance or 0 for r in all_records)
+        total_youth = sum(r.youth_attendance or 0 for r in all_records)
+        total_salvations = sum((r.first_time_christians or 0) + (r.rededications or 0) for r in all_records)
+        total_baptisms = sum(r.baptisms or 0 for r in all_records)
+        total_visitors = sum(r.first_time_visitors or 0 for r in all_records)
+        total_giving = sum(float(r.tithe or 0) for r in all_records)
+        
+        # Calculate global averages
+        week_count = max(1, len(set(r.date for r in all_records)))
+        avg_attendance = total_attendance / week_count if week_count > 0 else 0
+        avg_giving = total_giving / week_count if week_count > 0 else 0
+        
+        # Get region breakdown
+        region_stats = []
+        for region in regions:
+            region_records = [r for r in all_records if r.region_id == region.id]
+            if region_records:
+                region_total = sum(r.total_attendance or 0 for r in region_records)
+                region_giving = sum(float(r.tithe or 0) for r in region_records)
+                region_salvations = sum((r.first_time_christians or 0) + (r.rededications or 0) for r in region_records)
+                region_weeks = len(set(r.date for r in region_records))
+                region_avg = region_total / region_weeks if region_weeks > 0 else 0
+                
+                region_campuses = [c for c in all_campuses if c.region_id == region.id]
+                
+                region_stats.append({
+                    'region_code': region.code,
+                    'region_name': region.display_name,
+                    'total_attendance': region_total,
+                    'avg_weekly_attendance': round(region_avg, 1),
+                    'total_giving': round(region_giving, 2),
+                    'total_salvations': region_salvations,
+                    'campus_count': len(region_campuses),
+                    'record_count': len(region_records)
+                })
+        
+        # Sort regions by total attendance
+        region_stats.sort(key=lambda x: x['total_attendance'], reverse=True)
+        
+        # Build response
+        response = {
+            'date_range': {
+                'start': start_date.isoformat(),
+                'end': end_date.isoformat(),
+                'filter': date_filter
+            },
+            'global_stats': {
+                'total_attendance': total_attendance,
+                'avg_weekly_attendance': round(avg_attendance, 1),
+                'total_kids': total_kids,
+                'total_youth': total_youth,
+                'total_salvations': total_salvations,
+                'total_baptisms': total_baptisms,
+                'total_visitors': total_visitors,
+                'total_giving': round(total_giving, 2),
+                'avg_weekly_giving': round(avg_giving, 2),
+                'week_count': week_count,
+                'total_regions': len(regions),
+                'active_regions': len([r for r in region_stats if r['record_count'] > 0]),
+                'total_campuses': len(all_campuses)
+            },
+            'regions': region_stats,
+            'total_records': len(all_records)
+        }
+        
+        return jsonify(response)
+    
+    except Exception as e:
+        logger.error(f"Global dashboard error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load global dashboard data"}), 500
+
+@app.route('/api/regions', methods=['GET'])
+def get_regions():
+    """Get list of all regions"""
+    try:
+        from models import Region
+        
+        # Get all active regions
+        regions = Region.query.filter_by(active=True).all()
+        
+        return jsonify({
+            'regions': [r.to_dict() for r in regions]
+        })
+    except Exception as e:
+        logger.error(f"Get regions error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load regions"}), 500
+
+@app.route('/api/regions/<region_code>/campuses', methods=['GET'])
+def get_region_campuses(region_code):
+    """Get all campuses in a specific region"""
+    try:
+        from models import Region, CampusV2
+        
+        # Find the region
+        region = Region.query.filter_by(code=region_code.upper()).first()
+        if not region:
+            return jsonify({"error": "Region not found"}), 404
+        
+        # Get campuses
+        campuses = CampusV2.query.filter_by(region_id=region.id, active=True).all()
+        
+        return jsonify({
+            'region': region.to_dict(),
+            'campuses': [c.to_dict() for c in campuses]
+        })
+    except Exception as e:
+        logger.error(f"Get region campuses error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load region campuses"}), 500
+
 @app.route('/api/users/create', methods=['POST'])
 @admin_required
 def create_user_api():
@@ -12554,10 +12863,13 @@ def create_user_api():
             conn.close()
             return jsonify({"error": "Username already exists"}), 400
         
+        # Get region_id from request (optional)
+        region_id = data.get('region_id')
+        
         # Insert new user
         cursor.execute('''
-            INSERT INTO users (username, password_hash, full_name, email, role, campus, active)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (username, password_hash, full_name, email, role, campus, region_id, active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             username,
             generate_password_hash(password),
@@ -12565,13 +12877,14 @@ def create_user_api():
             data.get('email', f"{username}@futures.church").strip() if data.get('email') else f"{username}@futures.church",
             data.get('role', 'campus_pastor'),
             data.get('campus', 'all_campuses'),
+            region_id,
             1
         ))
         
         conn.commit()
         conn.close()
         
-        logger.info(f"Created new user: {username}")
+        logger.info(f"Created new user: {username} with role: {data.get('role')}")
         return jsonify({"success": True, "message": "User created successfully"})
     except Exception as e:
         logger.error(f"Create user API error: {e}", exc_info=True)
@@ -12624,6 +12937,11 @@ def edit_user_api(user_id):
             update_fields.append('campus = ?')
             params.append(data['campus'])
         
+        # Add region_id support
+        if 'region_id' in data:
+            update_fields.append('region_id = ?')
+            params.append(data['region_id'])
+        
         if update_fields:
             params.append(user_id)
             query = f"UPDATE users SET {', '.join(update_fields)} WHERE id = ?"
@@ -12632,7 +12950,7 @@ def edit_user_api(user_id):
         
         conn.close()
         
-        logger.info(f"Updated user ID: {user_id}")
+        logger.info(f"Updated user ID: {user_id}, role: {data.get('role', 'not changed')}")
         return jsonify({"success": True, "message": "User updated successfully"})
     except Exception as e:
         logger.error(f"Edit user API error: {e}", exc_info=True)
@@ -20560,7 +20878,7 @@ def update_resource_category(category_id):
         return jsonify({'error': f'Failed to update resource category: {str(e)}'}), 500
 
 @app.route('/api/resources/categories', methods=['GET'])
-@admin_required_json
+@login_required_json
 def get_resource_categories():
     """Get all resource categories"""
     try:
@@ -20853,7 +21171,7 @@ def google_oauth_callback():
         return jsonify({'error': f'OAuth callback failed: {str(e)}'}), 500
 
 @app.route('/api/resources/<category_id>', methods=['GET'])
-@admin_required_json
+@login_required_json
 def get_resource_category_files(category_id):
     """Get files for a specific resource category"""
     try:

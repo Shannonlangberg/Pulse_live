@@ -2,22 +2,23 @@
 # Defines roles, permissions, and resource access control
 
 roles:
-  admin:
-    name: "Administrator"
-    description: "Full system access and control"
+  superadmin:
+    name: "Super Administrator"
+    description: "Complete system access - Shannon only"
     permissions:
-      # Core system permissions
+      # Core system permissions - EVERYTHING
       users: ["*"]
       campuses: ["*"]
       system: ["*"]
       settings: ["*"]
       
-      # New resources
+      # New resources - FULL ACCESS
       devotions_admin: ["*"]
       groups: ["*"]
       beacons: ["*"]
+      resources: ["*"]
       
-      # Existing resources
+      # Existing resources - FULL ACCESS
       serving: ["*"]
       communications: ["*"]
       prayer_requests: ["*"]
@@ -25,6 +26,31 @@ roles:
       finance: ["*"]
       heartbeat: ["*"]
       passport: ["*"]
+
+  admin:
+    name: "Administrator"
+    description: "Administrative access to core features and management"
+    permissions:
+      # Core system permissions - User/Campus/Resource management
+      users: ["view", "edit", "create", "delete"]
+      campuses: ["view", "edit", "create", "delete"]
+      system: ["view", "edit"]
+      settings: ["view", "edit"]
+      
+      # New resources
+      devotions_admin: ["view", "edit", "publish"]
+      groups: ["view", "edit", "create"]
+      beacons: ["view", "edit", "create", "delete"]
+      resources: ["view", "edit", "create", "delete"]
+      
+      # Existing resources
+      serving: ["view", "edit", "create"]
+      communications: ["view", "edit", "create"]
+      prayer_requests: ["view", "edit"]
+      events: ["view", "edit", "create", "delete"]
+      finance: ["view", "edit", "create"]
+      heartbeat: ["view", "edit"]
+      passport: ["view", "edit"]
 
   senior_leadership:
     name: "Senior Leadership"
@@ -40,6 +66,7 @@ roles:
       devotions_admin: ["*"]
       groups: ["*"]
       beacons: ["*"]
+      resources: ["*"]
       
       # Existing resources - FULL ACCESS
       serving: ["*"]
@@ -61,6 +88,7 @@ roles:
       devotions_admin: ["*"]
       groups: ["*"]
       beacons: ["*"]
+      resources: ["*"]
       serving: ["*"]
       communications: ["*"]
       prayer_requests: ["*"]
@@ -80,6 +108,7 @@ roles:
       devotions_admin: ["*"]
       groups: ["*"]
       beacons: ["*"]
+      resources: ["*"]
       serving: ["*"]
       communications: ["*"]
       prayer_requests: ["*"]
@@ -90,47 +119,78 @@ roles:
 
   campus_pastor:
     name: "Campus Pastor"
-    description: "Campus-specific leadership and management"
+    description: "Campus-specific leadership - Input, Dashboard (their campus), Resources"
     permissions:
-      # Campus-scoped permissions
-      users: ["view", "edit"]
-      campuses: ["view", "edit"]
+      # Campus-scoped permissions - limited to their campus
+      users: ["view"]
+      campuses: ["view"]
+      system: []
+      settings: ["view"]
       
       # New resources - campus-scoped
-      devotions_admin: ["view", "edit", "publish"]
-      groups: ["*"]  # Full access to connect groups
+      devotions_admin: ["view"]
+      groups: ["view", "edit", "create"]  # Access to connect groups for their campus
       beacons: []  # No access
+      resources: ["view"]  # Can view team resources
       
-      # Existing resources
-      serving: ["*"]
-      communications: ["*"]
-      prayer_requests: ["*"]
-      events: ["*"]
-      finance: ["view"]
-      heartbeat: ["*"]
-      passport: ["*"]
+      # Existing resources - campus-scoped
+      serving: ["view", "edit"]
+      communications: ["view"]
+      prayer_requests: ["view", "edit"]
+      events: ["view", "edit"]
+      finance: []  # No finance access
+      heartbeat: ["view", "edit"]
+      passport: ["view"]
 
   staff:
     name: "Staff Member"
-    description: "Church staff with limited administrative access"
+    description: "Basic staff access - Home, Resources, Profile only"
     permissions:
-      # Limited system access
-      users: ["view"]
-      campuses: ["view"]
+      # Very limited system access
+      users: []
+      campuses: []
+      system: []
+      settings: ["view"]  # Only profile
       
-      # New resources - limited access
-      devotions_admin: ["view", "edit"]
-      groups: ["view", "edit"]
-      beacons: []  # No access
+      # New resources - view only
+      devotions_admin: []
+      groups: []
+      beacons: []
+      resources: ["view"]  # Can view team resources
       
-      # Existing resources
-      serving: ["view", "edit"]
-      communications: ["view", "edit"]
-      prayer_requests: ["view", "edit"]
-      events: ["view", "edit"]
+      # Existing resources - minimal access
+      serving: []
+      communications: []
+      prayer_requests: []
+      events: []
       finance: []
-      heartbeat: ["view"]
-      passport: ["view"]
+      heartbeat: []
+      passport: ["view_own"]
+
+  finance:
+    name: "Finance Team"
+    description: "Finance team - Home, Finance Input, Resources, Profile only"
+    permissions:
+      # No system access
+      users: []
+      campuses: ["view"]  # Need to view campuses for finance input
+      system: []
+      settings: ["view"]  # Only profile
+      
+      # New resources
+      devotions_admin: []
+      groups: []
+      beacons: []
+      resources: ["view"]  # Can view team resources
+      
+      # Existing resources - finance only
+      serving: []
+      communications: []
+      prayer_requests: []
+      events: []
+      finance: ["view", "edit", "create"]  # Full finance access
+      heartbeat: []
+      passport: ["view_own"]
 
   dream_team_leader:
     name: "Dream Team Leader"
@@ -144,6 +204,7 @@ roles:
       devotions_admin: ["view"]
       groups: ["view"]
       beacons: []
+      resources: ["view"]  # Can view team resources
       
       # Existing resources
       serving: ["view", "edit"]
@@ -166,6 +227,7 @@ roles:
       devotions_admin: []
       groups: ["view_self_groups"]
       beacons: []
+      resources: ["view"]  # Can view team resources
       
       # Existing resources
       serving: ["view_self"]
@@ -188,6 +250,7 @@ roles:
       devotions_admin: []
       groups: ["view_own_groups", "edit_own_groups"]  # Can view and edit their own groups
       beacons: []
+      resources: ["view"]  # Can view team resources
       
       # Existing resources
       serving: []
@@ -220,6 +283,11 @@ resources:
     description: "Manage Bluetooth beacons and zones"
     actions: ["view", "edit", "create", "delete", "assign"]
 
+  resources:
+    name: "Team Resources"
+    description: "Access team documents, templates, and media files"
+    actions: ["view"]
+
   heartbeat:
     name: "Heartbeat"
     description: "View and manage engagement health dashboards"
@@ -238,6 +306,7 @@ campus_scoping:
   
   # Roles that can see all campuses
   cross_campus_roles:
+    - "superadmin"
     - "admin"
     - "senior_leadership"
     - "senior_pastor"
@@ -262,6 +331,7 @@ region_scoping:
   
   # Roles that can see ALL regions (global access)
   global_roles:
+    - "superadmin"
     - "admin"
     - "senior_leadership"
     - "senior_pastor"

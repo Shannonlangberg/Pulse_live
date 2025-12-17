@@ -106,7 +106,7 @@ const Resources = () => {
       if (response.status === 403) {
         const payload = await response.json().catch(() => ({}));
         setCategories([]);
-        setCategoriesError(payload.error || 'You do not have access to view resources. Admin access required.');
+        setCategoriesError(payload.error || 'You do not have access to view resources.');
         return;
       }
 
