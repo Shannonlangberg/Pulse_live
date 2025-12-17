@@ -16,20 +16,20 @@ const MAIN_SECTIONS = {
     name: 'Home',
     icon: HomeIcon,
     href: '/',
-    roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance']
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance']
   },
   portal: {
     id: 'portal',
     name: 'Portal',
     icon: Squares2X2Icon,
-    roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'finance'],
     hasSubPages: true
   },
   settings: {
     id: 'settings',
     name: 'Settings',
     icon: Cog6ToothIcon,
-    roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
     hasSubPages: true
   }
 };
@@ -58,7 +58,8 @@ const EnhancedNavigation = ({
                path.startsWith('/campuses') || path.startsWith('/profile') || 
                path.startsWith('/beacons') || path.startsWith('/resources/manage') ||
                path.startsWith('/tv/manage') || path.startsWith('/events/manage') ||
-               path.startsWith('/notifications') || path.startsWith('/export')) {
+               path.startsWith('/notifications') || path.startsWith('/export') ||
+               path.startsWith('/homepage-manager')) {
       setActiveSection('settings');
     }
   }, [location.pathname, setActiveSection]);

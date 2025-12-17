@@ -24713,6 +24713,217 @@ def get_attendance_patterns():
         return jsonify({'error': 'Failed to fetch attendance patterns'}), 500
 
 
+# ===================================
+# HOMEPAGE MESSAGES ENDPOINTS
+# ===================================
+
+@app.route('/api/homepage-messages', methods=['GET'])
+@login_required_json
+def get_homepage_messages():
+    """Get active homepage messages for the current user's region"""
+    try:
+        user_region = getattr(current_user, 'region_code', 'AU')
+        
+        # Query active messages for the user's region, ordered by display_order
+        messages = db.session.execute(text("""
+            SELECT id, heading, message, region_code, display_order, created_at
+            FROM homepage_messages
+            WHERE is_active = 1 AND region_code = :region_code
+            ORDER BY display_order ASC, created_at DESC
+        """), {'region_code': user_region}).fetchall()
+        
+        result = []
+        for msg in messages:
+            result.append({
+                'id': msg[0],
+                'heading': msg[1],
+                'message': msg[2],
+                'region_code': msg[3],
+                'display_order': msg[4],
+                'created_at': msg[5]
+            })
+        
+        return jsonify({'messages': result})
+        
+    except Exception as e:
+        logger.error(f"Error fetching homepage messages: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to fetch homepage messages'}), 500
+
+
+@app.route('/api/homepage-messages/all', methods=['GET'])
+@login_required_json
+def get_all_homepage_messages():
+    """Get all homepage messages (admin only)"""
+    try:
+        # Check if user is admin or super_admin
+        if not current_user.has_permission('manage_settings'):
+            return jsonify({'error': 'Insufficient permissions'}), 403
+        
+        # Query all messages
+        messages = db.session.execute(text("""
+            SELECT id, heading, message, region_code, is_active, display_order, created_at, created_by
+            FROM homepage_messages
+            ORDER BY region_code ASC, display_order ASC, created_at DESC
+        """)).fetchall()
+        
+        result = []
+        for msg in messages:
+            result.append({
+                'id': msg[0],
+                'heading': msg[1],
+                'message': msg[2],
+                'region_code': msg[3],
+                'is_active': bool(msg[4]),
+                'display_order': msg[5],
+                'created_at': msg[6],
+                'created_by': msg[7]
+            })
+        
+        return jsonify({'messages': result})
+        
+    except Exception as e:
+        logger.error(f"Error fetching all homepage messages: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to fetch homepage messages'}), 500
+
+
+@app.route('/api/homepage-messages', methods=['POST'])
+@login_required_json
+def create_homepage_message():
+    """Create a new homepage message (admin only)"""
+    try:
+        # Check if user is admin or super_admin
+        if not current_user.has_permission('manage_settings'):
+            return jsonify({'error': 'Insufficient permissions'}), 403
+        
+        data = request.get_json()
+        heading = data.get('heading', '').strip()
+        message = data.get('message', '').strip()
+        region_code = data.get('region_code', 'AU')
+        is_active = data.get('is_active', True)
+        display_order = data.get('display_order', 0)
+        
+        if not heading or not message:
+            return jsonify({'error': 'Heading and message are required'}), 400
+        
+        # Insert the message
+        result = db.session.execute(text("""
+            INSERT INTO homepage_messages (heading, message, region_code, is_active, display_order, created_by)
+            VALUES (:heading, :message, :region_code, :is_active, :display_order, :created_by)
+        """), {
+            'heading': heading,
+            'message': message,
+            'region_code': region_code,
+            'is_active': is_active,
+            'display_order': display_order,
+            'created_by': current_user.username
+        })
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Homepage message created successfully',
+            'id': result.lastrowid
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating homepage message: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to create homepage message'}), 500
+
+
+@app.route('/api/homepage-messages/<int:message_id>', methods=['PUT'])
+@login_required_json
+def update_homepage_message(message_id):
+    """Update an existing homepage message (admin only)"""
+    try:
+        # Check if user is admin or super_admin
+        if not current_user.has_permission('manage_settings'):
+            return jsonify({'error': 'Insufficient permissions'}), 403
+        
+        data = request.get_json()
+        heading = data.get('heading', '').strip()
+        message = data.get('message', '').strip()
+        region_code = data.get('region_code')
+        is_active = data.get('is_active')
+        display_order = data.get('display_order')
+        
+        # Build update query dynamically based on provided fields
+        update_parts = []
+        params = {'message_id': message_id}
+        
+        if heading:
+            update_parts.append("heading = :heading")
+            params['heading'] = heading
+        if message:
+            update_parts.append("message = :message")
+            params['message'] = message
+        if region_code is not None:
+            update_parts.append("region_code = :region_code")
+            params['region_code'] = region_code
+        if is_active is not None:
+            update_parts.append("is_active = :is_active")
+            params['is_active'] = is_active
+        if display_order is not None:
+            update_parts.append("display_order = :display_order")
+            params['display_order'] = display_order
+        
+        if not update_parts:
+            return jsonify({'error': 'No fields to update'}), 400
+        
+        update_parts.append("updated_at = CURRENT_TIMESTAMP")
+        
+        query = f"""
+            UPDATE homepage_messages
+            SET {', '.join(update_parts)}
+            WHERE id = :message_id
+        """
+        
+        result = db.session.execute(text(query), params)
+        db.session.commit()
+        
+        if result.rowcount == 0:
+            return jsonify({'error': 'Message not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'Homepage message updated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating homepage message: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to update homepage message'}), 500
+
+
+@app.route('/api/homepage-messages/<int:message_id>', methods=['DELETE'])
+@login_required_json
+def delete_homepage_message(message_id):
+    """Delete a homepage message (admin only)"""
+    try:
+        # Check if user is admin or super_admin
+        if not current_user.has_permission('manage_settings'):
+            return jsonify({'error': 'Insufficient permissions'}), 403
+        
+        result = db.session.execute(text("""
+            DELETE FROM homepage_messages
+            WHERE id = :message_id
+        """), {'message_id': message_id})
+        db.session.commit()
+        
+        if result.rowcount == 0:
+            return jsonify({'error': 'Message not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'Homepage message deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting homepage message: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to delete homepage message'}), 500
+
+
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5002))

@@ -49,6 +49,7 @@ import EmailEditor from './pages/EmailEditor';
 import ViewEmail from './pages/ViewEmail';
 import DevotionsAdmin from './pages/DevotionsAdmin';
 import DevotionPlanManager from './pages/DevotionPlanManager';
+import HomepageManager from './pages/HomepageManager';
 
 const RESOURCE_ALLOWED_ROLES = ['admin'];
 
@@ -425,6 +426,7 @@ function App() {
                   <Route path="/devotions" element={<DevotionsAdmin />} />
                   <Route path="/devotions/plans" element={<DevotionPlanManager />} />
                   <Route path="/devotions/plans/:planId" element={<DevotionPlanManager />} />
+                  <Route path="/homepage-manager" element={<HomepageManager />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </MainLayout>

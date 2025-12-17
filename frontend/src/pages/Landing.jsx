@@ -39,6 +39,8 @@ const Landing = () => {
   const [sessionLoading, setSessionLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [homepageMessages, setHomepageMessages] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState(true);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -87,8 +89,26 @@ const Landing = () => {
       }
     };
 
+    const fetchHomepageMessages = async () => {
+      setMessagesLoading(true);
+      try {
+        const response = await fetch('/api/homepage-messages', { credentials: 'include' });
+        if (!response.ok) {
+          throw new Error('Homepage messages fetch failed');
+        }
+        const data = await response.json();
+        setHomepageMessages(data.messages || []);
+      } catch (error) {
+        console.error('Unable to load homepage messages:', error);
+        setHomepageMessages([]);
+      } finally {
+        setMessagesLoading(false);
+      }
+    };
+
     fetchSession();
     fetchCategoryPreview();
+    fetchHomepageMessages();
   }, []);
 
   const navigate = useNavigate();
@@ -218,6 +238,28 @@ const Landing = () => {
               </div>
             </div>
           </header>
+
+          {/* Homepage Messages Section */}
+          {!messagesLoading && homepageMessages.length > 0 && (
+            <section className="space-y-4">
+              {homepageMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className="bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-pink-600/20 border border-white/20 rounded-2xl p-6 backdrop-blur-sm shadow-xl"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/30 to-purple-500/30 flex items-center justify-center flex-shrink-0">
+                      <MegaphoneIcon className="h-6 w-6 text-blue-200" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-white mb-2">{msg.heading}</h3>
+                      <p className="text-white/80 leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </section>
+          )}
 
           {/* Quick Actions Section */}
           {quickActions.length > 0 && (
