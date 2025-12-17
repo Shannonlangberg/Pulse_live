@@ -1145,13 +1145,19 @@ def run_migrations():
                 with open(migration_path, 'r') as f:
                     migration_sql = f.read()
                 
-                # Execute the migration
-                # For ALTER TABLE ADD COLUMN, SQLite will fail if column exists
-                # We'll catch that specific error and continue
+                # Execute the migration using executescript to properly handle triggers
                 migration_succeeded = False
                 try:
-                    # Split SQL into individual statements and execute one at a time
-                    # This allows us to skip statements that fail due to existing columns
+                    # Use executescript to execute all statements in the migration file
+                    # This properly handles triggers with embedded semicolons
+                    cursor.executescript(migration_sql)
+                    conn.commit()
+                    migration_succeeded = True
+                    logger.info(f"Migration {migration_file}: All statements executed successfully")
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    # Try fallback: split and execute one at a time for better error handling
+                    logger.warning(f"Migration {migration_file}: executescript failed ({error_msg[:100]}), trying statement-by-statement...")
                     statements = [s.strip() for s in migration_sql.split(';') if s.strip() and not s.strip().startswith('--')]
                     
                     for statement in statements:
@@ -1198,21 +1204,10 @@ def run_migrations():
                                 conn.commit()  # Commit anyway and continue
                                 continue
                     
+                    # If we get here, statement-by-statement execution completed
                     conn.commit()
                     migration_succeeded = True
-                except Exception as e:
-                    error_msg = str(e).lower()
-                    # If column already exists, that's okay - skip it
-                    if 'duplicate column' in error_msg or 'already exists' in error_msg or 'duplicate column name' in error_msg:
-                        logger.info(f"Migration {migration_file}: Column already exists, skipping")
-                        conn.rollback()
-                        migration_succeeded = True  # Consider it successful since column exists
-                    else:
-                        # Other operational errors should be raised
-                        logger.error(f"Migration {migration_file} failed with error: {e}")
-                        conn.rollback()
-                        # Don't raise - allow app to continue
-                        migration_succeeded = False
+                    logger.info(f"Migration {migration_file}: Statement-by-statement execution completed")
                 
                 # Mark migration as applied (only if we got here without error)
                 if migration_succeeded:
