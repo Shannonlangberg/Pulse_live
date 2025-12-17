@@ -74,6 +74,13 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       featureKey: 'user_management'
     },
     { 
+      name: 'Homepage Manager', 
+      href: '/homepage-manager', 
+      icon: MegaphoneIcon, 
+      roles: ['superadmin', 'admin'],
+      featureKey: null
+    },
+    { 
       name: 'Campuses', 
       href: '/campuses', 
       icon: BuildingOfficeIcon, 
@@ -114,13 +121,6 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       icon: BellIcon, 
       roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
       featureKey: 'notifications'
-    },
-    { 
-      name: 'Homepage Manager', 
-      href: '/homepage-manager', 
-      icon: MegaphoneIcon, 
-      roles: ['superadmin', 'admin'],
-      featureKey: null
     }
   ];
 
