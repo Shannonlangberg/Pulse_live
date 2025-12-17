@@ -985,6 +985,7 @@ def get_db():
 def run_migrations():
     """Run SQL migrations on startup"""
     import sqlite3
+    import os
     try:
         # Determine which database to use for migrations
         # Use the same database as SQLAlchemy - CRITICAL!
@@ -1111,7 +1112,6 @@ def run_migrations():
             conn.close()
             
             # Delete the corrupted database file
-            import os
             if os.path.exists(db_path):
                 os.remove(db_path)
                 logger.warning(f"⚠️ Deleted corrupted database: {db_path}")
