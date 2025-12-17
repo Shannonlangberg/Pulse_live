@@ -433,29 +433,32 @@ def initialize_from_railway_base64():
         
         sheet_name = os.getenv("GOOGLE_SHEET_NAME", "Stats")
         print(f"[DEBUG] Railway Base64: Opening spreadsheet '{sheet_name}'")
-    
-    # Open the main Google Sheet file
-    spreadsheet = client.open(sheet_name)
-    print(f"[DEBUG] Railway Base64: Spreadsheet opened successfully")
-    print(f"[DEBUG] Railway Base64: Available worksheets: {[ws.title for ws in spreadsheet.worksheets()]}")
-    
-    # Open the Stats worksheet
-    sheet = spreadsheet.worksheet("Stats")
-    print(f"[DEBUG] Railway Base64: Successfully opened 'Stats' worksheet")
-    
-    # Try to open the Tithe tab
-    try:
-        finance_sheet = spreadsheet.worksheet("Tithe")
-        print(f"[DEBUG] Railway Base64: Successfully opened 'Tithe' worksheet")
-    except Exception as e:
+        
+        # Open the main Google Sheet file
+        spreadsheet = client.open(sheet_name)
+        print(f"[DEBUG] Railway Base64: Spreadsheet opened successfully")
+        print(f"[DEBUG] Railway Base64: Available worksheets: {[ws.title for ws in spreadsheet.worksheets()]}")
+        
+        # Open the Stats worksheet
+        sheet = spreadsheet.worksheet("Stats")
+        print(f"[DEBUG] Railway Base64: Successfully opened 'Stats' worksheet")
+        
+        # Try to open the Tithe tab
         try:
-            finance_sheet = spreadsheet.worksheet("tithe")
-            print(f"[DEBUG] Railway Base64: Successfully opened 'tithe' worksheet")
-        except Exception as e2:
-            print(f"[WARNING] Railway Base64: Could not open Tithe worksheet: {e2}")
-            finance_sheet = None
-    
-    return True
+            finance_sheet = spreadsheet.worksheet("Tithe")
+            print(f"[DEBUG] Railway Base64: Successfully opened 'Tithe' worksheet")
+        except Exception as e:
+            try:
+                finance_sheet = spreadsheet.worksheet("tithe")
+                print(f"[DEBUG] Railway Base64: Successfully opened 'tithe' worksheet")
+            except Exception as e2:
+                print(f"[WARNING] Railway Base64: Could not open Tithe worksheet: {e2}")
+                finance_sheet = None
+        
+        return True
+    except Exception as e:
+        print(f"[ERROR] Railway Base64 initialization failed: {e}")
+        raise
 
 def initialize_from_railway():
     """Initialize from Railway environment variables"""
