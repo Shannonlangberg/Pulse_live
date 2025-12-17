@@ -19064,8 +19064,9 @@ def get_passport_data(person_email):
 # ============================================================================
 
 # PRAYER REQUEST SYSTEM ROUTES
-from prayer_api import prayer_bp
-app.register_blueprint(prayer_bp)
+# NOT IN PULSE V1 - Commented out for production
+# from prayer_api import prayer_bp
+# app.register_blueprint(prayer_bp)
 
 # Prayer submission page route
 @app.route('/prayer/link/<link_id>')
@@ -19074,9 +19075,10 @@ def prayer_submission_page(link_id):
     from flask import send_from_directory
     return send_from_directory('static', 'prayer-submit.html')
 
-# SERVING MODULE ROUTES
-from serving_api import serving_bp
-app.register_blueprint(serving_bp)
+# SERVING MODULE ROUTES  
+# NOT IN PULSE V1 - Commented out for production
+# from serving_api import serving_bp
+# app.register_blueprint(serving_bp)
 
 # BEACON MANAGEMENT ROUTES (Bluetooth beacon management)
 try:
