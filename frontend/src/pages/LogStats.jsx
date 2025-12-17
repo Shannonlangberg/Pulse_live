@@ -86,22 +86,31 @@ const LogStats = () => {
 
   useEffect(() => {
     // Load regions
+    console.log('[LogStats] Loading regions...');
     fetch('/api/v2/regions', {
       credentials: 'include'
     })
-      .then(res => res.json())
+      .then(res => {
+        console.log('[LogStats] Regions response status:', res.status);
+        return res.json();
+      })
       .then(data => {
+        console.log('[LogStats] Regions data:', data);
         if (data.regions) {
           const activeRegions = data.regions.filter(r => r.active);
+          console.log('[LogStats] Active regions:', activeRegions);
           setRegions(activeRegions);
           // Set default region to Australia
           if (activeRegions.length > 0) {
             const defaultRegion = activeRegions.find(r => r.code === 'AU') || activeRegions[0];
             setSelectedRegion(defaultRegion.code);
+            console.log('[LogStats] Default region set to:', defaultRegion.code);
           }
+        } else {
+          console.error('[LogStats] No regions in response');
         }
       })
-      .catch(err => console.error('Error loading regions:', err));
+      .catch(err => console.error('[LogStats] Error loading regions:', err));
 
     // Load campuses
     fetch('/api/campuses', {
@@ -429,11 +438,15 @@ const LogStats = () => {
                     onChange={(e) => setSelectedRegion(e.target.value)}
                     className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm"
                   >
-                    {regions.map(region => (
-                      <option key={region.code} value={region.code}>
-                        {region.display_name}
-                      </option>
-                    ))}
+                    {regions.length === 0 ? (
+                      <option value="">Loading...</option>
+                    ) : (
+                      regions.map(region => (
+                        <option key={region.code} value={region.code} className="bg-slate-800">
+                          {region.display_name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -583,12 +596,19 @@ const LogStats = () => {
                     onChange={(e) => setSelectedRegion(e.target.value)}
                     className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm"
                   >
-                    {regions.map(region => (
-                      <option key={region.code} value={region.code}>
-                        {region.code === 'AU' ? '🇦🇺' : region.code === 'US' ? '🇺🇸' : region.code === 'BR' ? '🇧🇷' : region.code === 'ID' ? '🇮🇩' : '🌏'} {region.display_name}
-                      </option>
-                    ))}
+                    {regions.length === 0 ? (
+                      <option value="">Loading regions...</option>
+                    ) : (
+                      regions.map(region => (
+                        <option key={region.code} value={region.code} className="bg-slate-800">
+                          {region.code === 'AU' ? '🇦🇺' : region.code === 'US' ? '🇺🇸' : region.code === 'BR' ? '🇧🇷' : region.code === 'ID' ? '🇮🇩' : '🌏'} {region.display_name}
+                        </option>
+                      ))
+                    )}
                   </select>
+                  {regions.length === 0 && (
+                    <p className="mt-2 text-xs text-red-400">⚠️ Regions not loading. Check console.</p>
+                  )}
                 </div>
 
                 <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
