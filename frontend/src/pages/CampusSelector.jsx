@@ -58,6 +58,36 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
     fetchCampuses();
   }, []);
 
+  const fetchSubmissionStatus = async () => {
+    if (!selectedRegion) {
+      console.warn('Cannot fetch submission status: No region selected');
+      return;
+    }
+    
+    try {
+      setLoadingStatus(true);
+      // Add region parameter - works for ALL regions (AU, US, ID, BR)
+      const response = await fetch(`/api/weekly-submission-status?region=${selectedRegion.code}&_t=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-cache'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Submission status fetched:', data); // Debug log
+        setSubmissionStatus(data);
+      } else {
+        console.error('Failed to fetch submission status:', response.status, response.statusText);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Error details:', errorData);
+      }
+    } catch (error) {
+      console.error('Error fetching submission status:', error);
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
+
   // Fetch submission status when ANY region is selected (works for ALL regions!)
   useEffect(() => {
     if (selectedRegion && canSeeTracker) {
@@ -71,25 +101,6 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
       return () => clearInterval(interval);
     }
   }, [selectedRegion, canSeeTracker]);
-
-  const fetchSubmissionStatus = async () => {
-    try {
-      setLoadingStatus(true);
-      // Add region parameter - works for ALL regions (AU, US, ID, BR)
-      const response = await fetch(`/api/weekly-submission-status?region=${selectedRegion.code}&_t=${Date.now()}`, {
-        credentials: 'include',
-        cache: 'no-cache'
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSubmissionStatus(data);
-      }
-    } catch (error) {
-      console.error('Error fetching submission status:', error);
-    } finally {
-      setLoadingStatus(false);
-    }
-  };
 
   const fetchRegions = async () => {
     try {

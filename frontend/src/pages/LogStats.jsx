@@ -3,8 +3,11 @@ import { PlusIcon, CalendarIcon, XMarkIcon, PencilIcon } from '@heroicons/react/
 import DynamicBackground from '../components/DynamicBackground';
 
 const LogStats = () => {
+  const [selectedRegion, setSelectedRegion] = useState('');
+  const [regions, setRegions] = useState([]);
   const [selectedCampus, setSelectedCampus] = useState('');
   const [campuses, setCampuses] = useState([]);
+  const [allCampuses, setAllCampuses] = useState([]); // Store all campuses
   const [showQuickInput, setShowQuickInput] = useState(false);
   const [quickInputDate, setQuickInputDate] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
@@ -384,6 +387,23 @@ const LogStats = () => {
                 <p className="text-slate-300 text-base">Enter your church statistics quickly and efficiently</p>
               </div>
               <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                {/* Region Selector */}
+                <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                  <span className="text-sm text-slate-300 font-medium">Region:</span>
+                  <select
+                    value={selectedRegion}
+                    onChange={(e) => setSelectedRegion(e.target.value)}
+                    className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm"
+                  >
+                    {regions.map(region => (
+                      <option key={region.code} value={region.code}>
+                        {region.display_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Campus Selector */}
                 <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
                   <span className="text-sm text-slate-300 font-medium">Campus:</span>
                   <select
@@ -391,11 +411,15 @@ const LogStats = () => {
                     onChange={(e) => setSelectedCampus(e.target.value)}
                     className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                   >
-                    {campuses.map(campus => (
-                      <option key={campus.id} value={campus.id}>
-                        {campus.name}
-                      </option>
-                    ))}
+                    {campuses.length === 0 ? (
+                      <option value="">No campuses in this region</option>
+                    ) : (
+                      campuses.map(campus => (
+                        <option key={campus.id} value={campus.id}>
+                          {campus.name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
               </div>
@@ -514,8 +538,25 @@ const LogStats = () => {
                 </button>
               </div>
               
-              {/* Campus & Date Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {/* Region, Campus & Date Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30">
+                  <label className="block text-sm font-semibold text-white mb-3">
+                    Region
+                  </label>
+                  <select
+                    value={selectedRegion}
+                    onChange={(e) => setSelectedRegion(e.target.value)}
+                    className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm"
+                  >
+                    {regions.map(region => (
+                      <option key={region.code} value={region.code}>
+                        {region.code === 'AU' ? '🇦🇺' : region.code === 'US' ? '🇺🇸' : region.code === 'BR' ? '🇧🇷' : region.code === 'ID' ? '🇮🇩' : '🌏'} {region.display_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
                   <label className="block text-sm font-semibold text-white mb-3">
                     Campus
@@ -525,11 +566,15 @@ const LogStats = () => {
                     onChange={(e) => setSelectedCampus(e.target.value)}
                     className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                   >
-                    {campuses.map(campus => (
-                      <option key={campus.id} value={campus.id}>
-                        {campus.name}
-                      </option>
-                    ))}
+                    {campuses.length === 0 ? (
+                      <option value="">No campuses in this region</option>
+                    ) : (
+                      campuses.map(campus => (
+                        <option key={campus.id} value={campus.id}>
+                          {campus.name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
                 
