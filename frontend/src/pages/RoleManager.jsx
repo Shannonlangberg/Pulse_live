@@ -78,6 +78,7 @@ const RoleManager = () => {
     { key: 'user_management', label: 'User Management', icon: '👤' },
     { key: 'campus_management', label: 'Campus Management', icon: '🏢' },
     { key: 'region_access', label: 'Region Access Control', icon: '🌍' },
+    { key: 'homepage_manager', label: 'Homepage Manager', icon: '📢' },
     { key: 'beacon_management', label: 'Beacon Management', icon: '📡' },
     { key: 'pathway_manager', label: 'Journey Manager', icon: '🛤️' },
     { key: 'resource_manager', label: 'Resource Manager', icon: '📦' },
@@ -96,7 +97,7 @@ const RoleManager = () => {
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
       data_export: true, user_management: true, campus_management: true,
-      region_access: true, beacon_management: true, pathway_manager: true, resource_manager: true,
+      region_access: true, homepage_manager: true, beacon_management: true, pathway_manager: true, resource_manager: true,
       tv_manager: true, events_manager: true, notifications: true
     },
     'admin': {
@@ -105,7 +106,7 @@ const RoleManager = () => {
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
       data_export: true, user_management: true, campus_management: true,
-      region_access: true, beacon_management: true, pathway_manager: true, resource_manager: true,
+      region_access: true, homepage_manager: true, beacon_management: true, pathway_manager: true, resource_manager: true,
       tv_manager: true, events_manager: true, notifications: true
     },
     'senior_leadership': {
@@ -123,7 +124,7 @@ const RoleManager = () => {
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
       data_export: true, user_management: true, campus_management: true,
-      beacon_management: true, pathway_manager: true, resource_manager: true,
+      homepage_manager: false, beacon_management: true, pathway_manager: true, resource_manager: true,
       tv_manager: true, events_manager: true, notifications: true
     },
     'senior_pastor': {
@@ -150,7 +151,7 @@ const RoleManager = () => {
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
       data_export: false, user_management: false, campus_management: false,
-      beacon_management: false, pathway_manager: false, resource_manager: false,
+      homepage_manager: false, beacon_management: false, pathway_manager: false, resource_manager: false,
       tv_manager: false, events_manager: false, notifications: false
     },
     'pastor': {
@@ -177,7 +178,7 @@ const RoleManager = () => {
       resources: true, pulse_tv: false, events: false, serving: false,
       communication: false, devotions: false,
       data_export: false, user_management: false, campus_management: false,
-      beacon_management: false, pathway_manager: false, resource_manager: false,
+      homepage_manager: false, beacon_management: false, pathway_manager: false, resource_manager: false,
       tv_manager: false, events_manager: false, notifications: false
     },
     'connect_group_leader': {
@@ -732,12 +733,42 @@ const RoleManager = () => {
                                     return (
                                       <button
                                         key={region.code}
-                                        className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                                        onClick={async () => {
+                                          if (isSelected) return; // Already selected
+                                          
+                                          try {
+                                            const response = await fetch(`/api/users/${user.id}`, {
+                                              method: 'PUT',
+                                              headers: {
+                                                'Content-Type': 'application/json'
+                                              },
+                                              credentials: 'include',
+                                              body: JSON.stringify({
+                                                region_code: region.code
+                                              })
+                                            });
+                                            
+                                            if (response.ok) {
+                                              // Reload users to reflect the change
+                                              await loadUsers();
+                                              setSuccess(`Updated ${user.full_name || user.username}'s region to ${region.name}`);
+                                              setTimeout(() => setSuccess(''), 3000);
+                                            } else {
+                                              setError(`Failed to update region: ${response.statusText}`);
+                                              setTimeout(() => setError(''), 3000);
+                                            }
+                                          } catch (err) {
+                                            console.error('Error updating region:', err);
+                                            setError('Failed to update region');
+                                            setTimeout(() => setError(''), 3000);
+                                          }
+                                        }}
+                                        className={`px-4 py-2 rounded-lg border-2 transition-all cursor-pointer ${
                                           isSelected
-                                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/50 hover:bg-blue-500/30'
-                                            : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-slate-700/70'
+                                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/50'
+                                            : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-slate-700/70 hover:border-blue-400/30'
                                         }`}
-                                        title={`Region: ${region.name}`}
+                                        title={isSelected ? `Current region: ${region.name}` : `Click to change to ${region.name}`}
                                       >
                                         <div className="flex items-center gap-2">
                                           {isSelected && <CheckIcon className="w-4 h-4" />}
@@ -749,7 +780,7 @@ const RoleManager = () => {
                                 </div>
                               )}
                               <div className="mt-3 text-xs text-slate-400">
-                                <span className="text-blue-400">ℹ️</span> To change a user's region, edit them in the User Management page.
+                                <span className="text-blue-400">💡</span> Click a region to assign the user to it. This determines their regional data access.
                               </div>
                             </div>
                             
