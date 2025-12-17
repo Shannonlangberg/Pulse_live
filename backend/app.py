@@ -9194,6 +9194,39 @@ def session_info():
             # Admin users need Drive auth if not authenticated or token expired
             needs_drive_auth = not (drive_authenticated and token_valid)
         
+        # Load feature flags from environment variables
+        feature_flags = {
+            'home': True,  # Always enabled
+            'dashboard': True,  # Always enabled
+            'input': True,  # Weekly Input - always enabled for Pulse v1
+            'resources': True,  # Always enabled for Pulse v1
+            'user_management': True,  # Always enabled for Pulse v1
+            'campus_management': True,  # Always enabled for Pulse v1
+            'resource_manager': True,  # Always enabled for Pulse v1
+            # Optional features - controlled by environment variables
+            'pulse_tv': os.getenv('PULSE_TV_ENABLED', 'false').lower() == 'true',
+            'tv_manager': os.getenv('PULSE_TV_ENABLED', 'false').lower() == 'true',
+            'events': os.getenv('EVENTS_ENABLED', 'false').lower() == 'true',
+            'events_manager': os.getenv('EVENTS_ENABLED', 'false').lower() == 'true',
+            'devotions': os.getenv('DEVOTIONS_ENABLED', 'false').lower() == 'true',
+            'pathway_manager': os.getenv('PATHWAYS_ENABLED', 'false').lower() == 'true',
+            'serving': os.getenv('SERVING_ENABLED', 'false').lower() == 'true',
+            'prayer': os.getenv('PRAYER_ENABLED', 'false').lower() == 'true',
+            'people': os.getenv('PEOPLE_ENABLED', 'false').lower() == 'true',
+            'connect_groups': os.getenv('GROUPS_FOR_STAFF_ENABLED', 'false').lower() == 'true',
+            'giving': os.getenv('GIVING_ENABLED', 'false').lower() == 'true',
+            'finance': os.getenv('FINANCE_ENABLED', 'false').lower() == 'true',
+            'communication': os.getenv('COMMUNICATION_ENABLED', 'false').lower() == 'true',
+            'notifications': os.getenv('NOTIFICATIONS_ENABLED', 'false').lower() == 'true',
+            'data_export': os.getenv('DATA_EXPORT_ENABLED', 'false').lower() == 'true',
+            'beacon_management': os.getenv('BEACON_MGMT_ENABLED', 'false').lower() == 'true',
+        }
+        
+        # Merge with user's custom permissions (user permissions override feature flags)
+        user_custom_perms = getattr(current_user, 'custom_permissions', {})
+        if user_custom_perms:
+            feature_flags.update(user_custom_perms)
+        
         response = jsonify({
             "authenticated": True,
             "user": current_user.username,
@@ -9201,7 +9234,7 @@ def session_info():
             "role": current_user.role,
             "campus": current_user.campus,
             "full_name": current_user.full_name,
-            "custom_permissions": getattr(current_user, 'custom_permissions', {}),
+            "custom_permissions": feature_flags,
             "needs_drive_auth": needs_drive_auth,
             "drive_status": drive_status,  # Debug info
             "user_id": current_user.id,  # Debug info
