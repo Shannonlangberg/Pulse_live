@@ -12801,44 +12801,6 @@ def get_global_dashboard_data():
         logger.error(f"Global dashboard error: {e}", exc_info=True)
         return jsonify({"error": "Failed to load global dashboard data"}), 500
 
-@app.route('/api/regions', methods=['GET'])
-def get_regions():
-    """Get list of all regions"""
-    try:
-        from models import Region
-        
-        # Get all active regions
-        regions = Region.query.filter_by(active=True).all()
-        
-        return jsonify({
-            'regions': [r.to_dict() for r in regions]
-        })
-    except Exception as e:
-        logger.error(f"Get regions error: {e}", exc_info=True)
-        return jsonify({"error": "Failed to load regions"}), 500
-
-@app.route('/api/regions/<region_code>/campuses', methods=['GET'])
-def get_region_campuses(region_code):
-    """Get all campuses in a specific region"""
-    try:
-        from models import Region, CampusV2
-        
-        # Find the region
-        region = Region.query.filter_by(code=region_code.upper()).first()
-        if not region:
-            return jsonify({"error": "Region not found"}), 404
-        
-        # Get campuses
-        campuses = CampusV2.query.filter_by(region_id=region.id, active=True).all()
-        
-        return jsonify({
-            'region': region.to_dict(),
-            'campuses': [c.to_dict() for c in campuses]
-        })
-    except Exception as e:
-        logger.error(f"Get region campuses error: {e}", exc_info=True)
-        return jsonify({"error": "Failed to load region campuses"}), 500
-
 @app.route('/api/users/create', methods=['POST'])
 @admin_required
 def create_user_api():

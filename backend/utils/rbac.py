@@ -114,6 +114,25 @@ class RBACManager:
         """Check if a user role can see data from all campuses"""
         cross_campus_roles = self.campus_scoping.get('cross_campus_roles', [])
         return user_role in cross_campus_roles
+    
+    def is_region_scoped(self, resource: str) -> bool:
+        """Check if a resource should be region-scoped"""
+        region_scoping = self.config.get('region_scoping', {})
+        if not region_scoping.get('enabled'):
+            return False
+        
+        return resource in region_scoping.get('resources', [])
+    
+    def can_cross_region(self, user_role: str) -> bool:
+        """Check if a user role can see data from all regions (global access)"""
+        region_scoping = self.config.get('region_scoping', {})
+        global_roles = region_scoping.get('global_roles', [])
+        return user_role in global_roles
+    
+    def get_region_leader_permissions(self) -> Dict[str, List[str]]:
+        """Get permissions for region_leader role"""
+        region_scoping = self.config.get('region_scoping', {})
+        return region_scoping.get('region_leader', {}).get('permissions', {})
 
 # Global RBAC manager instance
 rbac_manager = RBACManager()
@@ -179,6 +198,7 @@ def get_user_context():
     return {
         'role': getattr(g, 'user_role', 'member'),
         'campus': getattr(g, 'user_campus', None),
+        'region_id': getattr(g, 'user_region_id', None),
         'user_id': getattr(g, 'user_id', None)
     }
 
@@ -227,3 +247,71 @@ def can_delete_resource(user_role: str, resource: str) -> bool:
 def can_manage_resource(user_role: str, resource: str) -> bool:
     """Check if user has full management access to a resource"""
     return rbac_manager.has_permission(user_role, resource, '*')
+
+# Region-based access control functions
+def get_accessible_regions(user_role: str, user_region_id: Optional[int] = None) -> List[int]:
+    """
+    Get list of region IDs that a user can access
+    
+    Args:
+        user_role: User's role
+        user_region_id: User's assigned region ID (None for global access)
+    
+    Returns:
+        List of region IDs (empty list means all regions)
+    """
+    # Global roles can see all regions
+    if rbac_manager.can_cross_region(user_role):
+        return []  # Empty list indicates "all regions"
+    
+    # Region-scoped users only see their region
+    if user_region_id is not None:
+        return [user_region_id]
+    
+    # If no region assigned, return empty (will be handled as no access)
+    return []
+
+def filter_by_region(data: List[Dict], user_role: str, user_region_id: Optional[int] = None) -> List[Dict]:
+    """
+    Filter data by region permissions
+    
+    Args:
+        data: List of data dictionaries with region_id field
+        user_role: User's role
+        user_region_id: User's assigned region ID
+    
+    Returns:
+        Filtered list of data
+    """
+    # Global roles see everything
+    if rbac_manager.can_cross_region(user_role):
+        return data
+    
+    # Region-scoped users only see their region
+    if user_region_id is not None:
+        return [item for item in data if item.get('region_id') == user_region_id]
+    
+    # No region assigned = no access
+    return []
+
+def validate_region_access(target_region_id: int, user_role: str, user_region_id: Optional[int] = None) -> bool:
+    """
+    Validate if a user can access data from a specific region
+    
+    Args:
+        target_region_id: The region ID being accessed
+        user_role: User's role
+        user_region_id: User's assigned region ID
+    
+    Returns:
+        True if access is allowed, False otherwise
+    """
+    # Global roles can access all regions
+    if rbac_manager.can_cross_region(user_role):
+        return True
+    
+    # Check if user's region matches target region
+    if user_region_id == target_region_id:
+        return True
+    
+    return False
