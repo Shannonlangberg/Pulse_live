@@ -214,3 +214,4 @@ if imported > 0:
     print("   New stats entries will be dual-written to both database and Google Sheets.")
     print("\n🎉 You're now ready for multi-region scaling!")
 
+

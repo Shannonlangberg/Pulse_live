@@ -85,8 +85,8 @@ const LogStats = () => {
   const totalKidsOverall = totalKidsAttendance + (parseInt(quickInputStats['Kids Leaders']) || 0);
 
   useEffect(() => {
-    // Load regions
-    console.log('[LogStats] 🚀 Loading regions... (v1.1)');
+    // Load regions - Dec 17, 2025 deployment
+    console.log('[LogStats] 🚀 Loading regions... (v1.2 - LATEST)');
     fetch('/api/v2/regions', {
       credentials: 'include'
     })
@@ -112,8 +112,8 @@ const LogStats = () => {
       })
       .catch(err => console.error('[LogStats] Error loading regions:', err));
 
-    // Load campuses
-    console.log('[LogStats] 🏫 Loading campuses... (v1.1)');
+    // Load campuses - Dec 17, 2025 deployment
+    console.log('[LogStats] 🏫 Loading campuses... (v1.2 - LATEST)');
     fetch('/api/campuses', {
       credentials: 'include'
     })

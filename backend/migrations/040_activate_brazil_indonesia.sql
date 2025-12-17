@@ -17,3 +17,4 @@ SELECT id, code, display_name, active, coming_soon
 FROM regions 
 ORDER BY id;
 
+

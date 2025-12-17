@@ -23,3 +23,4 @@ ON homepage_messages(region_code, is_active);
 CREATE INDEX IF NOT EXISTS idx_homepage_messages_order 
 ON homepage_messages(display_order);
 
+

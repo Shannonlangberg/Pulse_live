@@ -22,3 +22,4 @@ CREATE INDEX IF NOT EXISTS idx_users_region_id ON users(region_id);
 
 -- Note: This migration is safe to run multiple times (uses ADD COLUMN which fails gracefully if exists)
 
+

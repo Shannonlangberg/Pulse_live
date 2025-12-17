@@ -6,7 +6,19 @@ import {
   XMarkIcon,
   ArrowRightOnRectangleIcon,
   ChevronRightIcon,
-  Squares2X2Icon
+  Squares2X2Icon,
+  ClipboardIcon,
+  DocumentChartBarIcon,
+  BookOpenIcon,
+  UserCircleIcon,
+  UserGroupIcon,
+  BuildingOfficeIcon,
+  ShieldCheckIcon,
+  SignalIcon,
+  BellIcon,
+  PlayIcon,
+  CalendarIcon,
+  MegaphoneIcon
 } from '@heroicons/react/24/outline';
 
 // Simplified main sections for left sidebar
@@ -34,6 +46,112 @@ const MAIN_SECTIONS = {
   }
 };
 
+// Portal sub-pages
+const PORTAL_ITEMS = [
+  { 
+    name: 'Input', 
+    href: '/stats', 
+    icon: ClipboardIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'],
+    featureKey: 'input'
+  },
+  { 
+    name: 'Dashboard', 
+    href: '/dashboard', 
+    icon: DocumentChartBarIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'],
+    featureKey: 'dashboard'
+  },
+  { 
+    name: 'Finance Input', 
+    href: '/finance', 
+    icon: ClipboardIcon, 
+    roles: ['superadmin', 'admin', 'finance'],
+    featureKey: 'finance'
+  },
+  { 
+    name: 'Resources', 
+    href: '/resources', 
+    icon: BookOpenIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
+    featureKey: 'resources'
+  }
+];
+
+// Settings sub-pages
+const SETTINGS_ITEMS = [
+  { 
+    name: 'My Profile', 
+    href: '/profile', 
+    icon: UserCircleIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
+    featureKey: null
+  },
+  { 
+    name: 'Users', 
+    href: '/users', 
+    icon: UserGroupIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+    featureKey: 'user_management'
+  },
+  { 
+    name: 'Role Manager', 
+    href: '/role-manager', 
+    icon: ShieldCheckIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+    featureKey: 'user_management'
+  },
+  { 
+    name: 'Homepage Manager', 
+    href: '/homepage-manager', 
+    icon: MegaphoneIcon, 
+    roles: ['superadmin', 'admin'],
+    featureKey: null
+  },
+  { 
+    name: 'Campuses', 
+    href: '/campuses', 
+    icon: BuildingOfficeIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+    featureKey: 'campus_management'
+  },
+  { 
+    name: 'Beacons', 
+    href: '/beacons', 
+    icon: SignalIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+    featureKey: 'beacon_management'
+  },
+  { 
+    name: 'Resource Manager', 
+    href: '/resources/manage', 
+    icon: BookOpenIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+    featureKey: 'resource_manager'
+  },
+  { 
+    name: 'TV Manager', 
+    href: '/tv/manage', 
+    icon: PlayIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+    featureKey: 'tv_manager'
+  },
+  { 
+    name: 'Events Manager', 
+    href: '/events/manage', 
+    icon: CalendarIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+    featureKey: 'events_manager'
+  },
+  { 
+    name: 'Notifications', 
+    href: '/notifications', 
+    icon: BellIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+    featureKey: 'notifications'
+  }
+];
+
 const EnhancedNavigation = ({ 
   userRole, 
   customPermissions, 
@@ -46,6 +164,8 @@ const EnhancedNavigation = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [showMobileSubMenu, setShowMobileSubMenu] = useState(false);
+  const [mobileSubMenuSection, setMobileSubMenuSection] = useState(null);
 
   // Determine active section based on current path
   useEffect(() => {
@@ -64,6 +184,19 @@ const EnhancedNavigation = ({
     }
   }, [location.pathname, setActiveSection]);
 
+  // Close mobile submenu on window resize to desktop size
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024 && showMobileSubMenu) {
+        setShowMobileSubMenu(false);
+        setMobileSubMenuSection(null);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [showMobileSubMenu]);
+
   // Filter sections based on role
   const getFilteredSections = () => {
     return Object.values(MAIN_SECTIONS).filter(section => {
@@ -73,6 +206,33 @@ const EnhancedNavigation = ({
 
   const filteredSections = useMemo(() => getFilteredSections(), [userRole]);
 
+  // Filter items based on role and permissions
+  const getFilteredItems = (items) => {
+    return items.filter(item => {
+      // Check custom permissions first (overrides role defaults)
+      if (item.featureKey && customPermissions.hasOwnProperty(item.featureKey)) {
+        return customPermissions[item.featureKey] === true;
+      }
+      
+      // Then check role permission
+      if (!item.roles.includes(userRole)) {
+        return false;
+      }
+      
+      return true;
+    });
+  };
+
+  // Get subpages for a section
+  const getSubPages = (sectionId) => {
+    if (sectionId === 'portal') {
+      return getFilteredItems(PORTAL_ITEMS);
+    } else if (sectionId === 'settings') {
+      return getFilteredItems(SETTINGS_ITEMS);
+    }
+    return [];
+  };
+
   const handleSectionClick = (section) => {
     if (section.href) {
       // Direct navigation (like Home)
@@ -80,18 +240,34 @@ const EnhancedNavigation = ({
       setActiveSection(section.id);
       setSidebarOpen(false);
     } else if (section.hasSubPages) {
-      // Just activate the section, top nav will handle sub-pages
-      setActiveSection(section.id);
+      // On mobile: show submenu modal
+      // On desktop: activate section and navigate
+      const isMobile = window.innerWidth < 1024; // lg breakpoint
       
-      // Default navigation for portal
-      if (section.id === 'portal') {
-        navigate('/stats');
-      } else if (section.id === 'settings') {
-        navigate('/profile');
+      if (isMobile) {
+        setMobileSubMenuSection(section);
+        setShowMobileSubMenu(true);
+        setSidebarOpen(false);
+      } else {
+        // Desktop behavior
+        setActiveSection(section.id);
+        
+        // Default navigation
+        if (section.id === 'portal') {
+          navigate('/stats');
+        } else if (section.id === 'settings') {
+          navigate('/profile');
+        }
+        
+        setSidebarOpen(false);
       }
-      
-      setSidebarOpen(false);
     }
+  };
+
+  const handleMobileSubPageClick = (href) => {
+    navigate(href);
+    setShowMobileSubMenu(false);
+    setMobileSubMenuSection(null);
   };
 
   const getRoleDisplayName = (role) => {
@@ -119,6 +295,74 @@ const EnhancedNavigation = ({
           className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
+      )}
+
+      {/* Mobile Sub-Menu Modal */}
+      {showMobileSubMenu && mobileSubMenuSection && (
+        <div 
+          className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 lg:hidden"
+          onClick={() => {
+            setShowMobileSubMenu(false);
+            setMobileSubMenuSection(null);
+          }}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-700/50 rounded-3xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 flex items-center justify-center border border-blue-500/30">
+                  <mobileSubMenuSection.icon className="h-6 w-6 text-blue-400" />
+                </div>
+                <h2 className="text-xl font-semibold text-white">
+                  {mobileSubMenuSection.name}
+                </h2>
+              </div>
+              <button
+                onClick={() => {
+                  setShowMobileSubMenu(false);
+                  setMobileSubMenuSection(null);
+                }}
+                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Modal Content - Subpages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 modal-scroll">
+              {getSubPages(mobileSubMenuSection.id).map((item) => {
+                const ItemIcon = item.icon;
+                const isActive = location.pathname === item.href || 
+                                (item.href !== '/' && location.pathname.startsWith(item.href + '/'));
+                
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => handleMobileSubPageClick(item.href)}
+                    className={`
+                      w-full flex items-center gap-4 px-5 py-4 rounded-xl transition-all duration-200
+                      ${isActive
+                        ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/20'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent'
+                      }
+                    `}
+                  >
+                    <div className={`
+                      w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
+                      ${isActive ? 'bg-blue-500/20' : 'bg-slate-800/50'}
+                    `}>
+                      <ItemIcon className={`h-5 w-5 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
+                    </div>
+                    <span className="text-base font-medium">{item.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Sidebar */}

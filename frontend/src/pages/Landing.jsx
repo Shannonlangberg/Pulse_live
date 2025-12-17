@@ -174,28 +174,28 @@ const Landing = () => {
           <div className="absolute top-1/3 left-1/3 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl animate-pulse delay-[1200ms]" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10">
+        <div className="relative max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10 space-y-6 sm:space-y-8 md:space-y-10">
           {/* Header Section */}
-          <header className="bg-gradient-to-br from-white/5 via-white/5 to-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 md:p-10 backdrop-blur-md shadow-xl shadow-blue-500/10 relative overflow-hidden">
+          <header className="bg-gradient-to-br from-white/5 via-white/5 to-white/5 border border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 lg:p-10 backdrop-blur-md shadow-xl shadow-blue-500/10 relative overflow-hidden">
             {isAdmin && (
               <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-full blur-3xl -mr-32 -mt-32 animate-pulse" />
             )}
             <div className="absolute top-0 left-0 w-32 h-1 bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-tl-3xl" />
             
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 lg:gap-8 relative z-10">
-              <div className="space-y-4 flex-1">
-                <div className="inline-flex items-center gap-2 text-blue-300 text-sm font-medium bg-blue-500/10 border border-blue-400/40 rounded-full px-3 py-1.5">
-                  <SparklesIcon className="h-4 w-4" />
-                  {sessionLoading ? 'Loading...' : (isAdmin ? 'Admin Dashboard' : 'Welcome to Futures PULSE')}
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5 sm:gap-6 lg:gap-8 relative z-10">
+              <div className="space-y-3 sm:space-y-4 flex-1">
+                <div className="inline-flex items-center gap-2 text-blue-300 text-xs sm:text-sm font-medium bg-blue-500/10 border border-blue-400/40 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5">
+                  <SparklesIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="truncate">{sessionLoading ? 'Loading...' : (isAdmin ? 'Admin Dashboard' : 'Welcome to Futures PULSE')}</span>
                 </div>
-                <div className="space-y-3">
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">
+                <div className="space-y-2 sm:space-y-3">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent leading-tight">
                     {sessionLoading ? 'Loading...' : `${greeting}, ${firstName}!`}
                   </h1>
-                  <p className="text-xl sm:text-2xl font-medium text-blue-200/90">
+                  <p className="text-lg sm:text-xl md:text-2xl font-medium text-blue-200/90">
                     Welcome to Futures Pulse
                   </p>
-                  <p className="text-white/70 text-base sm:text-lg max-w-2xl leading-relaxed">
+                  <p className="text-white/70 text-sm sm:text-base md:text-lg max-w-2xl leading-relaxed">
                     {isAdmin 
                       ? 'Your command center for managing Futures PULSE—oversee users, campuses, resources, and data across the entire platform.'
                       : 'Your launchpad for the week ahead—track key metrics, share weekend stories, and access the resources your teams rely on.'
@@ -213,24 +213,24 @@ const Landing = () => {
               </div>
               
               {/* Announcements */}
-              <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-white/10 rounded-2xl p-5 sm:p-6 w-full lg:w-auto lg:min-w-[320px]">
-                <div className="flex items-center gap-3 text-white/80 text-sm mb-4">
-                  <MegaphoneIcon className="h-5 w-5 text-blue-300" />
+              <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 w-full lg:w-auto lg:min-w-[320px]">
+                <div className="flex items-center gap-2 sm:gap-3 text-white/80 text-xs sm:text-sm mb-3 sm:mb-4">
+                  <MegaphoneIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-300 flex-shrink-0" />
                   <span className="font-medium">Platform Updates</span>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {announcements.map((item) => (
                     <a
                       key={item.title}
                       href={item.href}
-                      className="block bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-3 transition-all duration-200 group"
+                      className="block bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 transition-all duration-200 group touch-manipulation"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white group-hover:text-blue-200 truncate">{item.title}</p>
-                          <p className="text-xs text-white/50 leading-snug mt-1 line-clamp-2">{item.description}</p>
+                          <p className="text-xs sm:text-sm font-semibold text-white group-hover:text-blue-200 truncate">{item.title}</p>
+                          <p className="text-[10px] sm:text-xs text-white/50 leading-snug mt-0.5 sm:mt-1 line-clamp-2">{item.description}</p>
                         </div>
-                        <ArrowTopRightOnSquareIcon className="h-4 w-4 text-white/40 group-hover:text-blue-200 flex-shrink-0 ml-2" />
+                        <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white/40 group-hover:text-blue-200 flex-shrink-0 ml-2" />
                       </div>
                     </a>
                   ))}
@@ -241,19 +241,19 @@ const Landing = () => {
 
           {/* Homepage Messages Section */}
           {!messagesLoading && homepageMessages.length > 0 && (
-            <section className="space-y-4">
+            <section className="space-y-3 sm:space-y-4">
               {homepageMessages.map((msg) => (
                 <div
                   key={msg.id}
-                  className="bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-pink-600/20 border border-white/20 rounded-2xl p-6 backdrop-blur-sm shadow-xl"
+                  className="bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-pink-600/20 border border-white/20 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 backdrop-blur-sm shadow-xl"
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/30 to-purple-500/30 flex items-center justify-center flex-shrink-0">
-                      <MegaphoneIcon className="h-6 w-6 text-blue-200" />
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500/30 to-purple-500/30 flex items-center justify-center flex-shrink-0">
+                      <MegaphoneIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-200" />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-white mb-2">{msg.heading}</h3>
-                      <p className="text-white/80 leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg md:text-xl font-bold text-white mb-1.5 sm:mb-2">{msg.heading}</h3>
+                      <p className="text-sm sm:text-base text-white/80 leading-relaxed whitespace-pre-wrap">{msg.message}</p>
                     </div>
                   </div>
                 </div>
@@ -263,17 +263,17 @@ const Landing = () => {
 
           {/* Quick Actions Section */}
           {quickActions.length > 0 && (
-            <section className="space-y-5">
+            <section className="space-y-4 sm:space-y-5">
               <div>
-                <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-2 mb-1">
-                  <BoltIcon className="h-6 w-6 text-yellow-400" />
+                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-1">
+                  <BoltIcon className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400" />
                   Quick Actions
                 </h2>
-                <p className="text-white/60 text-sm sm:text-base">
+                <p className="text-white/60 text-xs sm:text-sm md:text-base">
                   Jump to your most-used features
                 </p>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {quickActions.map((action) => {
                   const Icon = action.icon;
                   const colors = colorClasses[action.color] || colorClasses.blue;
@@ -283,20 +283,21 @@ const Landing = () => {
                       onClick={() => navigate(action.href)}
                       className={`
                         group relative bg-gradient-to-br ${colors.bg} ${colors.border}
-                        rounded-2xl p-5 transition-all duration-300
-                        hover:scale-105 hover:shadow-xl
+                        rounded-xl sm:rounded-2xl p-4 sm:p-5 transition-all duration-300
+                        active:scale-95 lg:hover:scale-105 lg:hover:shadow-xl
                         border backdrop-blur-sm
-                        flex flex-col items-center justify-center gap-3
-                        min-h-[120px]
+                        flex flex-col items-center justify-center gap-2 sm:gap-3
+                        min-h-[100px] sm:min-h-[120px]
+                        touch-manipulation
                       `}
                     >
-                      <div className={`w-12 h-12 rounded-xl ${colors.iconBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon className={`h-6 w-6 ${colors.icon}`} />
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl ${colors.iconBg} flex items-center justify-center group-active:scale-95 lg:group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${colors.icon}`} />
                       </div>
-                      <span className="text-sm font-semibold text-white text-center leading-tight">
+                      <span className="text-xs sm:text-sm font-semibold text-white text-center leading-tight">
                         {action.name}
                       </span>
-                      <ArrowTopRightOnSquareIcon className={`absolute top-2 right-2 h-4 w-4 ${colors.icon} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                      <ArrowTopRightOnSquareIcon className={`absolute top-1.5 right-1.5 sm:top-2 sm:right-2 h-3.5 w-3.5 sm:h-4 sm:w-4 ${colors.icon} opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300`} />
                     </button>
                   );
                 })}
@@ -306,30 +307,30 @@ const Landing = () => {
 
           {/* Resource Spotlight - Only for non-admin */}
           {!isAdmin && (
-            <section className="space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <section className="space-y-4 sm:space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-semibold mb-1">Resource Spotlight</h2>
-                  <p className="text-white/60 text-sm sm:text-base">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-1">Resource Spotlight</h2>
+                  <p className="text-white/60 text-xs sm:text-sm md:text-base">
                     Recently added folders from the Futures resource library
                   </p>
                 </div>
                 <a
                   href="/resources"
-                  className="inline-flex items-center gap-2 text-sm text-blue-200 hover:text-blue-100 transition-colors duration-200"
+                  className="inline-flex items-center gap-2 text-xs sm:text-sm text-blue-200 hover:text-blue-100 active:text-blue-300 transition-colors duration-200 touch-manipulation"
                 >
                   Browse full library
-                  <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                  <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </a>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
                 {categoriesLoading && (
-                  <div className="col-span-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white/60 text-center">
+                  <div className="col-span-full bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-white/60 text-center text-sm sm:text-base">
                     Loading featured folders...
                   </div>
                 )}
                 {!categoriesLoading && featuredCategories.length === 0 && (
-                  <div className="col-span-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white/60 text-center">
+                  <div className="col-span-full bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-white/60 text-center text-xs sm:text-sm md:text-base">
                     No shared folders yet—check back soon or reach out to the Ops team.
                   </div>
                 )}
@@ -337,19 +338,19 @@ const Landing = () => {
                   <a
                     key={category.id}
                     href="/resources"
-                    className="group bg-gradient-to-br from-slate-900/60 to-slate-900/30 border border-white/10 rounded-2xl p-6 transition-all duration-200 hover:border-blue-400/40 hover:-translate-y-1"
+                    className="group bg-gradient-to-br from-slate-900/60 to-slate-900/30 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 transition-all duration-200 active:scale-95 lg:hover:border-blue-400/40 lg:hover:-translate-y-1 touch-manipulation"
                   >
-                    <div className="flex items-center justify-between gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-blue-500/15 flex items-center justify-center text-2xl">
+                    <div className="flex items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-blue-500/15 flex items-center justify-center text-xl sm:text-2xl">
                         📁
                       </div>
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 text-white/30 group-hover:text-blue-200 transition-colors" />
+                      <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white/30 group-hover:text-blue-200 transition-colors" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white group-hover:text-blue-200 transition-colors duration-200 mb-2">
+                    <h3 className="text-base sm:text-lg font-semibold text-white group-hover:text-blue-200 transition-colors duration-200 mb-1.5 sm:mb-2">
                       {category.name}
                     </h3>
                     {category.description && (
-                      <p className="text-sm text-white/60 leading-relaxed line-clamp-3">
+                      <p className="text-xs sm:text-sm text-white/60 leading-relaxed line-clamp-3">
                         {category.description}
                       </p>
                     )}
@@ -361,81 +362,81 @@ const Landing = () => {
 
           {/* Admin Quick Access */}
           {isAdmin && (
-            <section className="space-y-5">
+            <section className="space-y-4 sm:space-y-5">
               <div>
-                <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-2 mb-1">
-                  <ShieldCheckIcon className="h-6 w-6 text-purple-400" />
+                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-1">
+                  <ShieldCheckIcon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400" />
                   Admin Quick Access
                 </h2>
-                <p className="text-white/60 text-sm sm:text-base">
+                <p className="text-white/60 text-xs sm:text-sm md:text-base">
                   Key management tools and system overview
                 </p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
                 <button
                   onClick={() => navigate('/users')}
-                  className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-400/30 rounded-2xl p-6 hover:scale-105 transition-all duration-300 text-left group"
+                  className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <UserGroupIcon className="h-8 w-8 text-blue-300 group-hover:scale-110 transition-transform" />
-                    <ArrowTopRightOnSquareIcon className="h-5 w-5 text-blue-300/50 group-hover:text-blue-300 group-hover:translate-x-1 transition-all" />
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <UserGroupIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-blue-300 group-active:scale-95 lg:group-hover:scale-110 transition-transform" />
+                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-300/50 lg:group-hover:text-blue-300 lg:group-hover:translate-x-1 transition-all" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-1">User Management</h3>
-                  <p className="text-sm text-white/60">Manage all users and permissions</p>
+                  <h3 className="text-base sm:text-lg font-semibold text-white mb-1">User Management</h3>
+                  <p className="text-xs sm:text-sm text-white/60">Manage all users and permissions</p>
                 </button>
                 <button
                   onClick={() => navigate('/campuses')}
-                  className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-400/30 rounded-2xl p-6 hover:scale-105 transition-all duration-300 text-left group"
+                  className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <BuildingOfficeIcon className="h-8 w-8 text-purple-300 group-hover:scale-110 transition-transform" />
-                    <ArrowTopRightOnSquareIcon className="h-5 w-5 text-purple-300/50 group-hover:text-purple-300 group-hover:translate-x-1 transition-all" />
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <BuildingOfficeIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-purple-300 group-active:scale-95 lg:group-hover:scale-110 transition-transform" />
+                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-300/50 lg:group-hover:text-purple-300 lg:group-hover:translate-x-1 transition-all" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-1">Campus Management</h3>
-                  <p className="text-sm text-white/60">Configure campus settings</p>
+                  <h3 className="text-base sm:text-lg font-semibold text-white mb-1">Campus Management</h3>
+                  <p className="text-xs sm:text-sm text-white/60">Configure campus settings</p>
                 </button>
                 <button
                   onClick={() => navigate('/resources/manage')}
-                  className="bg-gradient-to-br from-teal-500/10 to-cyan-500/10 border border-teal-400/30 rounded-2xl p-6 hover:scale-105 transition-all duration-300 text-left group"
+                  className="bg-gradient-to-br from-teal-500/10 to-cyan-500/10 border border-teal-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <BookOpenIcon className="h-8 w-8 text-teal-300 group-hover:scale-110 transition-transform" />
-                    <ArrowTopRightOnSquareIcon className="h-5 w-5 text-teal-300/50 group-hover:text-teal-300 group-hover:translate-x-1 transition-all" />
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <BookOpenIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-teal-300 group-active:scale-95 lg:group-hover:scale-110 transition-transform" />
+                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-teal-300/50 lg:group-hover:text-teal-300 lg:group-hover:translate-x-1 transition-all" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-1">Resource Manager</h3>
-                  <p className="text-sm text-white/60">Organize and manage resources</p>
+                  <h3 className="text-base sm:text-lg font-semibold text-white mb-1">Resource Manager</h3>
+                  <p className="text-xs sm:text-sm text-white/60">Organize and manage resources</p>
                 </button>
               </div>
             </section>
           )}
 
           {/* Support & Feedback */}
-          <section className="space-y-5">
+          <section className="space-y-4 sm:space-y-5">
             <div>
-              <h2 className="text-xl sm:text-2xl font-semibold mb-1">Support & Feedback</h2>
-              <p className="text-white/60 text-sm sm:text-base">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-1">Support & Feedback</h2>
+              <p className="text-white/60 text-xs sm:text-sm md:text-base">
                 We're here to help keep things moving smoothly for your campus
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
               {supportItems.map((item) => (
                 <div
                   key={item.title}
-                  className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3"
+                  className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 space-y-2 sm:space-y-3"
                 >
-                  <div className="flex items-center gap-3">
-                    <LifebuoyIcon className="h-6 w-6 text-blue-300" />
-                    <h3 className="text-lg font-semibold">{item.title}</h3>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <LifebuoyIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-300 flex-shrink-0" />
+                    <h3 className="text-base sm:text-lg font-semibold">{item.title}</h3>
                   </div>
-                  <p className="text-sm text-white/60 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
                     {item.description}
                   </p>
                   <a
                     href={`mailto:${item.action}`}
-                    className="inline-flex items-center gap-2 text-sm text-blue-200 hover:text-blue-100 transition-colors duration-200"
+                    className="inline-flex items-center gap-2 text-xs sm:text-sm text-blue-200 hover:text-blue-100 active:text-blue-300 transition-colors duration-200 touch-manipulation break-all"
                   >
                     {item.action}
-                    <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                    <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                   </a>
                 </div>
               ))}

@@ -159,7 +159,7 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-30 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700/50">
+    <nav className="fixed top-0 left-0 right-0 z-30 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700/50 lg:block hidden">
       <div className="lg:pl-64">
         <div className="flex items-center justify-between h-16 px-4 lg:px-6">
           {/* Sub-page Navigation Items */}
@@ -181,7 +181,7 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
                   `}
                 >
                   <item.icon className={`h-5 w-5 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
-                  <span className="hidden sm:inline">{item.name}</span>
+                  <span>{item.name}</span>
                 </Link>
               );
             })}

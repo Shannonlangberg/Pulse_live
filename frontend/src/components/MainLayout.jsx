@@ -93,12 +93,12 @@ const MainLayout = ({ children }) => {
       />
 
       {/* Main content */}
-      <div className={`lg:pl-64 ${activeSection !== 'home' ? 'pt-16' : ''}`}>
-        {/* Mobile header - simplified since we have top nav */}
-        <div className="lg:hidden flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm">
+      <div className={`lg:pl-64 ${activeSection !== 'home' ? 'lg:pt-16' : ''}`}>
+        {/* Mobile header */}
+        <div className="lg:hidden flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm sticky top-0 z-20">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800"
+            className="p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <Bars3Icon className="h-6 w-6" />
           </button>
@@ -112,14 +112,14 @@ const MainLayout = ({ children }) => {
           </Link>
           <button
             onClick={handleLogout}
-            className="p-2 rounded-md text-red-400 hover:text-red-300 hover:bg-red-900/20"
+            className="p-2 rounded-md text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors"
           >
             <ArrowRightOnRectangleIcon className="h-5 w-5" />
           </button>
         </div>
 
         {/* Page content */}
-        <main className="p-6">
+        <main className="p-4 sm:p-6">
           {children}
         </main>
       </div>
