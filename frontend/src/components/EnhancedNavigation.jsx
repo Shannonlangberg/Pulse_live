@@ -41,117 +41,56 @@ const EnhancedNavigation = ({
   onLogout,
   sidebarOpen,
   setSidebarOpen,
-  settingsOpen,
-  setSettingsOpen
+  activeSection,
+  setActiveSection
 }) => {
   const location = useLocation();
-  const [expandedGroups, setExpandedGroups] = useState({});
-  const [viewMode, setViewMode] = useState('grouped'); // 'grouped' or 'flat'
+  const navigate = useNavigate();
 
-  // Auto-expand the group that contains the current page
+  // Determine active section based on current path
   useEffect(() => {
-    const currentPath = location.pathname;
-    
-    // Find which group contains the current page
-    let currentGroupName = null;
-    Object.values(NAVIGATION_GROUPS).forEach(group => {
-      const hasCurrentPage = group.items.some(item => {
-        if (item.href === '/') {
-          return currentPath === '/';
-        }
-        // Special handling for /groups routes - they should all highlight the Groups nav item
-        if (item.href === '/groups') {
-          return currentPath === '/groups' || currentPath.startsWith('/groups/') || currentPath === '/connect-groups';
-        }
-        return currentPath === item.href || currentPath.startsWith(item.href + '/');
-      });
-      
-      if (hasCurrentPage) {
-        currentGroupName = group.name;
-      }
-    });
-    
-    // Only expand the current page's group, preserve manually expanded groups
-    if (currentGroupName) {
-      setExpandedGroups(prev => ({
-        ...prev,
-        [currentGroupName]: true
-      }));
+    const path = location.pathname;
+    if (path === '/') {
+      setActiveSection('home');
+    } else if (path === '/stats' || path === '/dashboard' || path === '/resources') {
+      setActiveSection('portal');
+    } else if (path.startsWith('/users') || path.startsWith('/role-manager') || 
+               path.startsWith('/campuses') || path.startsWith('/profile') || 
+               path.startsWith('/beacons') || path.startsWith('/resources/manage') ||
+               path.startsWith('/tv/manage') || path.startsWith('/events/manage') ||
+               path.startsWith('/notifications') || path.startsWith('/export')) {
+      setActiveSection('settings');
     }
-  }, [location.pathname]);
+  }, [location.pathname, setActiveSection]);
 
-  // Filter and get navigation items
-  const getFilteredItems = () => {
-    const allItems = [];
-    
-    Object.values(NAVIGATION_GROUPS).forEach(group => {
-      const filteredGroupItems = group.items.filter(item => {
-        // Pulse TV is visible to all authenticated users (unless explicitly denied)
-        if (item.name === 'Pulse TV') {
-          if (item.featureKey && customPermissions[item.featureKey] === false) {
-            return false;
-          }
-          return true;
-        }
-        
-        // Check custom permissions first (overrides role defaults)
-        // If featureKey is null, skip permission check (always show based on role)
-        if (item.featureKey === null) {
-          // No feature key means always show if role matches (legacy items)
-          return item.roles.includes(userRole);
-        }
-        
-        // If featureKey exists, check custom permissions first
-        if (item.featureKey && customPermissions.hasOwnProperty(item.featureKey)) {
-          return customPermissions[item.featureKey] === true;
-        }
-        
-        // Then check role permission
-        if (!item.roles.includes(userRole)) {
-          return false;
-        }
-        
-        return true;
-      });
+  // Filter sections based on role
+  const getFilteredSections = () => {
+    return Object.values(MAIN_SECTIONS).filter(section => {
+      return section.roles.includes(userRole);
+    });
+  };
+
+  const filteredSections = useMemo(() => getFilteredSections(), [userRole]);
+
+  const handleSectionClick = (section) => {
+    if (section.href) {
+      // Direct navigation (like Home)
+      navigate(section.href);
+      setActiveSection(section.id);
+      setSidebarOpen(false);
+    } else if (section.hasSubPages) {
+      // Just activate the section, top nav will handle sub-pages
+      setActiveSection(section.id);
       
-      if (filteredGroupItems.length > 0) {
-        allItems.push(...filteredGroupItems.map(item => ({ ...item, group: group.name })));
+      // Default navigation for portal
+      if (section.id === 'portal') {
+        navigate('/stats');
+      } else if (section.id === 'settings') {
+        navigate('/profile');
       }
-    });
-    
-    return allItems;
-  };
-
-  const allItems = useMemo(() => getFilteredItems(), [userRole, customPermissions]);
-
-  // Use all items (no search filtering for now)
-  const filteredItems = allItems;
-
-  // Group items for grouped view
-  const groupedItems = useMemo(() => {
-    if (viewMode === 'flat') return { 'All': filteredItems };
-    
-    const grouped = {};
-    filteredItems.forEach(item => {
-      const groupName = item.group || 'Other';
-      if (!grouped[groupName]) {
-        grouped[groupName] = [];
-      }
-      grouped[groupName].push(item);
-    });
-    return grouped;
-  }, [filteredItems, viewMode]);
-
-  const toggleGroup = (groupName) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [groupName]: !prev[groupName]
-    }));
-  };
-
-  // Settings menu items - Now empty since admin items are in main nav
-  const getSettingsItems = () => {
-    return [];
+      
+      setSidebarOpen(false);
+    }
   };
 
   const getRoleDisplayName = (role) => {
@@ -163,12 +102,12 @@ const EnhancedNavigation = ({
       'lead_pastor': 'Lead Pastor',
       'campus_pastor': 'Campus Pastor',
       'pastor': 'Pastor',
-      'finance': 'Finance'
+      'finance': 'Finance',
+      'staff': 'Staff',
+      'user': 'User'
     };
     return names[role] || role;
   };
-
-  const settingsItems = getSettingsItems();
 
   return (
     <>
