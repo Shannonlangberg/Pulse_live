@@ -8631,6 +8631,12 @@ def api_login():
             except Exception as person_lookup_error:
                 logger.error(f"❌ LOGIN: Could not look up Person record: {person_lookup_error}", exc_info=True)
             
+            # Check if user needs Google Drive auth (ALL users now require this)
+            drive_authenticated = session.get('google_drive_authenticated', False)
+            token_expiry = session.get('google_drive_token_expiry', 0)
+            token_valid = token_expiry > datetime.now(timezone.utc).timestamp()
+            needs_drive_auth = not (drive_authenticated and token_valid)
+            
             # Return proper response format for mobile app
             user_campus = getattr(user, 'campus', 'all_campuses')
             return jsonify({
@@ -8638,6 +8644,7 @@ def api_login():
                 "authenticated": True,
                 "redirect": "/",
                 "token": session.get('_id', 'session-token'),  # Return session identifier
+                "needs_drive_auth": needs_drive_auth,  # Prompt for Google auth if needed
                 "user": {
                     "id": user.id,
                     "email": user.email,
@@ -9490,7 +9497,7 @@ def session_info():
     
     # Allow unauthenticated access for mobile app session check
     if current_user.is_authenticated:
-        # Check if user needs Google Drive auth (admin users only)
+        # Check if user needs Google Drive auth (ALL users now require Google auth)
         needs_drive_auth = False
         drive_status = {
             'authenticated': False,
@@ -9498,19 +9505,18 @@ def session_info():
             'has_token': False
         }
         
-        if current_user.role in ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
-            # Check if Google Drive is authenticated
-            drive_authenticated = session.get('google_drive_authenticated', False)
-            drive_status['authenticated'] = drive_authenticated
-            drive_status['has_token'] = bool(session.get('google_drive_access_token'))
-            
-            # Check if token is still valid
-            token_expiry = session.get('google_drive_token_expiry', 0)
-            token_valid = token_expiry > datetime.now(timezone.utc).timestamp()
-            drive_status['token_valid'] = token_valid
-            
-            # Admin users need Drive auth if not authenticated or token expired
-            needs_drive_auth = not (drive_authenticated and token_valid)
+        # Check if Google Drive is authenticated for ALL users
+        drive_authenticated = session.get('google_drive_authenticated', False)
+        drive_status['authenticated'] = drive_authenticated
+        drive_status['has_token'] = bool(session.get('google_drive_access_token'))
+        
+        # Check if token is still valid
+        token_expiry = session.get('google_drive_token_expiry', 0)
+        token_valid = token_expiry > datetime.now(timezone.utc).timestamp()
+        drive_status['token_valid'] = token_valid
+        
+        # ALL users need Drive auth if not authenticated or token expired
+        needs_drive_auth = not (drive_authenticated and token_valid)
         
         # Load feature flags from environment variables
         feature_flags = {

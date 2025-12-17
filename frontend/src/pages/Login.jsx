@@ -57,7 +57,7 @@ const Login = ({ onLogin }) => {
     }
   }, [navigate, onLogin]);
 
-  // Start Google Drive OAuth for admins who need it
+  // Start Google Drive OAuth for all users
   const startGoogleAuth = async () => {
     try {
       setDriveError('');
@@ -281,10 +281,10 @@ const Login = ({ onLogin }) => {
               <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 space-y-3">
                 <div>
                   <p className="text-blue-200 text-sm font-medium mb-1">
-                    Connect Google Drive
+                    Connect Google Account
                   </p>
                   <p className="text-blue-300/80 text-xs">
-                    Your admin account needs to connect with Google Drive to access resources. Click below to authorize.
+                    Please connect your Google account to access Pulse resources and features. Click below to authorize.
                   </p>
                 </div>
                 <button
