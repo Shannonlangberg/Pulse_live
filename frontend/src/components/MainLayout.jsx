@@ -10,7 +10,7 @@ import TopNavigation from './TopNavigation';
 
 const MainLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState('home');
   const [userRole, setUserRole] = useState('user');
   const [userName, setUserName] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
@@ -81,18 +81,19 @@ const MainLayout = ({ children }) => {
         onLogout={handleLogout}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
-        settingsOpen={settingsOpen}
-        setSettingsOpen={setSettingsOpen}
+        activeSection={activeSection}
+        setActiveSection={setActiveSection}
       />
 
       {/* Top Navigation Bar */}
       <TopNavigation
         userRole={userRole}
         customPermissions={customPermissions}
+        activeSection={activeSection}
       />
 
       {/* Main content */}
-      <div className="lg:pl-64 pt-16">
+      <div className={`lg:pl-64 ${activeSection !== 'home' ? 'pt-16' : ''}`}>
         {/* Mobile header - simplified since we have top nav */}
         <div className="lg:hidden flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm">
           <button

@@ -144,144 +144,34 @@ const EnhancedNavigation = ({
             </button>
           </div>
 
-          {/* View Mode Toggle */}
-          <div className="px-4 py-3 border-b border-slate-700/50 flex-shrink-0">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewMode('grouped')}
-                className={`flex-1 px-2 py-1.5 text-xs rounded-md transition-all ${
-                  viewMode === 'grouped'
-                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                    : 'bg-slate-800/50 text-slate-400 border border-slate-700/50 hover:bg-slate-800'
-                }`}
-                title="Grouped view"
-              >
-                <FunnelIcon className="h-3 w-3 inline mr-1" />
-                Grouped
-              </button>
-              <button
-                onClick={() => setViewMode('flat')}
-                className={`flex-1 px-2 py-1.5 text-xs rounded-md transition-all ${
-                  viewMode === 'flat'
-                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                    : 'bg-slate-800/50 text-slate-400 border border-slate-700/50 hover:bg-slate-800'
-                }`}
-                title="Flat view"
-              >
-                <ListBulletIcon className="h-3 w-3 inline mr-1" />
-                Flat
-              </button>
-            </div>
-          </div>
-
-          {/* Navigation - Scrollable */}
-          <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto min-h-0 pb-4 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
-            {viewMode === 'grouped' ? (
-              // Grouped View
-              Object.entries(groupedItems).map(([groupName, items]) => {
-                const groupInfo = Object.values(NAVIGATION_GROUPS).find(g => g.name === groupName);
-                const isExpanded = expandedGroups[groupName] === true; // Default to collapsed, only expand if explicitly set
-                const GroupIcon = groupInfo?.icon || Squares2X2Icon;
-                
-                return (
-                  <div key={groupName} className="mb-2">
-                    <button
-                      onClick={() => toggleGroup(groupName)}
-                      className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-400 hover:text-slate-300 transition-colors uppercase tracking-wider"
-                    >
-                      <div className="flex items-center gap-2">
-                        <GroupIcon className="h-4 w-4" />
-                        <span>{groupName}</span>
-                        <span className="text-slate-600">({items.length})</span>
-                      </div>
-                      <ChevronDownIcon className={`h-4 w-4 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
-                    </button>
-                    
-                    {isExpanded && (
-                      <div className="mt-1 space-y-1">
-                        {items.map((item) => {
-                          const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
-                          const isDisabled = item.disabled === true;
-                          
-                          if (isDisabled) {
-                            return (
-                              <div
-                                key={item.name}
-                                className="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg text-slate-500/50 cursor-not-allowed opacity-50"
-                                title="Coming soon"
-                              >
-                                <item.icon className="mr-3 h-5 w-5" />
-                                {item.name}
-                                <span className="ml-auto text-xs bg-slate-700/50 px-2 py-0.5 rounded">Soon</span>
-                              </div>
-                            );
-                          }
-                          
-                          return (
-                            <Link
-                              key={item.name}
-                              to={item.href}
-                              className={`
-                                flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
-                                ${isActive 
-                                  ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/20' 
-                                  : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
-                                }
-                              `}
-                              onClick={() => setSidebarOpen(false)}
-                            >
-                              <item.icon className={`mr-3 h-5 w-5 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
-                              {item.name}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
+          {/* Main Navigation Sections */}
+          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto min-h-0">
+            {filteredSections.map((section) => {
+              const isActive = activeSection === section.id;
+              const SectionIcon = section.icon;
+              
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => handleSectionClick(section)}
+                  className={`
+                    w-full flex items-center justify-between px-4 py-4 text-base font-medium rounded-xl transition-all duration-200
+                    ${isActive 
+                      ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/20' 
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent'
+                    }
+                  `}
+                >
+                  <div className="flex items-center gap-3">
+                    <SectionIcon className={`h-6 w-6 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
+                    <span>{section.name}</span>
                   </div>
-                );
-              })
-            ) : (
-              // Flat View
-              <>
-                {filteredItems.map((item) => {
-                  const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
-                  const isDisabled = item.disabled === true;
-                  
-                  if (isDisabled) {
-                    return (
-                      <div
-                        key={item.name}
-                        className="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg text-slate-500/50 cursor-not-allowed opacity-50"
-                        title="Coming soon"
-                      >
-                        <item.icon className="mr-3 h-5 w-5" />
-                        {item.name}
-                        <span className="ml-auto text-xs bg-slate-700/50 px-2 py-0.5 rounded">Soon</span>
-                      </div>
-                    );
-                  }
-                  
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={`
-                        flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/20' 
-                          : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
-                        }
-                      `}
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <item.icon className={`mr-3 h-5 w-5 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </>
-            )}
-
+                  {section.hasSubPages && (
+                    <ChevronRightIcon className={`h-5 w-5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
+                  )}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Footer with User Info and Logout */}

@@ -1,90 +1,117 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  HomeIcon,
-  DocumentChartBarIcon,
-  UserGroupIcon,
-  PlayIcon,
   ClipboardIcon,
-  ChartBarIcon,
+  DocumentChartBarIcon,
+  BookOpenIcon,
   UserCircleIcon,
-  EnvelopeIcon
+  UserGroupIcon,
+  BuildingOfficeIcon,
+  ShieldCheckIcon,
+  SignalIcon,
+  BellIcon,
+  PlayIcon,
+  CalendarIcon
 } from '@heroicons/react/24/outline';
 
-const TopNavigation = ({ userRole, customPermissions }) => {
+const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
   const location = useLocation();
 
-  // Primary navigation items for top bar
-  const primaryItems = [
+  // Portal sub-pages (when Portal section is active)
+  const portalItems = [
     { 
-      name: 'Home', 
-      href: '/', 
-      icon: HomeIcon, 
-      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'],
-      featureKey: 'home'
+      name: 'Input', 
+      href: '/stats', 
+      icon: ClipboardIcon, 
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff'],
+      featureKey: 'input'
     },
     { 
       name: 'Dashboard', 
       href: '/dashboard', 
       icon: DocumentChartBarIcon, 
-      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'],
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff'],
       featureKey: 'dashboard'
     },
     { 
-      name: 'People', 
-      href: '/people', 
-      icon: UserGroupIcon, 
-      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'staff'],
-      featureKey: 'people'
-    },
-    { 
-      name: 'Pulse TV', 
-      href: '/tv', 
-      icon: PlayIcon, 
-      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
-      featureKey: 'pulse_tv'
-    },
-    { 
-      name: 'Weekly Input', 
-      href: '/stats', 
-      icon: ClipboardIcon, 
-      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'],
-      featureKey: 'input'
-    },
-    { 
-      name: 'Giving', 
-      href: '/giving-analytics', 
-      icon: ChartBarIcon, 
-      roles: ['admin', 'finance', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
-      featureKey: 'giving'
-    },
+      name: 'Resources', 
+      href: '/resources', 
+      icon: BookOpenIcon, 
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff'],
+      featureKey: 'resources'
+    }
+  ];
+
+  // Settings sub-pages (when Settings section is active)
+  const settingsItems = [
     { 
       name: 'My Profile', 
       href: '/profile', 
       icon: UserCircleIcon, 
-      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff'],
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
       featureKey: null
     },
     { 
-      name: 'Communications', 
-      href: '/communication', 
-      icon: EnvelopeIcon, 
-      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor'],
-      featureKey: 'communication'
+      name: 'Users', 
+      href: '/users', 
+      icon: UserGroupIcon, 
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      featureKey: 'user_management'
+    },
+    { 
+      name: 'Role Manager', 
+      href: '/role-manager', 
+      icon: ShieldCheckIcon, 
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      featureKey: 'user_management'
+    },
+    { 
+      name: 'Campuses', 
+      href: '/campuses', 
+      icon: BuildingOfficeIcon, 
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      featureKey: 'campus_management'
+    },
+    { 
+      name: 'Beacons', 
+      href: '/beacons', 
+      icon: SignalIcon, 
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      featureKey: 'beacon_management'
+    },
+    { 
+      name: 'Resource Manager', 
+      href: '/resources/manage', 
+      icon: BookOpenIcon, 
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      featureKey: 'resource_manager'
+    },
+    { 
+      name: 'TV Manager', 
+      href: '/tv/manage', 
+      icon: PlayIcon, 
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      featureKey: 'tv_manager'
+    },
+    { 
+      name: 'Events Manager', 
+      href: '/events/manage', 
+      icon: CalendarIcon, 
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      featureKey: 'events_manager'
+    },
+    { 
+      name: 'Notifications', 
+      href: '/notifications', 
+      icon: BellIcon, 
+      roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      featureKey: 'notifications'
     }
   ];
 
   // Filter items based on role and permissions
-  const getFilteredItems = () => {
-    return primaryItems.filter(item => {
-      // Pulse TV is visible to all authenticated users (unless explicitly denied)
-      if (item.name === 'Pulse TV') {
-        if (item.featureKey && customPermissions[item.featureKey] === false) {
-          return false;
-        }
-        return true;
-      }
-      
+  const getFilteredItems = (items) => {
+    return items.filter(item => {
       // Check custom permissions first (overrides role defaults)
       if (item.featureKey && customPermissions.hasOwnProperty(item.featureKey)) {
         return customPermissions[item.featureKey] === true;
@@ -99,13 +126,28 @@ const TopNavigation = ({ userRole, customPermissions }) => {
     });
   };
 
-  const filteredItems = getFilteredItems();
+  // Determine which items to show based on active section
+  const getCurrentItems = () => {
+    if (activeSection === 'portal') {
+      return getFilteredItems(portalItems);
+    } else if (activeSection === 'settings') {
+      return getFilteredItems(settingsItems);
+    }
+    return [];
+  };
+
+  const filteredItems = getCurrentItems();
+
+  // Don't show top nav when on home section
+  if (activeSection === 'home' || !activeSection || filteredItems.length === 0) {
+    return null;
+  }
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-30 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700/50">
       <div className="lg:pl-64">
         <div className="flex items-center justify-between h-16 px-4 lg:px-6">
-          {/* Primary Navigation Items */}
+          {/* Sub-page Navigation Items */}
           <div className="flex items-center space-x-1 overflow-x-auto scrollbar-hide">
             {filteredItems.map((item) => {
               const isActive = location.pathname === item.href || 
