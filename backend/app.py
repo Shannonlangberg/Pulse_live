@@ -10799,7 +10799,7 @@ def get_weekly_submission_status():
         from models import Region, CampusV2, AttendanceRecord
         
         # Only admins and lead pastors can see this
-        if current_user.role not in ['admin', 'lead_pastor', 'senior_pastor', 'senior_leader']:
+        if current_user.role not in ['superadmin', 'admin', 'lead_pastor', 'senior_pastor', 'senior_leader']:
             return jsonify({'error': 'Unauthorized'}), 403
         
         # Get region parameter (optional - defaults to user's region or AU)
@@ -12911,7 +12911,7 @@ def delete_user_api(user_id):
 def get_all_users_permissions():
     """Get all users with their permissions (admin and leadership only)"""
     try:
-        if current_user.role not in ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
             return jsonify({'error': 'Unauthorized'}), 403
         
         conn = get_db()
@@ -12971,7 +12971,7 @@ def get_all_users_permissions():
 def get_user_permissions(user_id):
     """Get specific user's permissions"""
     try:
-        if current_user.role not in ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
             return jsonify({'error': 'Unauthorized'}), 403
         
         conn = get_db()
@@ -13025,7 +13025,7 @@ def get_user_permissions(user_id):
 def update_user_permissions(user_id):
     """Update user's custom permissions"""
     try:
-        if current_user.role not in ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
             return jsonify({'error': 'Unauthorized'}), 403
         
         data = request.get_json()
@@ -19938,7 +19938,7 @@ except ImportError as e:
 def get_users():
     """Get all users (admin and leadership roles only)"""
     try:
-        if current_user.role not in ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
             return jsonify({'error': 'Unauthorized'}), 403
         
         users_db = load_users_database()
