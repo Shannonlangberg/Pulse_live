@@ -64,7 +64,7 @@ const ServingDashboard = () => {
 
   // Different tabs based on user role
   const getTabs = () => {
-    if (userRole === 'admin' || userRole === 'senior_leader' || userRole === 'campus_pastor' || userRole === 'team_leader') {
+    if (userRole === 'superadmin' || userRole === 'admin' || userRole === 'senior_leader' || userRole === 'campus_pastor' || userRole === 'team_leader') {
       return [
         { id: 'dashboard', name: 'Overview', icon: ChartBarIcon },
         { id: 'service-planning', name: 'Service Planning', icon: DocumentDuplicateIcon },
@@ -365,7 +365,7 @@ const ServingDashboard = () => {
 
   const renderTabContent = () => {
     if (activeTab === 'dashboard') {
-      return userRole === 'admin' || userRole === 'senior_leader' || userRole === 'campus_pastor' || userRole === 'team_leader' 
+      return userRole === 'superadmin' || userRole === 'admin' || userRole === 'senior_leader' || userRole === 'campus_pastor' || userRole === 'team_leader' 
         ? renderLeaderDashboard() 
         : renderMemberDashboard();
     }
@@ -376,7 +376,7 @@ const ServingDashboard = () => {
       case 'schedule':
         return <ServingSchedule />;
       case 'teams':
-        return userRole === 'admin' || userRole === 'senior_leader' || userRole === 'campus_pastor' || userRole === 'team_leader' 
+        return userRole === 'superadmin' || userRole === 'admin' || userRole === 'senior_leader' || userRole === 'campus_pastor' || userRole === 'team_leader' 
           ? <ServingManagement /> 
           : <ServingTeams />;
       case 'history':

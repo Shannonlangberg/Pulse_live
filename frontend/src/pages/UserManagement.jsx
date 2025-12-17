@@ -4,6 +4,7 @@ import { UserGroupIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@hero
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [campuses, setCampuses] = useState([]);
+  const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -13,24 +14,24 @@ const UserManagement = () => {
     password: '',
     full_name: '',
     email: '',
-    role: 'pastor',
-    campus: 'all_campuses'
+    role: 'staff',
+    campus: 'all_campuses',
+    region_id: null
   });
 
   const roles = [
+    { value: 'superadmin', label: 'Super Administrator' },
     { value: 'admin', label: 'Administrator' },
-    { value: 'senior_pastor', label: 'Senior Pastor' },
-    { value: 'lead_pastor', label: 'Lead Pastor' },
-    { value: 'senior_leadership', label: 'Senior Leadership' },
+    { value: 'senior_leader', label: 'Senior Leader' },
     { value: 'campus_pastor', label: 'Campus Pastor' },
-    { value: 'pastor', label: 'Pastor' },
-    { value: 'finance', label: 'Finance' },
-    { value: 'connect_group_leader', label: 'Connect Group Leader' }
+    { value: 'staff', label: 'Staff' },
+    { value: 'finance', label: 'Finance' }
   ];
 
   useEffect(() => {
     loadUsers();
     loadCampuses();
+    loadRegions();
   }, []);
 
   const loadCampuses = async () => {
@@ -42,6 +43,20 @@ const UserManagement = () => {
       }
     } catch (err) {
       console.error('Error loading campuses:', err);
+    }
+  };
+
+  const loadRegions = async () => {
+    try {
+      const response = await fetch('/api/v2/regions', {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setRegions(data.regions || []);
+      }
+    } catch (err) {
+      console.error('Error loading regions:', err);
     }
   };
 
@@ -74,7 +89,8 @@ const UserManagement = () => {
         full_name: user.full_name || '',
         email: user.email || '',
         role: user.role,
-        campus: user.campus || 'all_campuses'
+        campus: user.campus || 'all_campuses',
+        region_id: user.region_id || null
       });
     } else {
       setEditingUser(null);
@@ -83,8 +99,9 @@ const UserManagement = () => {
         password: '',
         full_name: '',
         email: '',
-        role: 'pastor',
-        campus: 'all_campuses'
+        role: 'staff',
+        campus: 'all_campuses',
+        region_id: null
       });
     }
     setShowModal(true);
@@ -98,7 +115,7 @@ const UserManagement = () => {
       password: '',
       full_name: '',
       email: '',
-      role: 'pastor',
+      role: 'staff',
       campus: 'all_campuses'
     });
   };
@@ -174,6 +191,7 @@ const UserManagement = () => {
 
   const getRoleBadgeColor = (role) => {
     const colors = {
+      'superadmin': 'bg-red-600/20 text-red-300 border-red-600/30',
       'admin': 'bg-red-500/20 text-red-400 border-red-500/30',
       'senior_leadership': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
       'senior_leader': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
@@ -181,13 +199,15 @@ const UserManagement = () => {
       'lead_pastor': 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
       'campus_pastor': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
       'pastor': 'bg-green-500/20 text-green-400 border-green-500/30',
-      'finance': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+      'finance': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+      'staff': 'bg-slate-500/20 text-slate-400 border-slate-500/30'
     };
     return colors[role] || 'bg-slate-500/20 text-slate-400 border-slate-500/30';
   };
 
   const getRoleDisplayName = (role) => {
     const names = {
+      'superadmin': 'Super Administrator',
       'admin': 'Administrator',
       'senior_leadership': 'Senior Leadership',
       'senior_leader': 'Senior Leader',
@@ -249,6 +269,7 @@ const UserManagement = () => {
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Email</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Role</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Campus</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Region</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Last Login</th>
                   <th className="px-6 py-4 text-right text-sm font-semibold text-slate-300">Actions</th>
@@ -257,7 +278,7 @@ const UserManagement = () => {
               <tbody className="divide-y divide-slate-700/50">
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center text-slate-400">
+                    <td colSpan="9" className="px-6 py-12 text-center text-slate-400">
                       No users found
                     </td>
                   </tr>
@@ -274,6 +295,9 @@ const UserManagement = () => {
                       </td>
                       <td className="px-6 py-4 text-slate-300">
                         {user.campus === 'all_campuses' ? 'All Campuses' : user.campus}
+                      </td>
+                      <td className="px-6 py-4 text-slate-300">
+                        {user.region_id ? regions.find(r => r.id === user.region_id)?.display_name || 'Unknown' : 'Global'}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium border ${
@@ -328,7 +352,7 @@ const UserManagement = () => {
           <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
             <div className="text-slate-400 text-sm mb-1">Administrators</div>
             <div className="text-3xl font-bold text-red-400">
-              {users.filter(u => u.role === 'admin').length}
+              {users.filter(u => u.role === 'superadmin' || u.role === 'admin').length}
             </div>
           </div>
           <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
@@ -458,6 +482,28 @@ const UserManagement = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Region */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Region <span className="text-slate-500 text-xs ml-2">(optional - leave blank for global access)</span>
+                </label>
+                <select
+                  value={formData.region_id || ''}
+                  onChange={(e) => setFormData({ ...formData, region_id: e.target.value ? parseInt(e.target.value) : null })}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">All Regions (Global Access)</option>
+                  {regions.filter(r => r.active).map(region => (
+                    <option key={region.id} value={region.id}>
+                      {region.display_name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-400">
+                  Regional users can only see data from their assigned region. Leave blank for superadmin/admin with global access.
+                </p>
               </div>
 
               {/* Actions */}

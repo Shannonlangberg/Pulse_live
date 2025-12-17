@@ -136,6 +136,7 @@ const MyProfile = () => {
 
   const getRoleDisplayName = (role) => {
     const names = {
+      'superadmin': 'Super Administrator',
       'admin': 'Administrator',
       'senior_leadership': 'Senior Leadership',
       'senior_leader': 'Senior Leader',

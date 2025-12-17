@@ -147,7 +147,7 @@ const PastoralCare = () => {
         setUserCampus(data.campus || 'all_campuses');
         
         // Show campus selector for senior leadership - DISABLED for now to avoid dashboard selector
-        const hasFullAccess = ['admin', 'senior_leadership', 'senior_pastor', 'lead_pastor'].includes(data.role);
+        const hasFullAccess = ['superadmin', 'admin', 'senior_leadership', 'senior_pastor', 'lead_pastor'].includes(data.role);
         setShowCampusSelector(false); // Temporarily disabled - will show simple dropdown instead
         
         // Auto-select campus for campus pastors
@@ -198,7 +198,7 @@ const PastoralCare = () => {
         const data = await response.json();
         const users = data.users || [];
         // Filter to pastors/leaders
-        const pastorRoles = ['admin', 'senior_leadership', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'staff'];
+        const pastorRoles = ['superadmin', 'admin', 'senior_leadership', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'staff'];
         const pastorList = users
           .filter(u => pastorRoles.includes(u.role))
           .map(u => ({ id: u.id, name: u.full_name || u.username, role: u.role }));
@@ -564,7 +564,7 @@ const PastoralCare = () => {
     }
   };
 
-  const canCreateCase = ['admin', 'senior_leadership', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'staff'].includes(userRole);
+  const canCreateCase = ['superadmin', 'admin', 'senior_leadership', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'staff'].includes(userRole);
 
   const filteredCases = careCases;
   const filteredPrayerRequests = prayerRequests;

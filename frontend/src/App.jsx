@@ -51,7 +51,7 @@ import DevotionsAdmin from './pages/DevotionsAdmin';
 import DevotionPlanManager from './pages/DevotionPlanManager';
 import HomepageManager from './pages/HomepageManager';
 
-const RESOURCE_ALLOWED_ROLES = ['admin'];
+const RESOURCE_ALLOWED_ROLES = ['superadmin', 'admin'];
 
 const DriveAuthModal = ({ onConnect, connecting, error }) => {
   return (

@@ -120,7 +120,7 @@ const Landing = () => {
 
   const featuredCategories = categories.filter(Boolean);
   const actualRole = session?.role || 'user';
-  const isAdmin = actualRole === 'admin';
+  const isAdmin = actualRole === 'superadmin' || actualRole === 'admin';
   const quickActions = getQuickActions();
 
   const announcements = [

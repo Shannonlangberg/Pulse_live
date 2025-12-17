@@ -76,6 +76,7 @@ const RoleManager = () => {
     { key: 'data_export', label: 'Data Export', icon: '📥' },
     { key: 'user_management', label: 'User Management', icon: '👤' },
     { key: 'campus_management', label: 'Campus Management', icon: '🏢' },
+    { key: 'region_access', label: 'Region Access Control', icon: '🌍' },
     { key: 'beacon_management', label: 'Beacon Management', icon: '📡' },
     { key: 'pathway_manager', label: 'Journey Manager', icon: '🛤️' },
     { key: 'resource_manager', label: 'Resource Manager', icon: '📦' },
@@ -88,13 +89,22 @@ const RoleManager = () => {
 
   // Role default permissions mapping (based on MainLayout navigation roles)
   const roleDefaults = {
+    'superadmin': {
+      home: true, dashboard: true, input: true, finance: true, giving: true,
+      people: true, heartbeat: true, connect_groups: true, prayer: true,
+      resources: true, pulse_tv: true, events: true, serving: true,
+      communication: true, devotions: true,
+      data_export: true, user_management: true, campus_management: true,
+      region_access: true, beacon_management: true, pathway_manager: true, resource_manager: true,
+      tv_manager: true, events_manager: true, notifications: true
+    },
     'admin': {
       home: true, dashboard: true, input: true, finance: true, giving: true,
       people: true, heartbeat: true, connect_groups: true, prayer: true,
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
       data_export: true, user_management: true, campus_management: true,
-      beacon_management: true, pathway_manager: true, resource_manager: true,
+      region_access: true, beacon_management: true, pathway_manager: true, resource_manager: true,
       tv_manager: true, events_manager: true, notifications: true
     },
     'senior_leadership': {
@@ -136,7 +146,7 @@ const RoleManager = () => {
     'campus_pastor': {
       home: true, dashboard: true, input: true, finance: false, giving: false,
       people: true, heartbeat: true, connect_groups: true, prayer: true,
-      resources: false, pulse_tv: true, events: true, serving: true,
+      resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
       data_export: false, user_management: false, campus_management: false,
       beacon_management: false, pathway_manager: false, resource_manager: false,
@@ -152,19 +162,19 @@ const RoleManager = () => {
       tv_manager: false, events_manager: false, notifications: false
     },
     'finance': {
-      home: false, dashboard: false, input: false, finance: true, giving: true,
+      home: true, dashboard: false, input: false, finance: true, giving: true,
       people: false, heartbeat: false, connect_groups: false, prayer: false,
-      resources: false, pulse_tv: true, events: false, serving: false,
+      resources: true, pulse_tv: false, events: false, serving: false,
       communication: false, devotions: false,
       data_export: false, user_management: false, campus_management: false,
       beacon_management: false, pathway_manager: false, resource_manager: false,
       tv_manager: false, events_manager: false, notifications: false
     },
     'staff': {
-      home: true, dashboard: true, input: true, finance: false, giving: false,
-      people: true, heartbeat: true, connect_groups: true, prayer: true,
-      resources: false, pulse_tv: true, events: true, serving: true,
-      communication: false, devotions: true,
+      home: true, dashboard: false, input: false, finance: false, giving: false,
+      people: false, heartbeat: false, connect_groups: false, prayer: false,
+      resources: true, pulse_tv: false, events: false, serving: false,
+      communication: false, devotions: false,
       data_export: false, user_management: false, campus_management: false,
       beacon_management: false, pathway_manager: false, resource_manager: false,
       tv_manager: false, events_manager: false, notifications: false

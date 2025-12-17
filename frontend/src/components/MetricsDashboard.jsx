@@ -20,13 +20,13 @@ const MetricsDashboard = ({ userRole, userCampus, session }) => {
   const [eventsLoading, setEventsLoading] = useState(true);
 
   // Determine if user can see weekend stats (campus_pastor and above, NOT staff)
-  const canSeeWeekendStats = ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor'].includes(userRole);
+  const canSeeWeekendStats = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor'].includes(userRole);
   
   // Determine if user can see giving/finance
-  const canSeeGiving = ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'finance'].includes(userRole);
+  const canSeeGiving = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'finance'].includes(userRole);
   
   // Determine if user can see heartbeat
-  const canSeeHeartbeat = ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'staff'].includes(userRole);
+  const canSeeHeartbeat = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'staff'].includes(userRole);
 
   useEffect(() => {
     fetchMetrics();

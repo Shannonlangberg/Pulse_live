@@ -66,7 +66,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     // Show campus selector for senior leadership or if no campus is selected
-    if (userRole && (userRole === 'senior_leader' || userRole === 'admin' || userRole === 'senior_pastor' || userRole === 'lead_pastor')) {
+    if (userRole && (userRole === 'superadmin' || userRole === 'senior_leader' || userRole === 'admin' || userRole === 'senior_pastor' || userRole === 'lead_pastor')) {
       setShowCampusSelector(true);
     } else if (userRole && userCampus && userCampus !== 'all_campuses' && campuses.length > 0) {
       // Auto-select campus for campus pastors and other users with a campus

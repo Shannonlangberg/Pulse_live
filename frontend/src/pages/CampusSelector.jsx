@@ -8,9 +8,9 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
   const [submissionStatus, setSubmissionStatus] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(false);
   
-  // Check if user has full access (admin, senior leader, senior pastor, lead pastor)
-  const hasFullAccess = userRole === 'admin' || userRole === 'senior_leader' || userRole === 'senior_pastor' || userRole === 'lead_pastor';
-  const canSeeTracker = userRole === 'admin' || userRole === 'lead_pastor' || userRole === 'senior_pastor' || userRole === 'senior_leader';
+  // Check if user has full access (superadmin, admin, senior leader, senior pastor, lead pastor)
+  const hasFullAccess = userRole === 'superadmin' || userRole === 'admin' || userRole === 'senior_leader' || userRole === 'senior_pastor' || userRole === 'lead_pastor';
+  const canSeeTracker = userRole === 'superadmin' || userRole === 'admin' || userRole === 'lead_pastor' || userRole === 'senior_pastor' || userRole === 'senior_leader';
   
   // Filter campuses based on user role, assigned campus, and selected region
   const getAccessibleCampuses = () => {
@@ -346,7 +346,7 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
         {selectedRegion && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Australia National Overview for senior leadership */}
-            {selectedRegion.code === 'AU' && (userRole === 'senior_leader' || userRole === 'admin' || userRole === 'senior_pastor' || userRole === 'lead_pastor') && (
+            {selectedRegion.code === 'AU' && (userRole === 'superadmin' || userRole === 'senior_leader' || userRole === 'admin' || userRole === 'senior_pastor' || userRole === 'lead_pastor') && (
               <div
                 onClick={() => onCampusSelect({ id: 'australia', name: 'Australia', description: 'National Overview', icon: '🇦🇺', isRollup: true })}
                 className="group relative bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 shadow-2xl hover:shadow-purple-500/25 transition-all duration-500 hover:scale-105 cursor-pointer"
@@ -408,7 +408,7 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
               <div>
                 <h3 className="text-2xl font-bold text-white">Your Access Level</h3>
                 <p className="text-white/60 text-lg">
-                  {userRole === 'senior_leader' || userRole === 'admin' || userRole === 'senior_pastor' || userRole === 'lead_pastor'
+                  {userRole === 'superadmin' || userRole === 'senior_leader' || userRole === 'admin' || userRole === 'senior_pastor' || userRole === 'lead_pastor'
                     ? 'Full access to all campus dashboards' 
                     : 'Access to your assigned campus dashboard'
                   }

@@ -170,7 +170,7 @@ const Events = () => {
               <h1 className="text-4xl font-bold text-white mb-2">Events</h1>
               <p className="text-white/80">Upcoming church events and gatherings</p>
             </div>
-            {(userRole === 'admin' || userRole === 'senior_leadership' || userRole === 'senior_leader' || userRole === 'senior_pastor' || userRole === 'lead_pastor') && (
+            {(userRole === 'superadmin' || userRole === 'admin' || userRole === 'senior_leadership' || userRole === 'senior_leader' || userRole === 'senior_pastor' || userRole === 'lead_pastor') && (
               <button
                 onClick={() => navigate('/events/manage')}
                 className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:scale-105"
@@ -340,7 +340,7 @@ const Events = () => {
                     >
                       View Details
                     </button>
-                    {(userRole === 'admin' || userRole === 'senior_leadership' || userRole === 'senior_leader' || userRole === 'senior_pastor' || userRole === 'lead_pastor') && (
+                    {(userRole === 'superadmin' || userRole === 'admin' || userRole === 'senior_leadership' || userRole === 'senior_leader' || userRole === 'senior_pastor' || userRole === 'lead_pastor') && (
                       <button
                         onClick={() => {
                           setEventToManage(event);
