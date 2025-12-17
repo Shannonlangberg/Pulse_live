@@ -1100,6 +1100,18 @@ def run_migrations():
         cursor.execute('SELECT filename FROM schema_migrations')
         applied_migrations = set(row[0] for row in cursor.fetchall())
         
+        # CRITICAL FIX: Check if essential tables exist
+        # If they don't, clear the migrations table and force re-run
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        users_table_exists = cursor.fetchone() is not None
+        
+        if not users_table_exists and applied_migrations:
+            logger.warning("⚠️ CRITICAL: users table missing but migrations marked as applied!")
+            logger.warning("⚠️ Clearing schema_migrations and forcing full re-run...")
+            cursor.execute('DELETE FROM schema_migrations')
+            conn.commit()
+            applied_migrations = set()  # Force all migrations to run
+        
         # Run pending migrations
         for migration_file in migration_files:
             if migration_file in applied_migrations:
