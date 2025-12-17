@@ -113,12 +113,15 @@ const LogStats = () => {
       .catch(err => console.error('[LogStats] Error loading regions:', err));
 
     // Load campuses
+    console.log('[LogStats] Loading campuses...');
     fetch('/api/campuses', {
       credentials: 'include'
     })
       .then(res => res.json())
       .then(data => {
+        console.log('[LogStats] Campuses response:', data);
         if (data.campuses) {
+          console.log('[LogStats] Sample campus data:', data.campuses[0]);
           setAllCampuses(data.campuses); // Store all campuses
           setCampuses(data.campuses);
           // Set the default campus from the API response
@@ -129,7 +132,7 @@ const LogStats = () => {
           }
         }
       })
-      .catch(err => console.error('Error loading campuses:', err));
+      .catch(err => console.error('[LogStats] Error loading campuses:', err));
 
     // Set default date to today
     const today = new Date();
@@ -141,14 +144,27 @@ const LogStats = () => {
 
   // Filter campuses when region changes
   useEffect(() => {
+    console.log('[LogStats] Region changed to:', selectedRegion);
+    console.log('[LogStats] All campuses count:', allCampuses.length);
+    console.log('[LogStats] Regions available:', regions);
+    
     if (selectedRegion && allCampuses.length > 0) {
       const region = regions.find(r => r.code === selectedRegion);
+      console.log('[LogStats] Found region:', region);
+      
       if (region) {
         const filteredCampuses = allCampuses.filter(c => c.region_id === region.id);
+        console.log('[LogStats] Filtering campuses: region.id =', region.id);
+        console.log('[LogStats] Sample campus region_id:', allCampuses[0]?.region_id);
+        console.log('[LogStats] Filtered campuses:', filteredCampuses);
+        
         setCampuses(filteredCampuses);
         // Reset selected campus to first in region
         if (filteredCampuses.length > 0) {
           setSelectedCampus(filteredCampuses[0].id);
+        } else {
+          console.warn('[LogStats] No campuses found for region:', selectedRegion);
+          setSelectedCampus('');
         }
       }
     }
