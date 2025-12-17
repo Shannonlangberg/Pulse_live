@@ -121,7 +121,9 @@ const LogStats = () => {
       .then(data => {
         console.log('[LogStats] Campuses response:', data);
         if (data.campuses) {
-          console.log('[LogStats] Sample campus data:', data.campuses[0]);
+          console.log('[LogStats] First campus (may be "All"):', data.campuses[0]);
+          console.log('[LogStats] Second campus (real campus):', data.campuses[1]);
+          console.log('[LogStats] ALL campus data:', data.campuses);
           setAllCampuses(data.campuses); // Store all campuses
           setCampuses(data.campuses);
           // Set the default campus from the API response
@@ -153,9 +155,12 @@ const LogStats = () => {
       console.log('[LogStats] Found region:', region);
       
       if (region) {
-        const filteredCampuses = allCampuses.filter(c => c.region_id === region.id);
         console.log('[LogStats] Filtering campuses: region.id =', region.id);
-        console.log('[LogStats] Sample campus region_id:', allCampuses[0]?.region_id);
+        console.log('[LogStats] First campus region_id:', allCampuses[0]?.region_id);
+        console.log('[LogStats] Second campus region_id:', allCampuses[1]?.region_id);
+        console.log('[LogStats] All campus region_ids:', allCampuses.map(c => ({id: c.id, name: c.name, region_id: c.region_id})));
+        
+        const filteredCampuses = allCampuses.filter(c => c.region_id === region.id);
         console.log('[LogStats] Filtered campuses:', filteredCampuses);
         
         setCampuses(filteredCampuses);
