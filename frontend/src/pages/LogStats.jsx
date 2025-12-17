@@ -85,6 +85,24 @@ const LogStats = () => {
   const totalKidsOverall = totalKidsAttendance + (parseInt(quickInputStats['Kids Leaders']) || 0);
 
   useEffect(() => {
+    // Load regions
+    fetch('/api/v2/regions', {
+      credentials: 'include'
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.regions) {
+          const activeRegions = data.regions.filter(r => r.active);
+          setRegions(activeRegions);
+          // Set default region to Australia
+          if (activeRegions.length > 0) {
+            const defaultRegion = activeRegions.find(r => r.code === 'AU') || activeRegions[0];
+            setSelectedRegion(defaultRegion.code);
+          }
+        }
+      })
+      .catch(err => console.error('Error loading regions:', err));
+
     // Load campuses
     fetch('/api/campuses', {
       credentials: 'include'
@@ -92,6 +110,7 @@ const LogStats = () => {
       .then(res => res.json())
       .then(data => {
         if (data.campuses) {
+          setAllCampuses(data.campuses); // Store all campuses
           setCampuses(data.campuses);
           // Set the default campus from the API response
           if (data.default) {
@@ -110,6 +129,21 @@ const LogStats = () => {
     const day = String(today.getDate()).padStart(2, '0');
     setQuickInputDate(`${year}-${month}-${day}`);
   }, []);
+
+  // Filter campuses when region changes
+  useEffect(() => {
+    if (selectedRegion && allCampuses.length > 0) {
+      const region = regions.find(r => r.code === selectedRegion);
+      if (region) {
+        const filteredCampuses = allCampuses.filter(c => c.region_id === region.id);
+        setCampuses(filteredCampuses);
+        // Reset selected campus to first in region
+        if (filteredCampuses.length > 0) {
+          setSelectedCampus(filteredCampuses[0].id);
+        }
+      }
+    }
+  }, [selectedRegion, allCampuses, regions]);
 
   // Load recent entries when campus changes
   useEffect(() => {
