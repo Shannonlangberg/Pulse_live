@@ -20828,15 +20828,13 @@ def get_resource_categories():
 
 @app.route('/api/google/auth-url', methods=['GET'])
 def get_google_auth_url():
-    """Get Google Drive OAuth URL"""
+    """Get Google Drive OAuth URL - accessible to all authenticated users"""
     try:
         # Check authentication manually (don't use decorator to avoid recursion)
         if not current_user.is_authenticated:
             return jsonify({'error': 'Authentication required. Please sign in first.'}), 401
         
-        # Check if user has admin role
-        if current_user.role not in ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
-            return jsonify({'error': 'Administrator access required'}), 403
+        # All authenticated users can now connect Google Drive (no role restriction)
         
         # Check if OAuth credentials are configured
         client_id = os.getenv('GOOGLE_CLIENT_ID')
