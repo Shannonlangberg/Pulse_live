@@ -382,6 +382,7 @@ def initialize_google_sheets():
     
     # Try multiple initialization methods
     initialization_methods = [
+        ("Railway Environment Variable (Base64)", initialize_from_railway_base64),
         ("Railway Environment Variable", initialize_from_railway),
         ("Local credentials.json", initialize_from_local_file),
         ("Local credentials.json in backend/", initialize_from_backend_file),
@@ -402,6 +403,47 @@ def initialize_google_sheets():
     print("[WARNING] All Google Sheets initialization methods failed - using fallback")
     sheet = None
     return False
+
+def initialize_from_railway_base64():
+    """Initialize from Railway environment variables (base64-encoded)"""
+    global sheet, finance_sheet, client
+    import base64
+    import json
+    
+    google_sheets_credentials_b64 = os.getenv("GOOGLE_SHEETS_CREDENTIALS_BASE64")
+    if not google_sheets_credentials_b64:
+        raise Exception("GOOGLE_SHEETS_CREDENTIALS_BASE64 not found")
+    
+    # Decode base64 to get JSON string
+    credentials_json = base64.b64decode(google_sheets_credentials_b64).decode('utf-8')
+    creds_dict = json.loads(credentials_json)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+    sheet_name = os.getenv("GOOGLE_SHEET_NAME", "Stats")
+    print(f"[DEBUG] Railway Base64: Opening spreadsheet '{sheet_name}'")
+    
+    # Open the main Google Sheet file
+    spreadsheet = client.open(sheet_name)
+    print(f"[DEBUG] Railway Base64: Spreadsheet opened successfully")
+    print(f"[DEBUG] Railway Base64: Available worksheets: {[ws.title for ws in spreadsheet.worksheets()]}")
+    
+    # Open the Stats worksheet
+    sheet = spreadsheet.worksheet("Stats")
+    print(f"[DEBUG] Railway Base64: Successfully opened 'Stats' worksheet")
+    
+    # Try to open the Tithe tab
+    try:
+        finance_sheet = spreadsheet.worksheet("Tithe")
+        print(f"[DEBUG] Railway Base64: Successfully opened 'Tithe' worksheet")
+    except Exception as e:
+        try:
+            finance_sheet = spreadsheet.worksheet("tithe")
+            print(f"[DEBUG] Railway Base64: Successfully opened 'tithe' worksheet")
+        except Exception as e2:
+            print(f"[WARNING] Railway Base64: Could not open Tithe worksheet: {e2}")
+            finance_sheet = None
+    
+    return True
 
 def initialize_from_railway():
     """Initialize from Railway environment variables"""
