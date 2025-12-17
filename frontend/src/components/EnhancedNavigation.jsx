@@ -149,6 +149,13 @@ const SETTINGS_ITEMS = [
     icon: BellIcon, 
     roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
     featureKey: 'notifications'
+  },
+  { 
+    name: 'Attendance Data', 
+    href: '/attendance-data', 
+    icon: DocumentChartBarIcon, 
+    roles: ['superadmin', 'admin'],
+    featureKey: null
   }
 ];
 
@@ -178,7 +185,7 @@ const EnhancedNavigation = ({
                path.startsWith('/campuses') || path.startsWith('/profile') || 
                path.startsWith('/beacons') || path.startsWith('/resources/manage') ||
                path.startsWith('/tv/manage') || path.startsWith('/events/manage') ||
-               path.startsWith('/notifications') || path.startsWith('/export') ||
+               path.startsWith('/notifications') || path.startsWith('/export') || path.startsWith('/attendance-data') ||
                path.startsWith('/homepage-manager')) {
       setActiveSection('settings');
     }

@@ -121,6 +121,13 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       icon: BellIcon, 
       roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
       featureKey: 'notifications'
+    },
+    { 
+      name: 'Attendance Data', 
+      href: '/attendance-data', 
+      icon: DocumentChartBarIcon, 
+      roles: ['superadmin', 'admin'],
+      featureKey: null
     }
   ];
 
