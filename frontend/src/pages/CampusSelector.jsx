@@ -188,8 +188,8 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
           </button>
         )}
 
-        {/* Sunday Report Submission Tracker - Only for Australia campus selection */}
-        {selectedRegion?.code === 'AU' && canSeeTracker && submissionStatus && (
+        {/* Sunday Report Submission Tracker - Works for ALL regions! */}
+        {selectedRegion && canSeeTracker && submissionStatus && (
           <div className="mb-8 bg-white/5 backdrop-blur-sm rounded-xl p-4 md:p-5 border border-white/10">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 sm:gap-3">

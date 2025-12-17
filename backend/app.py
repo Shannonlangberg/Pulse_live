@@ -10788,102 +10788,58 @@ def delete_campus(campus_name):
 @app.route('/api/weekly-submission-status', methods=['GET'])
 @login_required
 def get_weekly_submission_status():
-    """Get submission status for all campuses for the current week (Saturday-Sunday weekend)"""
+    """Get submission status for all campuses for the current week (Saturday-Sunday weekend) - Multi-region support"""
     try:
+        from models import Region, CampusV2, AttendanceRecord
+        
         # Only admins and lead pastors can see this
         if current_user.role not in ['admin', 'lead_pastor', 'senior_pastor', 'senior_leader']:
             return jsonify({'error': 'Unauthorized'}), 403
         
-        if not sheet:
-            return jsonify({'error': 'Google Sheets not connected'}), 500
+        # Get region parameter (optional - defaults to user's region or AU)
+        region_code = request.args.get('region', 'AU').upper()
         
-        # Get all records from the sheet with force_refresh to ensure real-time data
-        all_records = safe_sheets_request(sheet.get_all_records, force_refresh=True)
-        if not all_records:
-            return jsonify({'campuses': []})
+        # Find the region
+        region = Region.query.filter_by(code=region_code).first()
+        if not region:
+            return jsonify({'error': f'Region {region_code} not found'}), 404
         
         # Get the most recent Sunday (or today if it's Sunday)
         today = datetime.now()
         days_since_sunday = (today.weekday() + 1) % 7  # Monday is 0, Sunday is 6
         most_recent_sunday = today - timedelta(days=days_since_sunday)
-        most_recent_sunday = most_recent_sunday.replace(hour=0, minute=0, second=0, microsecond=0)
+        most_recent_sunday = most_recent_sunday.replace(hour=0, minute=0, second=0, microsecond=0).date()
         
         # Also check for Saturday submissions (many campuses submit Saturday evening)
         most_recent_saturday = most_recent_sunday - timedelta(days=1)
         
-        # Define campus list
-        campus_list = [
-            {'id': 'paradise', 'name': 'Paradise'},
-            {'id': 'adelaide_city', 'name': 'Adelaide City'},
-            {'id': 'salisbury', 'name': 'Salisbury'},
-            {'id': 'south', 'name': 'South'},
-            {'id': 'mt_barker', 'name': 'Mt Barker'},
-            {'id': 'clare_valley', 'name': 'Clare Valley'},
-            {'id': 'victor_harbour', 'name': 'Victor Harbor'},
-            {'id': 'copper_coast', 'name': 'Copper Coast'}
-        ]
+        # Get all campuses for this region
+        campuses = CampusV2.query.filter_by(region_id=region.id, active=True).all()
         
-        # Check submission status for each campus
+        if not campuses:
+            return jsonify({
+                'week_start': most_recent_saturday.strftime('%B %d, %Y'),
+                'campuses': [],
+                'region': region.to_dict()
+            })
+        
+        # Check submission status for each campus using DATABASE (attendance_records)
         campus_status = []
-        for campus_info in campus_list:
-            campus_id = campus_info['id']
-            campus_name = campus_info['name']
-            
-            # Find the most recent submission for this campus
-            latest_submission = None
-            latest_date = None
-            
-            for row in all_records:
-                try:
-                    # Normalize both campus names for proper comparison
-                    row_campus_raw = row.get('Campus', '')
-                    row_campus_normalized = normalize_campus(row_campus_raw)
-                    campus_id_normalized = normalize_campus(campus_id)
-                    
-                    # Try to get timestamp - could be in 'Timestamp', first column, or 'Date'
-                    timestamp_str = row.get('Timestamp', '') or row.get('timestamp', '') or list(row.values())[0] if row else ''
-                    date_str = row.get('Date', '')
-                    
-                    # Use timestamp if available, otherwise fall back to date
-                    date_to_parse = timestamp_str if timestamp_str else date_str
-                    
-                    if not date_to_parse or row_campus_normalized != campus_id_normalized:
-                        continue
-                    
-                    # Parse date/timestamp with more formats
-                    row_date = None
-                    date_formats = [
-                        '%Y-%m-%d %H:%M:%S',  # 2025-10-15 00:46:43
-                        '%Y-%m-%d %H:%M',     # 2025-10-15 00:46
-                        '%m/%d/%Y %H:%M:%S',  # 10/15/2025 00:46:43
-                        '%d/%m/%Y %H:%M:%S',  # 15/10/2025 00:46:43
-                        '%Y-%m-%d',           # 2025-10-15
-                        '%m/%d/%Y',           # 10/15/2025
-                        '%d/%m/%Y'            # 15/10/2025
-                    ]
-                    for date_format in date_formats:
-                        try:
-                            row_date = datetime.strptime(date_to_parse.strip(), date_format)
-                            break
-                        except ValueError:
-                            continue
-                    
-                    # Accept data from Saturday onwards (not just Sunday)
-                    if row_date and row_date >= most_recent_saturday:
-                        if latest_date is None or row_date > latest_date:
-                            latest_date = row_date
-                            latest_submission = row
-                except Exception as e:
-                    logger.error(f"Error parsing row for {campus_id}: {e}")
-                    continue
+        for campus in campuses:
+            # Find the most recent submission for this campus (Saturday or Sunday)
+            latest_record = AttendanceRecord.query.filter(
+                AttendanceRecord.campus_id == campus.id,
+                AttendanceRecord.date >= most_recent_saturday,
+                AttendanceRecord.date <= most_recent_sunday
+            ).order_by(AttendanceRecord.date.desc()).first()
             
             # Determine status
-            status = 'submitted' if latest_submission else 'not_submitted'
-            last_submitted = latest_date.strftime('%A, %I:%M %p') if latest_date else None
+            status = 'submitted' if latest_record else 'not_submitted'
+            last_submitted = latest_record.date.strftime('%A, %B %d') if latest_record else None
             
             campus_status.append({
-                'id': campus_id,
-                'name': campus_name,
+                'id': campus.campus_id,
+                'name': campus.display_name,
                 'status': status,
                 'last_submitted': last_submitted,
                 'week_start': most_recent_saturday.strftime('%B %d, %Y')  # Show Saturday as week start
