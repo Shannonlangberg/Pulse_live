@@ -412,15 +412,27 @@ def initialize_from_railway_base64():
     
     google_sheets_credentials_b64 = os.getenv("GOOGLE_SHEETS_CREDENTIALS_BASE64")
     if not google_sheets_credentials_b64:
+        print("[WARNING] GOOGLE_SHEETS_CREDENTIALS_BASE64 environment variable not found")
         raise Exception("GOOGLE_SHEETS_CREDENTIALS_BASE64 not found")
     
-    # Decode base64 to get JSON string
-    credentials_json = base64.b64decode(google_sheets_credentials_b64).decode('utf-8')
-    creds_dict = json.loads(credentials_json)
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
-    sheet_name = os.getenv("GOOGLE_SHEET_NAME", "Stats")
-    print(f"[DEBUG] Railway Base64: Opening spreadsheet '{sheet_name}'")
+    print(f"[DEBUG] Found GOOGLE_SHEETS_CREDENTIALS_BASE64 variable (length: {len(google_sheets_credentials_b64)})")
+    
+    try:
+        # Decode base64 to get JSON string
+        credentials_json = base64.b64decode(google_sheets_credentials_b64).decode('utf-8')
+        print(f"[DEBUG] Successfully decoded base64 credentials (length: {len(credentials_json)})")
+        
+        creds_dict = json.loads(credentials_json)
+        print(f"[DEBUG] Successfully parsed credentials JSON (type: {creds_dict.get('type')}, project: {creds_dict.get('project_id')})")
+        
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        print("[DEBUG] Successfully created credentials object")
+        
+        client = gspread.authorize(creds)
+        print("[DEBUG] Successfully authorized gspread client")
+        
+        sheet_name = os.getenv("GOOGLE_SHEET_NAME", "Stats")
+        print(f"[DEBUG] Railway Base64: Opening spreadsheet '{sheet_name}'")
     
     # Open the main Google Sheet file
     spreadsheet = client.open(sheet_name)
