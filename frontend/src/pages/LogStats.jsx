@@ -54,10 +54,15 @@ const LogStats = () => {
   // Get service times for selected campus
   const getCampusServiceTimes = () => {
     const campus = campuses.find(c => c.id === selectedCampus);
-    if (campus && campus.service_times) {
+    console.log('[LogStats] Selected campus:', campus);
+    console.log('[LogStats] Campus service_times:', campus?.service_times);
+    
+    if (campus && campus.service_times && campus.service_times.length > 0) {
+      console.log('[LogStats] Using campus service times:', campus.service_times);
       return campus.service_times;
     }
     // Default to all service times if campus not found
+    console.log('[LogStats] No service times found, using defaults');
     return ['9:00 AM', '10:00 AM', '11:00 AM', '5:00 PM', '5:30 PM'];
   };
 

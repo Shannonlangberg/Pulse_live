@@ -2298,7 +2298,7 @@ def get_active_campuses():
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT c.campus_id, c.name, c.display_name, c.region_id, r.code as region_code
+            SELECT c.campus_id, c.name, c.display_name, c.region_id, r.code as region_code, c.service_times
             FROM campuses_new c
             LEFT JOIN regions r ON c.region_id = r.id
             WHERE c.active = 1
@@ -2307,16 +2307,27 @@ def get_active_campuses():
         
         for row in cursor.fetchall():
             campus_id = row[0]
+            # Parse service_times from database (stored as JSON string)
+            db_service_times = []
+            if row[5]:  # service_times column
+                try:
+                    db_service_times = json.loads(row[5]) if isinstance(row[5], str) else row[5]
+                except (json.JSONDecodeError, TypeError):
+                    db_service_times = []
+            
+            # Use database service_times if available, otherwise fall back to JSON file
+            final_service_times = db_service_times if db_service_times else service_times_map.get(campus_id, [])
+            
             campus_data = {
                 'id': campus_id,
                 'name': row[2],  # display_name
                 'full_name': row[1],  # name
                 'region_id': row[3],  # region_id
                 'region_code': row[4],  # region_code (AU, US, etc.)
-                'service_times': service_times_map.get(campus_id, []),
+                'service_times': final_service_times,
                 'description': campuses_db.get('campuses', {}).get(campus_id, {}).get('description', None)
             }
-            print(f"[Backend] Campus {campus_id}: region_id={row[3]}, region_code={row[4]}")
+            print(f"[Backend] Campus {campus_id}: region_id={row[3]}, region_code={row[4]}, service_times={final_service_times}")
             active_campuses.append(campus_data)
         
         conn.close()
