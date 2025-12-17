@@ -183,12 +183,11 @@ const LogStats = () => {
 
   // Reset stats when campus changes (so service times update)
   useEffect(() => {
-    if (selectedCampus) {
+    if (selectedCampus && campuses.length > 0) {
       // Reset all service time fields when campus changes
-      const serviceTimes = getCampusServiceTimes();
       const resetStats = { ...quickInputStats };
       
-      // Clear all service time fields
+      // Clear all service time fields (they'll be repopulated based on campus)
       Object.keys(resetStats).forEach(key => {
         if (key.includes(':') || key.startsWith('Kids ')) {
           resetStats[key] = '';
@@ -197,7 +196,7 @@ const LogStats = () => {
       
       setQuickInputStats(resetStats);
     }
-  }, [selectedCampus]);
+  }, [selectedCampus, campuses]);
 
   // Load recent entries when campus changes
   useEffect(() => {
