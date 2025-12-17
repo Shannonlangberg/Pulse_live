@@ -50,6 +50,7 @@ import ViewEmail from './pages/ViewEmail';
 import DevotionsAdmin from './pages/DevotionsAdmin';
 import DevotionPlanManager from './pages/DevotionPlanManager';
 import HomepageManager from './pages/HomepageManager';
+import AttendanceDataViewer from './pages/AttendanceDataViewer';
 
 const RESOURCE_ALLOWED_ROLES = ['superadmin', 'admin'];
 
@@ -406,6 +407,7 @@ function App() {
                   <Route path="/notifications" element={<NotificationManager />} />
                   <Route path="/role-manager" element={<RoleManager />} />
                   <Route path="/export" element={<DataExport />} />
+                  <Route path="/attendance-data" element={<AttendanceDataViewer />} />
                   <Route path="/beacons" element={<BeaconManagement />} />
                   <Route path="/journeys" element={<PathwayManager />} />
                   <Route path="/pathways" element={<Navigate to="/journeys" replace />} />

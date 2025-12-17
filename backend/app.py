@@ -11361,7 +11361,7 @@ def greeting_audio():
 @app.route('/api/recent_entries', methods=['GET'])
 @login_required
 def get_recent_entries():
-    """Get recent entries for the user's campus (last 7 days)"""
+    """Get recent entries for the user's campus (last 7 days) - NOW USING DATABASE"""
     try:
         # Get campus from query parameter or user's default campus
         campus = request.args.get('campus', '').strip()
@@ -11371,16 +11371,106 @@ def get_recent_entries():
         if not campus:
             return jsonify({"entries": []}), 200
         
-        # Calculate date range (last 7 days) - use date objects for comparison
+        # Calculate date range (last 7 days)
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=7)
         
         logger.info(f"[RECENT_ENTRIES] Looking for entries from {start_date} to {end_date} for campus '{campus}'")
         
-        # Get data from Google Sheets
+        # Get data from DATABASE (primary source)
         entries = []
-        if sheet:
-            try:
+        try:
+            from models import AttendanceRecord, CampusV2
+            
+            # Find campus by campus_id (e.g., 'adelaide_city', 'paradise')
+            campus_obj = CampusV2.query.filter_by(campus_id=campus).first()
+            
+            if not campus_obj:
+                logger.warning(f"[RECENT_ENTRIES] Campus '{campus}' not found in database")
+                return jsonify({"entries": []}), 200
+            
+            # Query attendance records from database
+            records = AttendanceRecord.query.filter(
+                AttendanceRecord.campus_id == campus_obj.id,
+                AttendanceRecord.date >= start_date,
+                AttendanceRecord.date <= end_date
+            ).order_by(AttendanceRecord.date.desc()).all()
+            
+            logger.info(f"[RECENT_ENTRIES] Found {len(records)} records in database for campus '{campus}'")
+            
+            for record in records:
+                # Convert database record to frontend format
+                stats_dict = record.to_dict()
+                
+                # Extract service time breakdowns
+                adult_breakdown = {}
+                kids_breakdown = {}
+                if record.adult_service_breakdown:
+                    try:
+                        adult_breakdown = json.loads(record.adult_service_breakdown)
+                    except:
+                        pass
+                if record.kids_service_breakdown:
+                    try:
+                        kids_breakdown = json.loads(record.kids_service_breakdown)
+                    except:
+                        pass
+                
+                # Calculate totals
+                total_attendance = record.total_attendance or sum(adult_breakdown.values())
+                kids_attendance = record.kids_attendance or sum(kids_breakdown.values())
+                new_people = (record.first_time_visitors or 0) + (record.visitors or 0)
+                new_christians = (record.first_time_christians or 0) + (record.rededications or 0)
+                
+                # Build stats object in format expected by frontend
+                stats = {
+                    'Total Attendance': total_attendance,
+                    'Kids Attendance': kids_attendance,
+                    'Youth Attendance': record.youth_attendance or 0,
+                    'New People': new_people,
+                    'New Christians': new_christians,
+                    'Total People in Campus': record.total_people_in_campus or 0,
+                    # Include all service times
+                    **adult_breakdown,
+                    **kids_breakdown,
+                    # Include other fields
+                    'Kids Leaders': record.kids_leaders or 0,
+                    'New Kids': record.new_kids or 0,
+                    'Kids Salvations': record.new_kids_salvations or 0,
+                    'Packs Out': record.packs_out or 0,
+                    'Cards Returned': record.cards_back or 0,
+                    'First Time': record.first_time_visitors or 0,
+                    'Visitors': record.visitors or 0,
+                    'Hands up': record.hands_up or 0,
+                    'First Time Decision': record.first_time_christians or 0,
+                    'Rededication': record.rededications or 0,
+                    'Salvation Cards Returned': record.salvation_cards_returned or 0,
+                    'Youth Total': record.youth_attendance or 0,
+                    'Youth NP': record.youth_new_people or 0,
+                    'Youth Salvations': record.youth_salvations or 0,
+                    'Youth Leaders': record.youth_leaders or 0,
+                    'Saints': stats_dict.get('saints', 0),
+                    'Connect Groups': record.connect_groups or 0,
+                    'Dream Team': record.dream_team or 0,
+                    'Seniors': stats_dict.get('seniors', 0),
+                    'Baptisms': record.baptisms or 0,
+                    'Child Dedications': record.child_dedications or 0
+                }
+                
+                entries.append({
+                    'campus': campus_obj.display_name,
+                    'date': record.date.strftime('%Y-%m-%d'),
+                    'stats': stats,
+                    'id': record.id  # Include record ID for editing
+                })
+            
+            return jsonify({"entries": entries}), 200
+            
+        except Exception as e:
+            logger.error(f"[RECENT_ENTRIES] Error loading from database: {e}")
+            # Fallback to Google Sheets if database fails
+            if sheet:
+                try:
                 all_records = safe_sheets_request(sheet.get_all_records)
                 
                 # Handle "all_campuses" - show entries from all campuses
@@ -11483,6 +11573,149 @@ def get_recent_entries():
     except Exception as e:
         logger.error(f"Recent entries error: {e}")
         return jsonify({"entries": []}), 200
+
+@app.route('/api/admin/attendance/all', methods=['GET'])
+@admin_required
+def get_all_attendance_records():
+    """Get ALL attendance records from database - Admin only"""
+    try:
+        from models import AttendanceRecord, CampusV2, Region
+        
+        # Get query parameters
+        region_code = request.args.get('region', '').strip()
+        campus_id = request.args.get('campus_id', '').strip()
+        start_date = request.args.get('start_date', '').strip()
+        end_date = request.args.get('end_date', '').strip()
+        export_format = request.args.get('format', 'json').strip()  # 'json' or 'csv'
+        
+        # Build query
+        query = AttendanceRecord.query
+        
+        # Filter by region
+        if region_code:
+            region = Region.query.filter_by(code=region_code).first()
+            if region:
+                query = query.filter_by(region_id=region.id)
+        
+        # Filter by campus
+        if campus_id:
+            campus = CampusV2.query.filter_by(campus_id=campus_id).first()
+            if campus:
+                query = query.filter_by(campus_id=campus.id)
+        
+        # Filter by date range
+        if start_date:
+            try:
+                start = datetime.strptime(start_date, '%Y-%m-%d').date()
+                query = query.filter(AttendanceRecord.date >= start)
+            except:
+                pass
+        
+        if end_date:
+            try:
+                end = datetime.strptime(end_date, '%Y-%m-%d').date()
+                query = query.filter(AttendanceRecord.date <= end)
+            except:
+                pass
+        
+        # Order by date descending
+        records = query.order_by(AttendanceRecord.date.desc()).all()
+        
+        # Convert to list of dicts
+        records_data = []
+        for record in records:
+            campus = CampusV2.query.get(record.campus_id)
+            region = Region.query.get(record.region_id)
+            
+            # Parse service breakdowns
+            adult_breakdown = {}
+            kids_breakdown = {}
+            if record.adult_service_breakdown:
+                try:
+                    adult_breakdown = json.loads(record.adult_service_breakdown)
+                except:
+                    pass
+            if record.kids_service_breakdown:
+                try:
+                    kids_breakdown = json.loads(record.kids_service_breakdown)
+                except:
+                    pass
+            
+            record_dict = {
+                'id': record.id,
+                'campus': campus.display_name if campus else f"Unknown (ID: {record.campus_id})",
+                'campus_id': campus.campus_id if campus else None,
+                'region': region.display_name if region else f"Unknown (ID: {record.region_id})",
+                'region_code': region.code if region else None,
+                'date': record.date.strftime('%Y-%m-%d'),
+                'total_attendance': record.total_attendance,
+                'total_people_in_campus': record.total_people_in_campus,
+                'adult_service_breakdown': adult_breakdown,
+                'kids_attendance': record.kids_attendance,
+                'kids_leaders': record.kids_leaders,
+                'kids_service_breakdown': kids_breakdown,
+                'youth_attendance': record.youth_attendance,
+                'youth_salvations': record.youth_salvations,
+                'first_time_visitors': record.first_time_visitors,
+                'visitors': record.visitors,
+                'hands_up': record.hands_up,
+                'first_time_christians': record.first_time_christians,
+                'rededications': record.rededications,
+                'baptisms': record.baptisms,
+                'child_dedications': record.child_dedications,
+                'connect_groups': record.connect_groups,
+                'dream_team': record.dream_team,
+                'synced_to_sheets': record.synced_to_sheets,
+                'created_at': record.created_at.isoformat() if record.created_at else None,
+                'updated_at': record.updated_at.isoformat() if record.updated_at else None
+            }
+            records_data.append(record_dict)
+        
+        # Export as CSV if requested
+        if export_format == 'csv':
+            import csv
+            from io import StringIO
+            
+            output = StringIO()
+            if records_data:
+                # Get all unique keys from all records
+                fieldnames = set()
+                for record in records_data:
+                    fieldnames.update(record.keys())
+                
+                # Flatten service breakdowns for CSV
+                csv_data = []
+                for record in records_data:
+                    row = record.copy()
+                    # Flatten adult breakdown
+                    for service, count in row.get('adult_service_breakdown', {}).items():
+                        row[f"Adult_{service}"] = count
+                    row.pop('adult_service_breakdown', None)
+                    # Flatten kids breakdown
+                    for service, count in row.get('kids_service_breakdown', {}).items():
+                        row[f"Kids_{service}"] = count
+                    row.pop('kids_service_breakdown', None)
+                    csv_data.append(row)
+                
+                writer = csv.DictWriter(output, fieldnames=sorted(fieldnames))
+                writer.writeheader()
+                writer.writerows(csv_data)
+            
+            response = make_response(output.getvalue())
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = f'attachment; filename=attendance_records_{datetime.now().strftime("%Y%m%d")}.csv'
+            return response
+        
+        # Return JSON
+        return jsonify({
+            "success": True,
+            "count": len(records_data),
+            "records": records_data
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching all attendance records: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 def ensure_google_sheets_columns(required_headers):
     """Ensure Google Sheets has all required columns, adding missing ones"""
