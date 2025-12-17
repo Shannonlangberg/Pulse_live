@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DownloadIcon, CalendarIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, CalendarIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import DynamicBackground from '../components/DynamicBackground';
 
 const AttendanceDataViewer = () => {
@@ -169,7 +169,7 @@ const AttendanceDataViewer = () => {
               onClick={exportCSV}
               className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl transition-all"
             >
-              <DownloadIcon className="w-5 h-5" />
+              <ArrowDownTrayIcon className="w-5 h-5" />
               Export CSV
             </button>
           </div>
