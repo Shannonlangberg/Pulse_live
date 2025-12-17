@@ -46,5 +46,5 @@ COPY start.sh ./
 RUN chmod +x start.sh
 
 # Start the application
-CMD ["./start.sh"]
+CMD ["/bin/bash", "./start.sh"]
 
