@@ -11471,7 +11471,7 @@ def get_recent_entries():
             # Fallback to Google Sheets if database fails
             if sheet:
                 try:
-                all_records = safe_sheets_request(sheet.get_all_records)
+                    all_records = safe_sheets_request(sheet.get_all_records)
                 
                 # Handle "all_campuses" - show entries from all campuses
                 show_all_campuses = campus.lower() in ['all_campuses', 'all', 'australia']
