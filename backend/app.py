@@ -10269,6 +10269,8 @@ def get_campuses():
         "campuses": [{
             'id': c['id'], 
             'name': c['name'],
+            'region_id': c.get('region_id'),  # Include region_id for filtering
+            'region_code': c.get('region_code'),  # Include region_code for display
             'service_times': c.get('service_times', [])
         } for c in filtered_campuses],
         "default": default_campus
