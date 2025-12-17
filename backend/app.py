@@ -1382,9 +1382,12 @@ Compress(app)
 init_db(app)
 
 # IMPORTANT: Run migrations AFTER init_db but before any queries that need step_actions column
+print("[DEBUG] 🔄 Running database migrations after database initialization...")
 logger.info("🔄 Running database migrations after database initialization...")
 try:
+    print("[DEBUG] Calling run_migrations()...")
     run_migrations()
+    print("[DEBUG] ✅ Migrations completed successfully")
     logger.info("✅ Migrations completed successfully")
     
     # Double-check that step_actions column exists (critical for pathway assignment)
@@ -1395,7 +1398,10 @@ try:
         logger.warning(f"⚠️ Could not verify step_actions column: {e2}")
         
 except Exception as e:
+    print(f"[ERROR] ❌ Migration error: {e}")
     logger.error(f"❌ Migration error: {e}", exc_info=True)
+    import traceback
+    traceback.print_exc()
     # Don't fail startup - app should still work with graceful error handling
 
 # Migrate existing event images to persistent volume
