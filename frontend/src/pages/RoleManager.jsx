@@ -23,6 +23,7 @@ const RoleManager = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [originalPermissions, setOriginalPermissions] = useState({});
   const [campuses, setCampuses] = useState([]);
+  const [regions, setRegions] = useState([]);
   const [expandedUsers, setExpandedUsers] = useState({}); // { userId: true/false } for campus selection
 
   // Define all features grouped by category (matching EnhancedNavigation groups)
@@ -202,7 +203,26 @@ const RoleManager = () => {
   useEffect(() => {
     loadUsers();
     loadCampuses();
+    loadRegions();
   }, []);
+
+  const loadRegions = async () => {
+    try {
+      const response = await fetch('/api/v2/regions', {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const regionsList = data.regions || [];
+        setRegions(regionsList);
+        console.log('[RoleManager] Loaded regions:', regionsList.length, regionsList);
+      } else {
+        console.error('[RoleManager] Failed to load regions:', response.status);
+      }
+    } catch (err) {
+      console.error('[RoleManager] Error loading regions:', err);
+    }
+  };
 
   const loadCampuses = async () => {
     try {
@@ -686,10 +706,54 @@ const RoleManager = () => {
                           );
                         })}
                       </tr>
-                      {/* Campus Selection Row */}
+                      {/* Campus and Region Selection Row */}
                       {expandedUsers[user.id] && (
                         <tr key={`${user.id}-campuses`} className="bg-slate-750/30">
                           <td colSpan={allFeatures.length + 1} className="px-4 py-4">
+                            {/* Region Selection */}
+                            <div className="bg-slate-800/80 border border-slate-700/50 rounded-lg p-4 mb-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="text-xl">🌍</span>
+                                <h3 className="text-white font-medium">Region for {user.full_name || user.username}</h3>
+                              </div>
+                              <p className="text-slate-400 text-sm mb-4">
+                                Select which region this user belongs to. This determines which regional data and campuses they can access.
+                              </p>
+                              {regions.length === 0 ? (
+                                <div className="text-yellow-400 text-sm py-4">
+                                  ⚠️ No regions loaded. Please refresh the page.
+                                </div>
+                              ) : (
+                                <div className="flex flex-wrap gap-2">
+                                  {regions.map(region => {
+                                    const userRegion = user.region_code || 'AU';
+                                    const isSelected = userRegion === region.code;
+                                    
+                                    return (
+                                      <button
+                                        key={region.code}
+                                        className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                                          isSelected
+                                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/50 hover:bg-blue-500/30'
+                                            : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-slate-700/70'
+                                        }`}
+                                        title={`Region: ${region.name}`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          {isSelected && <CheckIcon className="w-4 h-4" />}
+                                          <span>{region.code} - {region.name}</span>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              <div className="mt-3 text-xs text-slate-400">
+                                <span className="text-blue-400">ℹ️</span> To change a user's region, edit them in the User Management page.
+                              </div>
+                            </div>
+                            
+                            {/* Campus Selection */}
                             <div className="bg-slate-800/80 border border-slate-700/50 rounded-lg p-4">
                               <div className="flex items-center gap-2 mb-3">
                                 <MapPinIcon className="w-5 h-5 text-purple-400" />
