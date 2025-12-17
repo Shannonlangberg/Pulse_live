@@ -1101,16 +1101,36 @@ def run_migrations():
         applied_migrations = set(row[0] for row in cursor.fetchall())
         
         # CRITICAL FIX: Check if essential tables exist
-        # If they don't, clear the migrations table and force re-run
+        # If they don't, delete the corrupted database and start completely fresh
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
         users_table_exists = cursor.fetchone() is not None
         
         if not users_table_exists and applied_migrations:
             logger.warning("⚠️ CRITICAL: users table missing but migrations marked as applied!")
-            logger.warning("⚠️ Clearing schema_migrations and forcing full re-run...")
-            cursor.execute('DELETE FROM schema_migrations')
+            logger.warning("⚠️ Database is corrupted. Deleting and recreating from scratch...")
+            conn.close()
+            
+            # Delete the corrupted database file
+            import os
+            if os.path.exists(db_path):
+                os.remove(db_path)
+                logger.warning(f"⚠️ Deleted corrupted database: {db_path}")
+            
+            # Reconnect to create fresh database
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # Create fresh migrations tracking table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    filename TEXT NOT NULL UNIQUE,
+                    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
             conn.commit()
             applied_migrations = set()  # Force all migrations to run
+            logger.warning("✅ Fresh database created, ready for migrations")
         
         # Run pending migrations
         for migration_file in migration_files:

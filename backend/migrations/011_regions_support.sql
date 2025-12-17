@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS regions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert default regions
-INSERT INTO regions (name, code, display_name, timezone, currency, active, coming_soon) VALUES
+-- Insert default regions (use INSERT OR IGNORE to avoid errors if already exists)
+INSERT OR IGNORE INTO regions (name, code, display_name, timezone, currency, active, coming_soon) VALUES
 ('australia', 'AU', 'Australia', 'Australia/Adelaide', 'AUD', 1, 0),
 ('united_states', 'US', 'United States', 'America/Los_Angeles', 'USD', 0, 1),
 ('brazil', 'BR', 'Brazil', 'America/Sao_Paulo', 'BRL', 0, 1),
