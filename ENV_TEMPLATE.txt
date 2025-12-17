@@ -1,0 +1,52 @@
+# ============================================
+# Futures Pulse v1 - Production Environment Variables
+# ============================================
+# Copy this template and fill in your actual values
+# DO NOT commit actual values to git - use Railway environment variables
+
+# ============================================
+# REQUIRED - Core Application
+# ============================================
+SECRET_KEY=CHANGE-THIS-TO-A-RANDOM-SECRET-KEY
+FLASK_ENV=production
+SESSION_COOKIE_SECURE=true
+PORT=5002
+
+# ============================================
+# REQUIRED - Google Sheets Integration
+# ============================================
+# Get from Google Cloud Console - Service Account JSON
+GOOGLE_SHEETS_CREDENTIALS={"type":"service_account",...}
+GOOGLE_SHEET_NAME=Stats
+
+# ============================================
+# REQUIRED - Google OAuth (Resources Page)
+# ============================================
+# Get from Google Cloud Console - OAuth 2.0 Client
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_OAUTH_REDIRECT_URI=https://futures.pulse.com/api/google/callback
+
+# ============================================
+# REQUIRED - Database
+# ============================================
+# SQLite (default) - Railway will persist via volumes
+DATABASE_URL=sqlite:///futures_link.db
+
+# ============================================
+# REQUIRED - Feature Flags (Pulse v1)
+# ============================================
+BEACON_MGMT_ENABLED=false
+HEARTBEAT_ENABLED=false
+DEVOTIONS_ADMIN_ENABLED=false
+GROUPS_FOR_STAFF_ENABLED=false
+PEOPLE_ENABLED=false
+RBAC_ENABLED=true
+CAMPUS_SCOPING_ENABLED=true
+APP_ENV=main
+
+# ============================================
+# OPTIONAL - Logging
+# ============================================
+LOG_LEVEL=INFO
+

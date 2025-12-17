@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Flask
+instance/
+.env
+*.db
+
+# Sensitive files (NEVER commit these)
+backend/credentials.json
+backend/.env
+backend/data/conversation_memory.json
+
+# Logs
+backend/logs/
+*.log
+frontend.log
+
+# Uploads and temp files
+backend/uploads/
+backend/temp_audio/
+backend/exports/
+
+# Node
+node_modules/
+npm-debug.log*
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backup files
+*.bak
+*.backup
+backups/
+
+# Local development
+*.local
+.env.local
+

@@ -1,0 +1,81 @@
+{
+  "campuses": {
+    "paradise": {
+      "id": "paradise",
+      "name": "Paradise Campus",
+      "display_name": "Paradise",
+      "active": true,
+      "detection_patterns": ["paradise"],
+      "service_times": ["9:00 AM", "11:00 AM", "5:30 PM"]
+    },
+    "south": {
+      "id": "south",
+      "name": "South Campus",
+      "display_name": "South",
+      "active": true,
+      "detection_patterns": ["south"],
+      "service_times": ["9:00 AM", "11:00 AM"]
+    },
+    "salisbury": {
+      "id": "salisbury",
+      "name": "Salisbury Campus",
+      "display_name": "Salisbury",
+      "active": true,
+      "detection_patterns": ["salisbury"],
+      "service_times": ["9:00 AM", "11:00 AM"]
+    },
+    "adelaide_city": {
+      "id": "adelaide_city",
+      "name": "Adelaide City Campus",
+      "display_name": "Adelaide City",
+      "active": true,
+      "detection_patterns": ["adelaide city", "city", "adelaide"],
+      "service_times": ["9:00 AM", "11:00 AM", "5:00 PM"]
+    },
+    "mount_barker": {
+      "id": "mount_barker",
+      "name": "Mount Barker Campus",
+      "display_name": "Mount Barker",
+      "active": true,
+      "detection_patterns": ["mount barker", "barker"],
+      "service_times": ["10:00 AM"]
+    },
+    "copper_coast": {
+      "id": "copper_coast",
+      "name": "Copper Coast Campus",
+      "display_name": "Copper Coast",
+      "active": true,
+      "detection_patterns": ["copper coast", "copper"],
+      "service_times": ["10:00 AM"]
+    },
+    "clare_valley": {
+      "id": "clare_valley",
+      "name": "Clare Valley Campus",
+      "display_name": "Clare Valley",
+      "active": true,
+      "detection_patterns": ["clare valley", "clare"],
+      "service_times": ["10:00 AM"]
+    },
+    "victor_harbour": {
+      "id": "victor_harbour",
+      "name": "Victor Harbor Campus",
+      "display_name": "Victor Harbor",
+      "active": true,
+      "detection_patterns": ["victor harbour", "victor harbor", "victor"],
+      "service_times": ["10:00 AM"]
+    },
+    "all_campuses": {
+      "id": "all_campuses",
+      "name": "All Campuses",
+      "display_name": "All Campuses",
+      "active": true,
+      "special": true
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2025-10-14",
+    "region": "South Australia"
+  }
+}
+

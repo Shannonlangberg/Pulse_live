@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-slate-900 text-white;
+  }
+}
+
+@layer components {
+  .glass-effect {
+    @apply bg-slate-800/50 backdrop-blur-sm border border-slate-700/50;
+  }
+  
+  .glow-effect {
+    @apply shadow-lg shadow-slate-900/20;
+  }
+  
+  .particle-container {
+    @apply relative overflow-hidden;
+  }
+  
+  .interactive-element {
+    @apply transition-all duration-300 hover:scale-105;
+  }
+  
+  .voice-button-active {
+    @apply animate-pulse shadow-lg shadow-red-500/25;
+  }
+  
+  .voice-button-idle {
+    @apply shadow-lg shadow-blue-500/25 hover:shadow-blue-400/30;
+  }
+  
+  .input-container {
+    @apply relative overflow-hidden;
+  }
+  
+  .recording-active {
+    @apply animate-pulse shadow-lg shadow-red-500/25;
+  }
+  
+  .input-focus {
+    @apply focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300;
+  }
+  
+  .particle-area {
+    @apply relative overflow-hidden rounded-xl;
+  }
+  
+  .particle-button {
+    @apply transition-all duration-300 hover:scale-105;
+  }
+  
+  .particle-text {
+    @apply text-slate-400 text-lg font-medium;
+  }
+  
+  .clean-layout {
+    @apply max-w-4xl mx-auto space-y-6;
+  }
+  
+  .main-card {
+    @apply bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-8;
+  }
+  
+  .voice-button-large {
+    @apply w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 shadow-2xl;
+  }
+  
+  /* Custom scrollbar styles for settings dropdown */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: #1e293b; /* slate-800 */
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #475569; /* slate-600 */
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #64748b; /* slate-500 */
+  }
+  
+  /* Ensure dropdown is always visible */
+  .settings-dropdown {
+    max-height: 256px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  
+  /* Line clamp utilities for text truncation */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+  
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+  
+  /* Enhanced card hover effects */
+  .event-card-hover {
+    @apply transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-1;
+  }
+  
+  /* Smooth focus transitions */
+  .focus-smooth {
+    @apply focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 transition-all duration-200;
+  }
+  
+  /* Glass morphism effects */
+  .glass-card {
+    @apply bg-slate-800/50 backdrop-blur-sm border border-slate-700/50;
+  }
+  
+  .glass-input {
+    @apply bg-slate-700/50 backdrop-blur-sm border border-slate-600/50 focus:border-blue-400/50;
+  }
+  
+  /* Fallback for browsers without webkit scrollbar support */
+  .settings-dropdown::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .settings-dropdown::-webkit-scrollbar-track {
+    background: #1e293b;
+    border-radius: 3px;
+  }
+  
+  .settings-dropdown::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 3px;
+  }
+  
+  .settings-dropdown::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
+  
+  /* Hide scrollbar utility */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+} 
