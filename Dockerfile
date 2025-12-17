@@ -48,6 +48,6 @@ RUN chmod +x start.sh
 # Change working directory to backend
 WORKDIR /app/backend
 
-# Start the application directly from backend directory
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "120", "app:app"]
+# Start the application directly from backend directory using PORT from environment
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120 app:app
 
