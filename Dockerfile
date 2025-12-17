@@ -45,6 +45,6 @@ EXPOSE ${PORT}
 COPY start.sh ./
 RUN chmod +x start.sh
 
-# Start the application
-CMD ["/bin/bash", "./start.sh"]
+# Start the application - use sh -c to properly handle cd command
+CMD ["sh", "-c", "cd backend && gunicorn --bind 0.0.0.0:${PORT:-8080} --workers=${GUNICORN_WORKERS:-2} --threads=${GUNICORN_THREADS:-4} --timeout=${GUNICORN_TIMEOUT:-120} app:app"]
 
