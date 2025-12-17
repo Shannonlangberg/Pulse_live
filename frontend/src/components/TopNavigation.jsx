@@ -120,7 +120,7 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       href: '/homepage-manager', 
       icon: MegaphoneIcon, 
       roles: ['superadmin', 'admin'],
-      featureKey: 'manage_settings'
+      featureKey: null
     }
   ];
 

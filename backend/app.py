@@ -24715,8 +24715,8 @@ def get_homepage_messages():
 def get_all_homepage_messages():
     """Get all homepage messages (admin only)"""
     try:
-        # Check if user is admin or super_admin
-        if not current_user.has_permission('manage_settings'):
+        # Check if user is admin or superadmin
+        if current_user.role not in ['admin', 'superadmin']:
             return jsonify({'error': 'Insufficient permissions'}), 403
         
         # Query all messages
@@ -24751,8 +24751,8 @@ def get_all_homepage_messages():
 def create_homepage_message():
     """Create a new homepage message (admin only)"""
     try:
-        # Check if user is admin or super_admin
-        if not current_user.has_permission('manage_settings'):
+        # Check if user is admin or superadmin
+        if current_user.role not in ['admin', 'superadmin']:
             return jsonify({'error': 'Insufficient permissions'}), 403
         
         data = request.get_json()
@@ -24796,8 +24796,8 @@ def create_homepage_message():
 def update_homepage_message(message_id):
     """Update an existing homepage message (admin only)"""
     try:
-        # Check if user is admin or super_admin
-        if not current_user.has_permission('manage_settings'):
+        # Check if user is admin or superadmin
+        if current_user.role not in ['admin', 'superadmin']:
             return jsonify({'error': 'Insufficient permissions'}), 403
         
         data = request.get_json()
@@ -24860,8 +24860,8 @@ def update_homepage_message(message_id):
 def delete_homepage_message(message_id):
     """Delete a homepage message (admin only)"""
     try:
-        # Check if user is admin or super_admin
-        if not current_user.has_permission('manage_settings'):
+        # Check if user is admin or superadmin
+        if current_user.role not in ['admin', 'superadmin']:
             return jsonify({'error': 'Insufficient permissions'}), 403
         
         result = db.session.execute(text("""
