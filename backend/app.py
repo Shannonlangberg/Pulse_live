@@ -19129,8 +19129,9 @@ except ImportError as e:
     logger.warning(f"Could not import bible_api: {e}")
 
 # WEBHOOK ROUTES
-from webhooks import webhooks_bp
-app.register_blueprint(webhooks_bp)
+# NOT IN PULSE V1 - Commented out for production
+# from webhooks import webhooks_bp
+# app.register_blueprint(webhooks_bp)
 
 # HEARTBEAT API ROUTES
 try:
