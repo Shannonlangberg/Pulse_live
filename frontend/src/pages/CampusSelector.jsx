@@ -58,9 +58,9 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
     fetchCampuses();
   }, []);
 
-  // Fetch submission status when Australia region is selected
+  // Fetch submission status when ANY region is selected (works for ALL regions!)
   useEffect(() => {
-    if (selectedRegion?.code === 'AU' && canSeeTracker) {
+    if (selectedRegion && canSeeTracker) {
       fetchSubmissionStatus();
       
       // Auto-refresh every 30 seconds
@@ -75,8 +75,8 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
   const fetchSubmissionStatus = async () => {
     try {
       setLoadingStatus(true);
-      // Add cache buster to ensure fresh data
-      const response = await fetch(`/api/weekly-submission-status?_t=${Date.now()}`, {
+      // Add region parameter - works for ALL regions (AU, US, ID, BR)
+      const response = await fetch(`/api/weekly-submission-status?region=${selectedRegion.code}&_t=${Date.now()}`, {
         credentials: 'include',
         cache: 'no-cache'
       });
@@ -345,19 +345,30 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
         {/* Campus Selection (when region is selected) */}
         {selectedRegion && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Australia National Overview for senior leadership */}
-            {selectedRegion.code === 'AU' && (userRole === 'superadmin' || userRole === 'senior_leader' || userRole === 'admin' || userRole === 'senior_pastor' || userRole === 'lead_pastor') && (
+            {/* Regional National Overview for senior leadership - Works for ALL regions! */}
+            {(userRole === 'superadmin' || userRole === 'senior_leader' || userRole === 'admin' || userRole === 'senior_pastor' || userRole === 'lead_pastor') && (
               <div
-                onClick={() => onCampusSelect({ id: 'australia', name: 'Australia', description: 'National Overview', icon: '🇦🇺', isRollup: true })}
+                onClick={() => onCampusSelect({ 
+                  id: selectedRegion.code.toLowerCase(), 
+                  name: selectedRegion.display_name, 
+                  description: 'National Overview', 
+                  icon: selectedRegion.code === 'AU' ? '🇦🇺' : selectedRegion.code === 'US' ? '🇺🇸' : selectedRegion.code === 'BR' ? '🇧🇷' : selectedRegion.code === 'ID' ? '🇮🇩' : '🌏',
+                  isRollup: true 
+                })}
                 className="group relative bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 shadow-2xl hover:shadow-purple-500/25 transition-all duration-500 hover:scale-105 cursor-pointer"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <div className="relative text-center">
                   <div className="w-20 h-20 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm">
-                    <span className="text-4xl">🇦🇺</span>
+                    <span className="text-4xl">
+                      {selectedRegion.code === 'AU' ? '🇦🇺' : 
+                       selectedRegion.code === 'US' ? '🇺🇸' : 
+                       selectedRegion.code === 'BR' ? '🇧🇷' : 
+                       selectedRegion.code === 'ID' ? '🇮🇩' : '🌏'}
+                    </span>
                   </div>
                   <h3 className="text-2xl font-bold text-white mb-3">
-                    Australia
+                    {selectedRegion.display_name}
                   </h3>
                   <p className="text-white/60 text-lg mb-6">
                     National Overview
