@@ -292,7 +292,7 @@ function App() {
       // Store redirect URL and OAuth in progress flag
       const currentPath = window.location.pathname;
       sessionStorage.setItem('google_oauth_in_progress', 'true');
-      sessionStorage.setItem('google_oauth_redirect', currentPath || '/dashboard');
+      sessionStorage.setItem('google_oauth_redirect', currentPath || '/');
       window.location.href = authUrl;
       return; // Don't set connecting to false - we're navigating away
     } catch (error) {

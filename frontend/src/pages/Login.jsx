@@ -36,11 +36,11 @@ const Login = ({ onLogin }) => {
         .then(res => res.json())
         .then((sessionData) => {
           if (sessionData && sessionData.authenticated) {
-            // User is authenticated, redirect to dashboard
+            // User is authenticated, redirect to landing page
             if (onLogin) {
               onLogin();
             }
-            navigate('/dashboard');
+            navigate('/');
           } else {
             // Not authenticated yet, refresh to check again
             setTimeout(() => {
@@ -92,7 +92,7 @@ const Login = ({ onLogin }) => {
 
       // Always use full-page redirect (no popup)
       sessionStorage.setItem('google_oauth_in_progress', 'true');
-      sessionStorage.setItem('google_oauth_redirect', '/dashboard');
+      sessionStorage.setItem('google_oauth_redirect', '/');
       window.location.href = authUrl;
       return; // Don't set connecting to false - we're navigating away
     } catch (err) {
@@ -121,7 +121,7 @@ const Login = ({ onLogin }) => {
       if (onLogin) {
         onLogin();
       }
-      navigate('/dashboard');
+      navigate('/');
     }
   }, [navigate, onLogin]);
 
@@ -174,7 +174,7 @@ const Login = ({ onLogin }) => {
           if (onLogin) {
             onLogin();
           }
-          navigate('/dashboard');
+          navigate('/');
         }
       } else {
         setError(data.error || 'Invalid username or password');
