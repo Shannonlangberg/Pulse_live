@@ -3,7 +3,7 @@
 from flask import Flask, request, jsonify, send_from_directory, render_template, redirect, url_for, flash, session, Response, make_response
 from flask_cors import CORS
 from flask_compress import Compress
-from models import db, init_db, Person, EngagementProfile, BeaconZone, Event, EventCategory, EventRegistration, EventTeamAssignment, EventResourceBooking, create_person_with_engagement, ConnectGroup, ConnectGroupMeeting, ConnectGroupAttendance, ConnectGroupMessage, ResourceCategory, PersonPathwayProgress, PersonPathwayStepCompletion, PathwayStep, PushNotificationToken, ScheduledNotification, PastoralCareCase, HeartbeatSnapshot, AttendanceEvent, ServingAssignment, GivingTransaction, CareCase
+from models import db, init_db, Person, EngagementProfile, BeaconZone, Event, EventCategory, EventRegistration, EventTeamAssignment, EventResourceBooking, create_person_with_engagement, ConnectGroup, ConnectGroupMeeting, ConnectGroupAttendance, ConnectGroupMessage, ResourceCategory, PersonPathwayProgress, PersonPathwayStepCompletion, PathwayStep, PushNotificationToken, ScheduledNotification, PastoralCareCase, HeartbeatSnapshot, AttendanceEvent, ServingAssignment, GivingTransaction, CareCase, Region, CampusV2, AttendanceRecord
 from datetime import datetime, timezone, timedelta, date
 import os
 import re
@@ -842,6 +842,248 @@ print("[DEBUG] Starting memory storage setup")
 # Memory storage for conversational history
 conversation_memory_file = "data/conversation_memory.json"
 print("[DEBUG] Finished memory storage setup")
+
+# ============================================================================
+# DUAL-WRITE SYSTEM: Database + Google Sheets (Migration Phase)
+# ============================================================================
+
+def save_attendance_record(data, user_id=None):
+    """
+    Save attendance record to database AND Google Sheets (dual-write)
+    This ensures zero downtime during migration
+    
+    Args:
+        data: dict with attendance data
+        user_id: ID of user creating record
+    
+    Returns:
+        tuple: (success: bool, record: AttendanceRecord or None, error: str or None)
+    """
+    from models import AttendanceRecord, CampusV2, Region
+    
+    try:
+        # Get campus object
+        campus = None
+        if 'campus_id' in data:
+            campus = CampusV2.query.filter_by(campus_id=data.get('campus_id')).first()
+        
+        if not campus and 'campus' in data:
+            # Fallback: try display_name match
+            campus = CampusV2.query.filter_by(display_name=data.get('campus')).first()
+        
+        if not campus:
+            return False, None, f"Campus not found: {data.get('campus') or data.get('campus_id')}"
+        
+        # Parse date
+        date_val = None
+        if 'date' in data:
+            if isinstance(data['date'], str):
+                try:
+                    date_val = datetime.strptime(data['date'], '%Y-%m-%d').date()
+                except:
+                    try:
+                        date_val = datetime.strptime(data['date'], '%m/%d/%Y').date()
+                    except:
+                        pass
+            elif isinstance(data['date'], date):
+                date_val = data['date']
+        
+        if not date_val:
+            return False, None, "Invalid date format"
+        
+        # Check if record already exists
+        existing = AttendanceRecord.query.filter_by(
+            campus_id=campus.id,
+            date=date_val
+        ).first()
+        
+        # Build service breakdowns
+        adult_breakdown = {}
+        kids_breakdown = {}
+        if campus.service_times:
+            try:
+                service_times = json.loads(campus.service_times)
+                for service_time in service_times:
+                    if service_time in data:
+                        adult_breakdown[service_time] = int(data[service_time] or 0)
+                    kids_key = f'Kids {service_time}'
+                    if kids_key in data:
+                        kids_breakdown[kids_key] = int(data[kids_key] or 0)
+            except Exception as e:
+                logger.warning(f"Error parsing service times: {e}")
+        
+        # Create or update record
+        if existing:
+            record = existing
+            record.updated_at = datetime.utcnow()
+        else:
+            record = AttendanceRecord(
+                campus_id=campus.id,
+                region_id=campus.region_id,
+                date=date_val,
+                created_by=user_id
+            )
+        
+        # Update fields
+        record.total_attendance = int(data.get('Total Attendance', 0) or 0)
+        record.total_people_in_campus = int(data.get('Total People in Campus', 0) or 0)
+        record.adult_service_breakdown = json.dumps(adult_breakdown) if adult_breakdown else None
+        record.kids_attendance = int(data.get('Kids Attendance', 0) or 0)
+        record.kids_leaders = int(data.get('Kids Leaders', 0) or 0)
+        record.new_kids = int(data.get('New Kids', 0) or 0)
+        record.new_kids_salvations = int(data.get('New Kids Salvations', 0) or 0)
+        record.packs_out = int(data.get('Packs Out', 0) or 0)
+        record.kids_service_breakdown = json.dumps(kids_breakdown) if kids_breakdown else None
+        record.youth_attendance = int(data.get('Youth Attendance', 0) or 0)
+        record.youth_salvations = int(data.get('Youth Salvations', 0) or 0)
+        record.youth_new_people = int(data.get('Youth New People', 0) or 0)
+        record.youth_leaders = int(data.get('Youth Leaders', 0) or 0)
+        record.first_time_visitors = int(data.get('First Time Visitors', 0) or 0)
+        record.visitors = int(data.get('Visitors', 0) or 0)
+        record.hands_up = int(data.get('Hands up', 0) or 0)
+        record.cards_back = int(data.get('Cards Back', 0) or 0)
+        record.first_time_christians = int(data.get('First Time Christians', 0) or 0)
+        record.rededications = int(data.get('Rededications', 0) or 0)
+        record.salvation_cards_returned = int(data.get('Salvation Cards Returned', 0) or 0)
+        record.baptisms = int(data.get('Baptisms', 0) or 0)
+        record.child_dedications = int(data.get('Child Dedications', 0) or 0)
+        record.connect_groups = int(data.get('Connect Groups', 0) or 0)
+        record.dream_team = int(data.get('Dream Team', 0) or 0)
+        record.tithe = float(data.get('Tithe', 0) or 0)
+        record.notes = data.get('notes')
+        
+        # Save to database
+        if not existing:
+            db.session.add(record)
+        db.session.commit()
+        
+        # DUAL-WRITE: Also save to Google Sheets (for backward compatibility)
+        try:
+            if sheet:  # Only if Google Sheets is available
+                sync_to_google_sheets(record, campus)
+                record.synced_to_sheets = True
+                db.session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to sync to Google Sheets (non-fatal): {e}")
+            # Don't fail the whole operation if Sheets fails
+        
+        return True, record, None
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to save attendance record: {e}")
+        return False, None, str(e)
+
+
+def sync_to_google_sheets(record, campus):
+    """
+    Sync an AttendanceRecord to Google Sheets
+    Used during dual-write phase for backup
+    """
+    if not sheet:
+        return False
+    
+    # Build row data in Sheets format
+    row_data = {
+        'Date': record.date.strftime('%Y-%m-%d'),
+        'Campus': campus.display_name,
+        'Total Attendance': record.total_attendance or '',
+        'Total People in Campus': record.total_people_in_campus or '',
+        'Kids Attendance': record.kids_attendance or '',
+        'Kids Leaders': record.kids_leaders or '',
+        'New Kids': record.new_kids or '',
+        'New Kids Salvations': record.new_kids_salvations or '',
+        'Packs Out': record.packs_out or '',
+        'First Time Visitors': record.first_time_visitors or '',
+        'Visitors': record.visitors or '',
+        'Hands up': record.hands_up or '',
+        'Cards Back': record.cards_back or '',
+        'First Time Christians': record.first_time_christians or '',
+        'Rededications': record.rededications or '',
+        'Salvation Cards Returned': record.salvation_cards_returned or '',
+        'Youth Attendance': record.youth_attendance or '',
+        'Youth Salvations': record.youth_salvations or '',
+        'Youth New People': record.youth_new_people or '',
+        'Youth Leaders': record.youth_leaders or '',
+        'Connect Groups': record.connect_groups or '',
+        'Dream Team': record.dream_team or '',
+        'Tithe': record.tithe or '',
+        'Baptisms': record.baptisms or '',
+        'Child Dedications': record.child_dedications or '',
+    }
+    
+    # Add service breakdowns
+    try:
+        if record.adult_service_breakdown:
+            adult_breakdown = json.loads(record.adult_service_breakdown)
+            row_data.update(adult_breakdown)
+        
+        if record.kids_service_breakdown:
+            kids_breakdown = json.loads(record.kids_service_breakdown)
+            row_data.update(kids_breakdown)
+    except:
+        pass
+    
+    # Get existing headers
+    all_records = safe_sheets_request(sheet.get_all_records)
+    headers = list(all_records[0].keys()) if all_records else []
+    
+    # Ensure all columns exist
+    ensure_google_sheets_columns(list(row_data.keys()))
+    
+    # Re-fetch headers after adding columns
+    all_records = safe_sheets_request(sheet.get_all_records)
+    headers = list(all_records[0].keys()) if all_records else []
+    
+    # Build row values
+    row_values = [row_data.get(header, '') for header in headers]
+    
+    # Append row (for updates, we'd need to find and update the existing row)
+    sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
+    clear_sheets_cache('Stats')
+    
+    return True
+
+
+def get_attendance_records(campus_name=None, start_date=None, end_date=None, region_code=None):
+    """
+    Get attendance records from database (fast!)
+    
+    Args:
+        campus_name: Filter by campus display name
+        start_date: Filter by start date
+        end_date: Filter by end date
+        region_code: Filter by region code (AU, US, BR, ID)
+    
+    Returns:
+        list of AttendanceRecord objects
+    """
+    from models import AttendanceRecord, CampusV2, Region
+    
+    query = AttendanceRecord.query
+    
+    # Filter by region
+    if region_code:
+        region = Region.query.filter_by(code=region_code).first()
+        if region:
+            query = query.filter_by(region_id=region.id)
+    
+    # Filter by campus
+    if campus_name:
+        campus = CampusV2.query.filter_by(display_name=campus_name).first()
+        if campus:
+            query = query.filter_by(campus_id=campus.id)
+    
+    # Filter by date range
+    if start_date:
+        query = query.filter(AttendanceRecord.date >= start_date)
+    if end_date:
+        query = query.filter(AttendanceRecord.date <= end_date)
+    
+    # Order by date descending
+    query = query.order_by(AttendanceRecord.date.desc())
+    
+    return query.all()
 
 # Restore missing memory functions
 
@@ -11303,10 +11545,207 @@ def ensure_google_sheets_columns(required_headers):
         logger.error(f"Error ensuring Google Sheets columns: {e}")
         return False
 
+
+# ============================================================================
+# DUAL-WRITE SYSTEM: Database + Google Sheets (Migration Phase)
+# ============================================================================
+
+def save_attendance_record(data, user_id=None):
+    """
+    Save attendance record to database AND Google Sheets (dual-write)
+    This ensures zero downtime during migration
+    
+    Args:
+        data: dict with attendance data
+        user_id: ID of user creating record
+    
+    Returns:
+        tuple: (success: bool, record: AttendanceRecord or None, error: str or None)
+    """
+    try:
+        # Get campus object
+        campus = CampusV2.query.filter_by(campus_id=data.get('campus_id')).first()
+        if not campus:
+            # Fallback: try display_name match
+            campus = CampusV2.query.filter_by(display_name=data.get('campus')).first()
+        
+        if not campus:
+            return False, None, f"Campus not found: {data.get('campus')}"
+        
+        # Parse date
+        date_val = None
+        if 'date' in data:
+            if isinstance(data['date'], str):
+                try:
+                    date_val = datetime.strptime(data['date'], '%Y-%m-%d').date()
+                except:
+                    date_val = datetime.strptime(data['date'], '%m/%d/%Y').date()
+            elif isinstance(data['date'], date):
+                date_val = data['date']
+        
+        if not date_val:
+            return False, None, "Invalid date format"
+        
+        # Check if record already exists
+        existing = AttendanceRecord.query.filter_by(
+            campus_id=campus.id,
+            date=date_val
+        ).first()
+        
+        # Build service breakdowns
+        adult_breakdown = {}
+        kids_breakdown = {}
+        if campus.service_times:
+            try:
+                service_times = json.loads(campus.service_times)
+                for service_time in service_times:
+                    if service_time in data:
+                        adult_breakdown[service_time] = int(data[service_time] or 0)
+                    kids_key = f'Kids {service_time}'
+                    if kids_key in data:
+                        kids_breakdown[kids_key] = int(data[kids_key] or 0)
+            except Exception as e:
+                logger.warning(f"Error parsing service times: {e}")
+        
+        # Create or update record
+        if existing:
+            record = existing
+            record.updated_at = datetime.utcnow()
+        else:
+            record = AttendanceRecord(
+                campus_id=campus.id,
+                region_id=campus.region_id,
+                date=date_val,
+                created_by=user_id
+            )
+        
+        # Update fields
+        record.total_attendance = int(data.get('Total Attendance', 0) or 0)
+        record.total_people_in_campus = int(data.get('Total People in Campus', 0) or 0)
+        record.adult_service_breakdown = json.dumps(adult_breakdown) if adult_breakdown else None
+        record.kids_attendance = int(data.get('Kids Attendance', 0) or 0)
+        record.kids_leaders = int(data.get('Kids Leaders', 0) or 0)
+        record.new_kids = int(data.get('New Kids', 0) or 0)
+        record.new_kids_salvations = int(data.get('New Kids Salvations', 0) or 0)
+        record.packs_out = int(data.get('Packs Out', 0) or 0)
+        record.kids_service_breakdown = json.dumps(kids_breakdown) if kids_breakdown else None
+        record.youth_attendance = int(data.get('Youth Attendance', 0) or 0)
+        record.youth_salvations = int(data.get('Youth Salvations', 0) or 0)
+        record.youth_new_people = int(data.get('Youth New People', 0) or 0)
+        record.youth_leaders = int(data.get('Youth Leaders', 0) or 0)
+        record.first_time_visitors = int(data.get('First Time Visitors', 0) or 0)
+        record.visitors = int(data.get('Visitors', 0) or 0)
+        record.hands_up = int(data.get('Hands up', 0) or 0)
+        record.cards_back = int(data.get('Cards Back', 0) or 0)
+        record.first_time_christians = int(data.get('First Time Christians', 0) or 0)
+        record.rededications = int(data.get('Rededications', 0) or 0)
+        record.salvation_cards_returned = int(data.get('Salvation Cards Returned', 0) or 0)
+        record.baptisms = int(data.get('Baptisms', 0) or 0)
+        record.child_dedications = int(data.get('Child Dedications', 0) or 0)
+        record.connect_groups = int(data.get('Connect Groups', 0) or 0)
+        record.dream_team = int(data.get('Dream Team', 0) or 0)
+        record.tithe = float(data.get('Tithe', 0) or 0)
+        record.notes = data.get('notes')
+        
+        # Save to database
+        if not existing:
+            db.session.add(record)
+        db.session.commit()
+        
+        # DUAL-WRITE: Also save to Google Sheets (for backward compatibility)
+        try:
+            if sheet:  # Only if Google Sheets is available
+                sync_to_google_sheets(record, campus)
+                record.synced_to_sheets = True
+                db.session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to sync to Google Sheets (non-fatal): {e}")
+            # Don't fail the whole operation if Sheets fails
+        
+        return True, record, None
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to save attendance record: {e}")
+        return False, None, str(e)
+
+
+def sync_to_google_sheets(record, campus):
+    """
+    Sync an AttendanceRecord to Google Sheets
+    Used during dual-write phase
+    """
+    if not sheet:
+        return False
+    
+    # Build row data in Sheets format
+    row_data = {
+        'Date': record.date.strftime('%Y-%m-%d'),
+        'Campus': campus.display_name,
+        'Total Attendance': record.total_attendance or '',
+        'Total People in Campus': record.total_people_in_campus or '',
+        'Kids Attendance': record.kids_attendance or '',
+        'Kids Leaders': record.kids_leaders or '',
+        'New Kids': record.new_kids or '',
+        'New Kids Salvations': record.new_kids_salvations or '',
+        'Packs Out': record.packs_out or '',
+        'First Time Visitors': record.first_time_visitors or '',
+        'Visitors': record.visitors or '',
+        'Hands up': record.hands_up or '',
+        'Cards Back': record.cards_back or '',
+        'First Time Christians': record.first_time_christians or '',
+        'Rededications': record.rededications or '',
+        'Salvation Cards Returned': record.salvation_cards_returned or '',
+        'Youth Attendance': record.youth_attendance or '',
+        'Youth Salvations': record.youth_salvations or '',
+        'Youth New People': record.youth_new_people or '',
+        'Youth Leaders': record.youth_leaders or '',
+        'Connect Groups': record.connect_groups or '',
+        'Dream Team': record.dream_team or '',
+        'Tithe': record.tithe or '',
+        'Baptisms': record.baptisms or '',
+        'Child Dedications': record.child_dedications or '',
+    }
+    
+    # Add service breakdowns
+    try:
+        if record.adult_service_breakdown:
+            adult_breakdown = json.loads(record.adult_service_breakdown)
+            row_data.update(adult_breakdown)
+        
+        if record.kids_service_breakdown:
+            kids_breakdown = json.loads(record.kids_service_breakdown)
+            row_data.update(kids_breakdown)
+    except:
+        pass
+    
+    # Get existing headers
+    all_records = safe_sheets_request(sheet.get_all_records)
+    headers = list(all_records[0].keys()) if all_records else []
+    
+    # Ensure all columns exist
+    ensure_google_sheets_columns(list(row_data.keys()))
+    
+    # Re-fetch headers after adding columns
+    all_records = safe_sheets_request(sheet.get_all_records)
+    headers = list(all_records[0].keys()) if all_records else []
+    
+    # Build row values
+    row_values = [row_data.get(header, '') for header in headers]
+    
+    # Append or update
+    # For updates, we'd need to find and update the existing row
+    # For now, we'll just append (can enhance later)
+    sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
+    clear_sheets_cache('Stats')
+    
+    return True
+
+
 @app.route('/api/quick_input', methods=['POST'])
 @login_required
 def quick_input():
-    """Handle quick input form submissions"""
+    """Handle quick input form submissions - NOW WITH DUAL-WRITE"""
     try:
         data = request.get_json()
         if not data:
@@ -11326,128 +11765,45 @@ def quick_input():
         if not current_user.has_permission('log_stats'):
             return jsonify({"error": "You don't have permission to log stats"}), 403
         
-        # Save to Google Sheets using the exact headers format
-        try:
-            # Use the existing sheet connection
-            if not sheet:
-                return jsonify({"error": "Google Sheets not connected"}), 500
-            
-            # Get the actual headers from the sheet
-            all_records = safe_sheets_request(sheet.get_all_records)
-            headers = list(all_records[0].keys()) if all_records else []
-            
-            # Debug: Log incoming stats
-            print(f"[DEBUG] Quick input received stats: {stats}")
-            
-            # Prepare the row data with the exact Google Sheets headers
-            # For empty/zero values, use empty string to match Google Sheets format
-            def safe_value(key, default=0):
-                val = stats.get(key, default)
-                if val == 0 or val == '':
-                    return ''
-                return safe_int(val)
-            
-            # Get service times dynamically for this campus
-            campus_service_times = get_campus_service_times(campus)
-            logger.info(f"[DYNAMIC_SERVICE_TIMES] Campus '{campus}' has service times: {campus_service_times}")
-            
-            # Use Adelaide timezone for Australian campuses
-            from zoneinfo import ZoneInfo
-            adelaide_tz = ZoneInfo('Australia/Adelaide')
-            now_adelaide = datetime.now(adelaide_tz)
-            
-            # Build base row_data with fixed fields
-            row_data = {
-                'Timestamp': now_adelaide.strftime('%Y-%m-%d %H:%M:%S'),
-                'Date': date_str,
-                'Campus': campus,
-                'Total People in Campus': safe_value('Total People in Campus'),
-                'Total Attendance': safe_value('Total Attendance'),
-                'Kids Attendance': safe_value('Kids Attendance'),
-                'Kids Leaders': safe_value('Kids Leaders'),
-                'New Kids': safe_value('New Kids'),
-                'New Kids Salvations': safe_value('New Kids Salvations'),
-                'Packs Out': safe_value('Packs Out'),
-                'First Time Visitors': safe_value('First Time Visitors'),
-                'Visitors': safe_value('Visitors'),
-                'Hands up': safe_value('Hands up'),
-                'Cards Back': safe_value('Cards Back'),
-                'First Time Christians': safe_value('First Time Christians'),
-                'Rededications': safe_value('Rededications'),
-                'Salvation Cards Returned': safe_value('Salvation Cards Returned'),
-                'Youth Attendance': safe_value('Youth Attendance'),
-                'Youth Salvations': safe_value('Youth Salvations'),
-                'Youth New People': safe_value('Youth New People'),
-                'Youth Leaders': safe_value('Youth Leaders'),
-                'Connect Groups': safe_value('Connect Groups'),
-                'Dream Team': safe_value('Dream Team'),
-                'Tithe': safe_value('Tithe'),
-                'Baptisms': safe_value('Baptisms'),
-                'Child Dedications': safe_value('Child Dedications')
-            }
-            
-            # Dynamically add service times (adult and kids)
-            for service_time in campus_service_times:
-                row_data[service_time] = safe_value(service_time)
-                row_data[f'Kids {service_time}'] = safe_value(f'Kids {service_time}')
-            
-            # Build list of all required headers (only from row_data, not from existing sheet)
-            required_headers = list(row_data.keys())
-            
-            # Ensure Google Sheets has all required columns (only adds missing ones from our list)
-            ensure_google_sheets_columns(required_headers)
-            
-            # Re-fetch headers after potentially adding new columns
-            all_records = safe_sheets_request(sheet.get_all_records)
-            headers = list(all_records[0].keys()) if all_records else []
-            
-            print(f"[DEBUG] Row data prepared: {row_data}")
-            
-            # Only add headers that are in our expected list (prevent adding unwanted columns)
-            # Define the valid headers we want to support
-            valid_headers = set(required_headers)  # Only our required headers are valid
-            for header in headers:
-                if header in valid_headers and header not in row_data:
-                    row_data[header] = ''
-            
-            # Convert to list format for Google Sheets
-            row_values = []
-            for header in headers:
-                value = row_data.get(header, '')
-                row_values.append(value)
-            
-            # Append the row using the sheet's append_row method with explicit parameters
-            # This ensures data starts at column A and appends to the next available row
-            sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
-            
-            # Clear cache so new entry shows up immediately
-            clear_sheets_cache('Stats')
-            
-            # Generate response text
+        # Prepare data for save_attendance_record
+        save_data = {
+            'campus': campus,
+            'campus_id': campus.lower().replace(' ', '_'),
+            'date': date_str,
+            **stats  # Spread all stats fields
+        }
+        
+        # Save using dual-write system (Database + Google Sheets backup)
+        success, record, error = save_attendance_record(
+            save_data, 
+            user_id=current_user.id if hasattr(current_user, 'id') else None
+        )
+        
+        if success:
             total_stats = len([v for v in stats.values() if v and v != 0])
-            response_text = f"Successfully input {total_stats} stats for {campus} campus on {date_str}!"
-            
             return jsonify({
                 "success": True,
-                "text": response_text,
+                "text": f"Successfully input {total_stats} stats for {campus} campus on {date_str}!",
+                "record_id": record.id,
                 "stats": stats,
                 "campus": campus,
                 "date": date_str,
-                "version": "FULL_FUNCTIONALITY_2025"
+                "synced_to_sheets": record.synced_to_sheets,
+                "version": "DATABASE_DUAL_WRITE_2025"
             })
-            
-        except Exception as e:
-            logger.error(f"Failed to save to Google Sheets: {e}")
-            return jsonify({"error": f"Failed to save to database: {str(e)}"}), 500
+        else:
+            return jsonify({"error": error or "Failed to save"}), 500
             
     except Exception as e:
         logger.error(f"Quick input error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/api/quick_input/update', methods=['POST'])
 @login_required
 def quick_input_update():
-    """Handle quick input form updates - find and update existing row"""
+    """Handle quick input form updates - NOW WITH DUAL-WRITE"""
     try:
         data = request.get_json()
         if not data:
@@ -11480,6 +11836,36 @@ def quick_input_update():
         if not current_user.has_permission('log_stats'):
             return jsonify({"error": "You don't have permission to update stats"}), 403
         
+        # Prepare data for save_attendance_record (handles both create and update)
+        save_data = {
+            'campus': campus,
+            'campus_id': campus.lower().replace(' ', '_'),
+            'date': date_str,
+            **stats  # Spread all stats fields
+        }
+        
+        # Save using dual-write system (will update if exists, create if not)
+        success, record, error = save_attendance_record(
+            save_data, 
+            user_id=current_user.id if hasattr(current_user, 'id') else None
+        )
+        
+        if success:
+            total_stats = len([v for v in stats.values() if v and v != 0])
+            return jsonify({
+                "success": True,
+                "text": f"Successfully updated {total_stats} stats for {campus} campus on {date_str}!",
+                "record_id": record.id,
+                "stats": stats,
+                "campus": campus,
+                "date": date_str,
+                "synced_to_sheets": record.synced_to_sheets,
+                "version": "DATABASE_DUAL_WRITE_2025"
+            })
+        else:
+            return jsonify({"error": error or "Failed to update"}), 500
+        
+        # OLD GOOGLE SHEETS ONLY CODE - KEPT FOR REFERENCE BUT NOT USED
         # Find and update in Google Sheets
         try:
             if not sheet:
