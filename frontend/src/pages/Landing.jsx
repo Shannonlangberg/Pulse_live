@@ -8,17 +8,9 @@ import {
   ShieldCheckIcon,
   ClipboardIcon,
   UserGroupIcon,
-  HeartIcon,
-  CalendarIcon,
-  CurrencyDollarIcon,
   BookOpenIcon,
-  PlayIcon,
-  EnvelopeIcon,
   ChartBarIcon,
-  UserPlusIcon,
-  HandRaisedIcon,
   BuildingOfficeIcon,
-  DocumentChartBarIcon,
   BoltIcon,
   UserCircleIcon
 } from '@heroicons/react/24/outline';
@@ -32,64 +24,14 @@ const getTimeOfDayGreeting = () => {
   return 'Good evening';
 };
 
-// Role-based quick actions
-const getQuickActions = (role) => {
-  const allRoles = [
+// Simple quick actions - same for all roles
+const getQuickActions = () => {
+  return [
     { name: 'My Profile', href: '/profile', icon: UserCircleIcon, color: 'blue' },
-    { name: 'Pulse TV', href: '/tv', icon: PlayIcon, color: 'purple' },
-    { name: 'Events', href: '/events', icon: CalendarIcon, color: 'cyan' },
+    { name: 'Input', href: '/stats', icon: ClipboardIcon, color: 'purple' },
+    { name: 'Dashboard', href: '/dashboard', icon: ChartBarIcon, color: 'cyan' },
+    { name: 'Resources', href: '/resources', icon: BookOpenIcon, color: 'teal' },
   ];
-
-  const roleActions = {
-    admin: [
-      { name: 'Users', href: '/users', icon: UserGroupIcon, color: 'blue' },
-      { name: 'Campuses', href: '/campuses', icon: BuildingOfficeIcon, color: 'purple' },
-      { name: 'Resources', href: '/resources/manage', icon: BookOpenIcon, color: 'teal' },
-      { name: 'Data Export', href: '/export', icon: DocumentChartBarIcon, color: 'orange' },
-    ],
-    senior_leadership: [
-      { name: 'Users', href: '/users', icon: UserGroupIcon, color: 'blue' },
-      { name: 'Campuses', href: '/campuses', icon: BuildingOfficeIcon, color: 'purple' },
-      { name: 'Resources', href: '/resources/manage', icon: BookOpenIcon, color: 'teal' },
-      { name: 'Giving', href: '/giving-analytics', icon: CurrencyDollarIcon, color: 'green' },
-    ],
-    senior_pastor: [
-      { name: 'People', href: '/people', icon: UserGroupIcon, color: 'blue' },
-      { name: 'Giving', href: '/giving-analytics', icon: CurrencyDollarIcon, color: 'green' },
-      { name: 'Heartbeat', href: '/people/heartbeat', icon: HeartIcon, color: 'red' },
-      { name: 'Communications', href: '/communication', icon: EnvelopeIcon, color: 'purple' },
-    ],
-    lead_pastor: [
-      { name: 'People', href: '/people', icon: UserGroupIcon, color: 'blue' },
-      { name: 'Giving', href: '/giving-analytics', icon: CurrencyDollarIcon, color: 'green' },
-      { name: 'Heartbeat', href: '/people/heartbeat', icon: HeartIcon, color: 'red' },
-      { name: 'Communications', href: '/communication', icon: EnvelopeIcon, color: 'purple' },
-    ],
-    campus_pastor: [
-      { name: 'Weekly Input', href: '/stats', icon: ClipboardIcon, color: 'blue' },
-      { name: 'People', href: '/people', icon: UserGroupIcon, color: 'purple' },
-      { name: 'New People', href: '/people/new-people', icon: UserPlusIcon, color: 'cyan' },
-      { name: 'Pastoral Care', href: '/people/pastoral-care', icon: HandRaisedIcon, color: 'orange' },
-      { name: 'Groups', href: '/groups', icon: UserGroupIcon, color: 'teal' },
-    ],
-    staff: [
-      { name: 'People', href: '/people', icon: UserGroupIcon, color: 'blue' },
-      { name: 'Groups', href: '/groups', icon: UserGroupIcon, color: 'purple' },
-      { name: 'Serving', href: '/serving', icon: UserGroupIcon, color: 'cyan' },
-    ],
-    connect_group_leader: [
-      { name: 'My Groups', href: '/groups', icon: UserGroupIcon, color: 'blue' },
-      { name: 'Mark Attendance', href: '/groups', icon: ClipboardIcon, color: 'green' },
-    ],
-    member: [
-      { name: 'Prayer', href: '/prayer', icon: HeartIcon, color: 'purple' },
-      { name: 'My Groups', href: '/groups', icon: UserGroupIcon, color: 'blue' },
-      { name: 'Serving', href: '/serving', icon: UserGroupIcon, color: 'cyan' },
-    ],
-  };
-
-  const specificActions = roleActions[role] || [];
-  return [...allRoles, ...specificActions].slice(0, 6);
 };
 
 const Landing = () => {
@@ -159,7 +101,7 @@ const Landing = () => {
   const featuredCategories = categories.filter(Boolean);
   const actualRole = session?.role || 'user';
   const isAdmin = actualRole === 'admin';
-  const quickActions = getQuickActions(actualRole);
+  const quickActions = getQuickActions();
 
   const announcements = [
     {
@@ -230,6 +172,9 @@ const Landing = () => {
                   <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">
                     {sessionLoading ? 'Loading...' : `${greeting}, ${firstName}!`}
                   </h1>
+                  <p className="text-xl sm:text-2xl font-medium text-blue-200/90">
+                    Welcome to Futures Pulse
+                  </p>
                   <p className="text-white/70 text-base sm:text-lg max-w-2xl leading-relaxed">
                     {isAdmin 
                       ? 'Your command center for managing Futures PULSE—oversee users, campuses, resources, and data across the entire platform.'
@@ -286,7 +231,7 @@ const Landing = () => {
                   Jump to your most-used features
                 </p>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {quickActions.map((action) => {
                   const Icon = action.icon;
                   const colors = colorClasses[action.color] || colorClasses.blue;

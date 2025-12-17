@@ -1,102 +1,36 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   HomeIcon,
-  ClipboardIcon,
-  HeartIcon,
-  UserCircleIcon,
   Cog6ToothIcon,
-  MapPinIcon,
-  Bars3Icon,
   XMarkIcon,
   ArrowRightOnRectangleIcon,
-  ChevronDownIcon,
-  UserGroupIcon,
-  BuildingOfficeIcon,
-  BellIcon,
-  ShieldCheckIcon,
-  ChartBarIcon,
-  CurrencyDollarIcon,
-  EnvelopeIcon,
-  BookOpenIcon,
-  SignalIcon,
-  DocumentChartBarIcon,
-  CalendarIcon,
-  AcademicCapIcon,
-  PlayIcon,
-  ListBulletIcon,
-  FunnelIcon,
-  Squares2X2Icon,
-  UsersIcon,
-  HandRaisedIcon,
-  SparklesIcon,
-  UserPlusIcon,
-  StarIcon
+  ChevronRightIcon,
+  Squares2X2Icon
 } from '@heroicons/react/24/outline';
 
-// Navigation groups for better organization
-const NAVIGATION_GROUPS = {
+// Simplified main sections for left sidebar
+const MAIN_SECTIONS = {
   home: {
-    name: 'HOME',
+    id: 'home',
+    name: 'Home',
     icon: HomeIcon,
-    items: [
-      { name: 'Home', href: '/', icon: HomeIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'], featureKey: 'home' },
-      { name: 'Dashboard', href: '/dashboard', icon: DocumentChartBarIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'], featureKey: 'dashboard' },
-    ]
+    href: '/',
+    roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance']
   },
-  people: {
-    name: 'PEOPLE',
-    icon: UserGroupIcon,
-    items: [
-      { name: 'People', href: '/people', icon: UserGroupIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'staff'], featureKey: 'people' },
-      { name: 'Families', href: '/people/families', icon: UsersIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'staff'], featureKey: 'people' },
-      { name: 'Heartbeat', href: '/people/heartbeat', icon: HeartIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'staff'], featureKey: 'people' },
-      { name: 'Pastoral Care', href: '/people/pastoral-care', icon: HandRaisedIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'staff'], featureKey: 'people' },
-      { name: 'New People', href: '/people/new-people', icon: UserPlusIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'staff'], featureKey: 'people' },
-      { name: 'New Christians', href: '/people/new-christians', icon: SparklesIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'staff'], featureKey: 'people' },
-      { name: 'Groups', href: '/groups', icon: UserGroupIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'staff', 'connect_group_leader'], featureKey: 'connect_groups' },
-    ]
+  portal: {
+    id: 'portal',
+    name: 'Portal',
+    icon: Squares2X2Icon,
+    roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
+    hasSubPages: true
   },
-  ministry: {
-    name: 'MINISTRY',
-    icon: PlayIcon,
-    items: [
-      { name: 'Pulse TV', href: '/tv', icon: PlayIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'], featureKey: 'pulse_tv' },
-      { name: 'Devotions', href: '/devotions', icon: BookOpenIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff'], featureKey: 'devotions' },
-      { name: 'Pathways', href: '/journeys', icon: AcademicCapIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff'], featureKey: 'pathway_manager' },
-      { name: 'Events', href: '/events', icon: CalendarIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff'], featureKey: 'events' },
-      { name: 'Serving', href: '/serving', icon: UserGroupIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'staff'], featureKey: 'serving' },
-      { name: 'Prayer', href: '/prayer', icon: HeartIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff'], featureKey: 'prayer' },
-      { name: 'Training', href: '#', icon: AcademicCapIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'training', disabled: true },
-    ]
-  },
-  operations: {
-    name: 'OPERATIONS',
-    icon: ClipboardIcon,
-    items: [
-      { name: 'Weekly Input', href: '/stats', icon: ClipboardIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'], featureKey: 'input' },
-      { name: 'Giving', href: '/giving-analytics', icon: ChartBarIcon, roles: ['admin', 'finance', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'giving' },
-      { name: 'Finance', href: '/finance', icon: CurrencyDollarIcon, roles: ['admin', 'finance', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'finance' },
-      { name: 'Communications', href: '/communication', icon: EnvelopeIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor'], featureKey: 'communication' },
-      { name: 'Resources', href: '/resources', icon: BookOpenIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'resources' },
-      { name: 'Reports', href: '#', icon: DocumentChartBarIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'reports', disabled: true },
-    ]
-  },
-  admin: {
-    name: 'ADMIN',
-    icon: ShieldCheckIcon,
-    items: [
-      { name: 'My Profile', href: '/profile', icon: UserCircleIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff'], featureKey: null },
-      { name: 'Data Export', href: '/export', icon: DocumentChartBarIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'data_export' },
-      { name: 'Users', href: '/users', icon: UserGroupIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'user_management' },
-      { name: 'Role Manager', href: '/role-manager', icon: ShieldCheckIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'user_management' },
-      { name: 'Campuses', href: '/campuses', icon: BuildingOfficeIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'campus_management' },
-      { name: 'Beacon Management', href: '/beacons', icon: SignalIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'beacon_management' },
-      { name: 'Resource Manager', href: '/resources/manage', icon: BookOpenIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'resource_manager' },
-      { name: 'TV Manager', href: '/tv/manage', icon: PlayIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'tv_manager' },
-      { name: 'Events Manager', href: '/events/manage', icon: CalendarIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'events_manager' },
-      { name: 'Push Notifications', href: '/notifications', icon: BellIcon, roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'], featureKey: 'notifications' },
-    ]
+  settings: {
+    id: 'settings',
+    name: 'Settings',
+    icon: Cog6ToothIcon,
+    roles: ['admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
+    hasSubPages: true
   }
 };
 
