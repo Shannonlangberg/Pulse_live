@@ -259,9 +259,15 @@ const EnhancedNavigation = ({
         // Desktop behavior
         setActiveSection(section.id);
         
-        // Default navigation
+        // Default navigation - check available items for user's role
         if (section.id === 'portal') {
-          navigate('/stats');
+          const portalItems = getFilteredItems(PORTAL_ITEMS);
+          // Navigate to first available portal item, or resources as fallback
+          if (portalItems.length > 0) {
+            navigate(portalItems[0].href);
+          } else {
+            navigate('/resources');
+          }
         } else if (section.id === 'settings') {
           navigate('/profile');
         }
