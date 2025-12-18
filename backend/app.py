@@ -11472,97 +11472,97 @@ def get_recent_entries():
             if sheet:
                 try:
                     all_records = safe_sheets_request(sheet.get_all_records)
-                
-                # Handle "all_campuses" - show entries from all campuses
-                show_all_campuses = campus.lower() in ['all_campuses', 'all', 'australia']
-                
-                print(f"[RECENT_ENTRIES] Requested campus: '{campus}', show_all_campuses: {show_all_campuses}")
-                
-                if not show_all_campuses:
-                    campus_normalized = normalize_campus(campus)
-                    logger.info(f"[RECENT_ENTRIES] Processing {len(all_records)} total records, filtering by campus: '{campus_normalized}'")
-                else:
-                    logger.info(f"[RECENT_ENTRIES] Processing {len(all_records)} total records, showing ALL campuses")
-                
-                for record in all_records:
-                    record_campus_str = record.get('Campus', '')
-                    record_date_str = record.get('Date', '')
                     
-                    # Skip if no date
-                    if not record_date_str:
-                        continue
+                    # Handle "all_campuses" - show entries from all campuses
+                    show_all_campuses = campus.lower() in ['all_campuses', 'all', 'australia']
                     
-                    # Check campus match (skip if filtering by campus)
+                    print(f"[RECENT_ENTRIES] Requested campus: '{campus}', show_all_campuses: {show_all_campuses}")
+                    
                     if not show_all_campuses:
-                        record_campus = normalize_campus(record_campus_str)
-                        campus_match = (record_campus == campus_normalized or 
-                                       campus_normalized in record_campus or
-                                       record_campus in campus_normalized)
-                        if not campus_match:
-                            continue
+                        campus_normalized = normalize_campus(campus)
+                        logger.info(f"[RECENT_ENTRIES] Processing {len(all_records)} total records, filtering by campus: '{campus_normalized}'")
+                    else:
+                        logger.info(f"[RECENT_ENTRIES] Processing {len(all_records)} total records, showing ALL campuses")
                     
-                    # Check if date is within last 7 days
-                    try:
-                        # Try different date formats
-                        record_date = None
-                        for date_format in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']:
-                            try:
-                                record_date = datetime.strptime(str(record_date_str), date_format).date()
-                                break
-                            except:
+                    for record in all_records:
+                        record_campus_str = record.get('Campus', '')
+                        record_date_str = record.get('Date', '')
+                        
+                        # Skip if no date
+                        if not record_date_str:
+                            continue
+                        
+                        # Check campus match (skip if filtering by campus)
+                        if not show_all_campuses:
+                            record_campus = normalize_campus(record_campus_str)
+                            campus_match = (record_campus == campus_normalized or 
+                                           campus_normalized in record_campus or
+                                           record_campus in campus_normalized)
+                            if not campus_match:
                                 continue
                         
-                        if record_date and start_date <= record_date <= end_date:
-                            # Calculate New People and New Christians from the actual field names
-                            first_time_visitors = safe_int(record.get('First Time Visitors', 0))
-                            visitors = safe_int(record.get('Visitors', 0))
-                            new_people = first_time_visitors + visitors
+                        # Check if date is within last 7 days
+                        try:
+                            # Try different date formats
+                            record_date = None
+                            for date_format in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']:
+                                try:
+                                    record_date = datetime.strptime(str(record_date_str), date_format).date()
+                                    break
+                                except:
+                                    continue
                             
-                            first_time_christians = safe_int(record.get('First Time Christians', 0))
-                            rededications = safe_int(record.get('Rededications', 0))
-                            new_christians = first_time_christians + rededications
-                            
-                            # Calculate Total Attendance from service times
-                            service_times = ['9:00 AM', '10:00 AM', '11:00 AM', '5:00 PM', '5:30 PM']
-                            total_attendance = sum(safe_int(record.get(service, 0)) for service in service_times)
-                            
-                            # If no service time data, try the stored Total Attendance field
-                            if total_attendance == 0:
-                                total_attendance = safe_int(record.get('Total Attendance', 0))
-                            
-                            # Calculate Kids Attendance from kids service times
-                            kids_service_times = ['Kids 9:00 AM', 'Kids 10:00 AM', 'Kids 11:00 AM', 'Kids 5:00 PM', 'Kids 5:30 PM']
-                            kids_attendance = sum(safe_int(record.get(service, 0)) for service in kids_service_times)
-                            
-                            # If no kids service time data, try the stored Kids Attendance field
-                            if kids_attendance == 0:
-                                kids_attendance = safe_int(record.get('Kids Attendance', 0))
-                            
-                            # Ensure we have the required stats fields
-                            stats = {
-                                'Total Attendance': total_attendance,
-                                'Kids Attendance': kids_attendance,
-                                'Youth Attendance': safe_int(record.get('Youth Attendance', 0)),
-                                'New People': new_people,
-                                'New Christians': new_christians,
-                                # Include all other fields from the record
-                                **record
-                            }
-                            
-                            entries.append({
-                                'date': record_date_str,
-                                'campus': record_campus_str,  # Always show actual campus name from data
-                                'stats': stats
-                            })
-                            print(f"[RECENT_ENTRIES] Added entry: {record_date_str} for campus '{record_campus_str}'")
-                            logger.debug(f"[RECENT_ENTRIES] Added entry: {record_date_str} for {record_campus_str}")
-                    except Exception as e:
-                        logger.debug(f"[RECENT_ENTRIES] Error parsing date '{record_date_str}': {e}")
-                        continue
-                
-                # Sort by date descending (most recent first), then by campus
-                entries.sort(key=lambda x: (x['date'], x['campus']), reverse=True)
-                logger.info(f"[RECENT_ENTRIES] Found {len(entries)} matching entries")
+                            if record_date and start_date <= record_date <= end_date:
+                                # Calculate New People and New Christians from the actual field names
+                                first_time_visitors = safe_int(record.get('First Time Visitors', 0))
+                                visitors = safe_int(record.get('Visitors', 0))
+                                new_people = first_time_visitors + visitors
+                                
+                                first_time_christians = safe_int(record.get('First Time Christians', 0))
+                                rededications = safe_int(record.get('Rededications', 0))
+                                new_christians = first_time_christians + rededications
+                                
+                                # Calculate Total Attendance from service times
+                                service_times = ['9:00 AM', '10:00 AM', '11:00 AM', '5:00 PM', '5:30 PM']
+                                total_attendance = sum(safe_int(record.get(service, 0)) for service in service_times)
+                                
+                                # If no service time data, try the stored Total Attendance field
+                                if total_attendance == 0:
+                                    total_attendance = safe_int(record.get('Total Attendance', 0))
+                                
+                                # Calculate Kids Attendance from kids service times
+                                kids_service_times = ['Kids 9:00 AM', 'Kids 10:00 AM', 'Kids 11:00 AM', 'Kids 5:00 PM', 'Kids 5:30 PM']
+                                kids_attendance = sum(safe_int(record.get(service, 0)) for service in kids_service_times)
+                                
+                                # If no kids service time data, try the stored Kids Attendance field
+                                if kids_attendance == 0:
+                                    kids_attendance = safe_int(record.get('Kids Attendance', 0))
+                                
+                                # Ensure we have the required stats fields
+                                stats = {
+                                    'Total Attendance': total_attendance,
+                                    'Kids Attendance': kids_attendance,
+                                    'Youth Attendance': safe_int(record.get('Youth Attendance', 0)),
+                                    'New People': new_people,
+                                    'New Christians': new_christians,
+                                    # Include all other fields from the record
+                                    **record
+                                }
+                                
+                                entries.append({
+                                    'date': record_date_str,
+                                    'campus': record_campus_str,  # Always show actual campus name from data
+                                    'stats': stats
+                                })
+                                print(f"[RECENT_ENTRIES] Added entry: {record_date_str} for campus '{record_campus_str}'")
+                                logger.debug(f"[RECENT_ENTRIES] Added entry: {record_date_str} for {record_campus_str}")
+                        except Exception as e:
+                            logger.debug(f"[RECENT_ENTRIES] Error parsing date '{record_date_str}': {e}")
+                            continue
+                    
+                    # Sort by date descending (most recent first), then by campus
+                    entries.sort(key=lambda x: (x['date'], x['campus']), reverse=True)
+                    logger.info(f"[RECENT_ENTRIES] Found {len(entries)} matching entries")
                 
             except Exception as e:
                 logger.error(f"Error fetching recent entries: {e}", exc_info=True)
