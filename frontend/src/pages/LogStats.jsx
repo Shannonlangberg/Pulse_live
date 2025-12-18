@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PlusIcon, CalendarIcon, XMarkIcon, PencilIcon } from '@heroicons/react/24/outline';
 import DynamicBackground from '../components/DynamicBackground';
 
 const LogStats = () => {
+  const navigate = useNavigate();
   const [selectedRegion, setSelectedRegion] = useState('');
   const [regions, setRegions] = useState([]);
   const [selectedCampus, setSelectedCampus] = useState('');
@@ -88,6 +90,27 @@ const LogStats = () => {
   const totalAttendance = calculateTotalAttendance();
   const totalKidsAttendance = calculateTotalKidsAttendance();
   const totalKidsOverall = totalKidsAttendance + (parseInt(quickInputStats['Kids Leaders']) || 0);
+
+  // Check user role and redirect staff members
+  useEffect(() => {
+    const checkRole = async () => {
+      try {
+        const response = await fetch('/api/session', {
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.authenticated && data.role === 'staff') {
+            navigate('/resources');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking user role:', error);
+      }
+    };
+    checkRole();
+  }, [navigate]);
 
   useEffect(() => {
     // Load regions - Dec 17, 2025 deployment

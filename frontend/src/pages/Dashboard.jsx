@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import CampusSelector from './CampusSelector';
 import CampusDashboard from './CampusDashboard';
@@ -30,6 +31,7 @@ ChartJS.register(
 );
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [campus, setCampus] = useState('');
@@ -130,17 +132,25 @@ const Dashboard = () => {
       });
       const data = await response.json();
       if (data.authenticated) {
+        const role = data.role || 'user';
+        
+        // Redirect staff members - they don't have access to Dashboard
+        if (role === 'staff') {
+          navigate('/resources');
+          return;
+        }
+        
         setCurrentUser({
           id: data.id || 'unknown',
           username: data.username || 'User',
           full_name: data.full_name || 'User',
-          role: data.role || 'user',
+          role: role,
           campus: data.campus || 'all_campuses'
         });
-        setUserRole(data.role || 'user');
+        setUserRole(role);
         setUserCampus(data.campus || 'all_campuses');
         
-        if (data.role === 'campus_pastor' && data.campus && data.campus !== 'all_campuses') {
+        if (role === 'campus_pastor' && data.campus && data.campus !== 'all_campuses') {
           setCampus(data.campus);
         }
       }
