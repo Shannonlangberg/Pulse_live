@@ -24,14 +24,16 @@ const getTimeOfDayGreeting = () => {
   return 'Good evening';
 };
 
-// Simple quick actions - same for all roles
-const getQuickActions = () => {
-  return [
-    { name: 'My Profile', href: '/profile', icon: UserCircleIcon, color: 'blue' },
-    { name: 'Input', href: '/stats', icon: ClipboardIcon, color: 'purple' },
-    { name: 'Dashboard', href: '/dashboard', icon: ChartBarIcon, color: 'cyan' },
-    { name: 'Resources', href: '/resources', icon: BookOpenIcon, color: 'teal' },
+// Quick actions filtered by role
+const getQuickActions = (userRole) => {
+  const allActions = [
+    { name: 'My Profile', href: '/profile', icon: UserCircleIcon, color: 'blue', roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'] },
+    { name: 'Input', href: '/stats', icon: ClipboardIcon, color: 'purple', roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'campus_pastor'] },
+    { name: 'Dashboard', href: '/dashboard', icon: ChartBarIcon, color: 'cyan', roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'campus_pastor'] },
+    { name: 'Resources', href: '/resources', icon: BookOpenIcon, color: 'teal', roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'] },
   ];
+  
+  return allActions.filter(action => action.roles.includes(userRole));
 };
 
 const Landing = () => {
@@ -121,7 +123,7 @@ const Landing = () => {
   const featuredCategories = categories.filter(Boolean);
   const actualRole = session?.role || 'user';
   const isAdmin = actualRole === 'superadmin' || actualRole === 'admin';
-  const quickActions = getQuickActions();
+  const quickActions = getQuickActions(actualRole);
 
   const announcements = [
     {

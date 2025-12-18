@@ -34,7 +34,7 @@ const MAIN_SECTIONS = {
     id: 'portal',
     name: 'Portal',
     icon: Squares2X2Icon,
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'finance'],
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
     hasSubPages: true
   },
   settings: {
