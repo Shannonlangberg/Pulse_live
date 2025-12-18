@@ -11563,10 +11563,9 @@ def get_recent_entries():
                     # Sort by date descending (most recent first), then by campus
                     entries.sort(key=lambda x: (x['date'], x['campus']), reverse=True)
                     logger.info(f"[RECENT_ENTRIES] Found {len(entries)} matching entries")
-                
-            except Exception as e:
-                logger.error(f"Error fetching recent entries: {e}", exc_info=True)
-                return jsonify({"entries": []}), 200
+                except Exception as e:
+                    logger.error(f"Error fetching recent entries: {e}", exc_info=True)
+                    return jsonify({"entries": []}), 200
         
         return jsonify({"entries": entries}), 200
         
