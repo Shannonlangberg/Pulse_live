@@ -20,12 +20,11 @@ const UserManagement = () => {
   });
 
   const roles = [
-    { value: 'superadmin', label: 'Super Administrator' },
-    { value: 'admin', label: 'Administrator' },
+    { value: 'superadmin', label: 'Super Admin' },
+    { value: 'admin', label: 'Admin' },
     { value: 'senior_leader', label: 'Senior Leader' },
     { value: 'campus_pastor', label: 'Campus Pastor' },
-    { value: 'staff', label: 'Staff' },
-    { value: 'finance', label: 'Finance' }
+    { value: 'staff', label: 'Staff' }
   ];
 
   useEffect(() => {
