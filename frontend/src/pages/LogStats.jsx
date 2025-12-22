@@ -298,15 +298,17 @@ const LogStats = () => {
     setQuickInputStats(newStats);
     setQuickInputDate(entry.date);
     setIsEditMode(true);
-    // Use the campus name from the stats data, which should be the actual campus name
-    const originalCampus = entry.stats.Campus || entry.campus;
+    // Use campus_id if available, otherwise fall back to campus name
+    const campusId = entry.campusId || entry.stats.Campus || entry.campus;
+    const originalCampus = entry.campusId || entry.stats.Campus || entry.campus;
     
-    // Set the selected campus to the correct one for editing
-    setSelectedCampus(originalCampus);
+    // Set the selected campus to the correct one for editing (prefer campus_id)
+    setSelectedCampus(campusId);
     
     setEditingEntry({
       originalCampus: originalCampus, // Use original campus name from stats data
-      originalDate: entry.date
+      originalDate: entry.date,
+      campusId: campusId // Store campus_id for proper lookup
     });
     setShowQuickInput(true);
   };
@@ -387,7 +389,10 @@ const LogStats = () => {
           campus: selectedCampus,
           date: quickInputDate,
           stats: backendStats,
-          ...(isEditMode && editingEntry && { originalDate: editingEntry.date, originalCampus: editingEntry.campusId })
+          ...(isEditMode && editingEntry && { 
+            originalDate: editingEntry.originalDate || editingEntry.date, 
+            originalCampus: editingEntry.campusId || editingEntry.originalCampus 
+          })
         })
       });
 

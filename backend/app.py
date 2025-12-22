@@ -862,14 +862,24 @@ def save_attendance_record(data, user_id=None):
     from models import AttendanceRecord, CampusV2, Region
     
     try:
-        # Get campus object
+        # Get campus object - try multiple lookup strategies
         campus = None
-        if 'campus_id' in data:
+        
+        # First, try campus_id from data
+        if 'campus_id' in data and data.get('campus_id'):
             campus = CampusV2.query.filter_by(campus_id=data.get('campus_id')).first()
         
-        if not campus and 'campus' in data:
-            # Fallback: try display_name match
+        # If not found, try using campus field as campus_id (common case)
+        if not campus and 'campus' in data and data.get('campus'):
+            campus = CampusV2.query.filter_by(campus_id=data.get('campus')).first()
+        
+        # If still not found, try display_name match
+        if not campus and 'campus' in data and data.get('campus'):
             campus = CampusV2.query.filter_by(display_name=data.get('campus')).first()
+        
+        # If still not found, try name match
+        if not campus and 'campus' in data and data.get('campus'):
+            campus = CampusV2.query.filter_by(name=data.get('campus')).first()
         
         if not campus:
             return False, None, f"Campus not found: {data.get('campus') or data.get('campus_id')}"
@@ -11459,6 +11469,7 @@ def get_recent_entries():
                 
                 entries.append({
                     'campus': campus_obj.display_name,
+                    'campusId': campus_obj.campus_id,  # Include campus_id for proper lookup
                     'date': record.date.strftime('%Y-%m-%d'),
                     'stats': stats,
                     'id': record.id  # Include record ID for editing
@@ -11791,14 +11802,27 @@ def save_attendance_record(data, user_id=None):
         tuple: (success: bool, record: AttendanceRecord or None, error: str or None)
     """
     try:
-        # Get campus object
-        campus = CampusV2.query.filter_by(campus_id=data.get('campus_id')).first()
-        if not campus:
-            # Fallback: try display_name match
+        # Get campus object - try multiple lookup strategies
+        campus = None
+        
+        # First, try campus_id from data
+        if data.get('campus_id'):
+            campus = CampusV2.query.filter_by(campus_id=data.get('campus_id')).first()
+        
+        # If not found, try using campus field as campus_id (common case)
+        if not campus and data.get('campus'):
+            campus = CampusV2.query.filter_by(campus_id=data.get('campus')).first()
+        
+        # If still not found, try display_name match
+        if not campus and data.get('campus'):
             campus = CampusV2.query.filter_by(display_name=data.get('campus')).first()
         
+        # If still not found, try name match
+        if not campus and data.get('campus'):
+            campus = CampusV2.query.filter_by(name=data.get('campus')).first()
+        
         if not campus:
-            return False, None, f"Campus not found: {data.get('campus')}"
+            return False, None, f"Campus not found: {data.get('campus') or data.get('campus_id')}"
         
         # Parse date
         date_val = None
