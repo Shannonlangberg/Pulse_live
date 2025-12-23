@@ -10898,12 +10898,18 @@ def get_weekly_submission_status():
         # Check submission status for each campus using DATABASE (attendance_records)
         campus_status = []
         for campus in campuses:
+            print(f"[WEEKLY_SUBMISSION] Checking campus: {campus.display_name} (ID: {campus.id}, campus_id: {campus.campus_id})")
+            
             # Find the most recent submission for this campus (Saturday or Sunday)
             latest_record = AttendanceRecord.query.filter(
                 AttendanceRecord.campus_id == campus.id,
                 AttendanceRecord.date >= most_recent_saturday,
                 AttendanceRecord.date <= most_recent_sunday
             ).order_by(AttendanceRecord.date.desc()).first()
+            
+            print(f"[WEEKLY_SUBMISSION] Campus {campus.campus_id}: Record found = {latest_record is not None}")
+            if latest_record:
+                print(f"[WEEKLY_SUBMISSION] Record date: {latest_record.date}")
             
             # Determine status
             status = 'submitted' if latest_record else 'not_submitted'
@@ -10917,6 +10923,7 @@ def get_weekly_submission_status():
                 'week_start': most_recent_saturday.strftime('%B %d, %Y')  # Show Saturday as week start
             })
         
+        print(f"[WEEKLY_SUBMISSION] Returning {len(campus_status)} campus statuses")
         return jsonify({
             'campuses': campus_status,
             'week_start': most_recent_saturday.strftime('%B %d, %Y')  # Show Saturday as week start
@@ -12957,13 +12964,17 @@ def get_regional_dashboard_data():
         
         # For now, allow all authenticated users access to regional dashboards
         # Superadmin, admin, senior leadership roles should have access
-        allowed_roles = ['superadmin', 'admin', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor']
-        if user_role not in allowed_roles:
-            logger.warning(f"[REGIONAL_DASHBOARD] Access denied for user role: {user_role}")
-            print(f"[REGIONAL_DASHBOARD] Access denied - user role '{user_role}' not in allowed roles")
-            return jsonify({"error": "Access denied to regional dashboard"}), 403
+        allowed_roles = ['superadmin', 'admin', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'senior_leadership']
         
-        print(f"[REGIONAL_DASHBOARD] Access granted for role: {user_role}")
+        print(f"[REGIONAL_DASHBOARD] Checking access - User role: '{user_role}', Allowed roles: {allowed_roles}")
+        print(f"[REGIONAL_DASHBOARD] Role check result: {user_role in allowed_roles}")
+        
+        if user_role not in allowed_roles:
+            logger.warning(f"[REGIONAL_DASHBOARD] Access denied for user role: '{user_role}' (not in {allowed_roles})")
+            print(f"[REGIONAL_DASHBOARD] Access denied - user role '{user_role}' not in allowed roles")
+            return jsonify({"error": f"Access denied to regional dashboard. Your role '{user_role}' does not have permission."}), 403
+        
+        print(f"[REGIONAL_DASHBOARD] ✅ Access granted for role: {user_role}")
         
         # Calculate date range
         end_date = datetime.now().date()
@@ -12990,12 +13001,23 @@ def get_regional_dashboard_data():
             AttendanceRecord.date <= end_date
         ).all()
         
-        print(f"[REGIONAL_DASHBOARD] Found {len(records)} attendance records")
+        print(f"[REGIONAL_DASHBOARD] Date range: {start_date} to {end_date}")
+        print(f"[REGIONAL_DASHBOARD] Found {len(records)} attendance records for region_id={region_id}")
+        
+        # If no records, check if ANY records exist in the table
+        if len(records) == 0:
+            total_records = AttendanceRecord.query.count()
+            print(f"[REGIONAL_DASHBOARD] No records found. Total records in table: {total_records}")
+            if total_records > 0:
+                sample_record = AttendanceRecord.query.first()
+                print(f"[REGIONAL_DASHBOARD] Sample record: region_id={sample_record.region_id}, campus_id={sample_record.campus_id}, date={sample_record.date}")
         
         # Get campuses in this region
         campuses = CampusV2.query.filter_by(region_id=region_id, active=True).all()
         
         print(f"[REGIONAL_DASHBOARD] Found {len(campuses)} active campuses")
+        for campus in campuses:
+            print(f"[REGIONAL_DASHBOARD] Campus: {campus.display_name} (ID: {campus.id}, campus_id: {campus.campus_id})")
         
         # Aggregate statistics
         total_attendance = sum(r.total_attendance or 0 for r in records)
