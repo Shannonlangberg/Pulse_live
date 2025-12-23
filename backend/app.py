@@ -2262,10 +2262,13 @@ def authenticate_user(username_or_email, password):
             
             logger.info(f"[AUTH] 🔑 Password check result: {password_valid}")
             if password_valid:
-                # Update last login
+                # Update last login with ISO8601 format for SQLite compatibility
+                now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                logger.info(f"[AUTH] 📝 Updating last_login to: {now} for user ID: {row[0]}")
                 cursor.execute('UPDATE users SET last_login = ? WHERE id = ?', 
-                             (datetime.now(), row[0]))
+                             (now, row[0]))
                 conn.commit()
+                logger.info(f"[AUTH] ✅ last_login updated successfully")
                 conn.close()
                 logger.info(f"[AUTH] ✅ Authentication SUCCESS for '{username_or_email}'")
                 return user
@@ -9274,7 +9277,7 @@ def get_all_users():
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, username, email, full_name, role, campus, active, created_at, last_login
+            SELECT id, username, email, full_name, role, campus, active, created_at, last_login, region_id
             FROM users
             ORDER BY full_name
         ''')
@@ -9283,7 +9286,7 @@ def get_all_users():
         users_data = load_users()  # Still need this for role names
         
         for row in cursor.fetchall():
-            user_id, username, email, full_name, role, campus, active, created_at, last_login = row
+            user_id, username, email, full_name, role, campus, active, created_at, last_login, region_id = row
             
             # Format last login for display
             last_login_display = "Never"
@@ -9305,6 +9308,7 @@ def get_all_users():
                 'full_name': full_name or username,
                 'role': role,
                 'campus': campus or '',
+                'region_id': region_id,
                 'active': bool(active),
                 'created_date': created_at.strftime('%Y-%m-%d') if created_at else 'Unknown',
                 'last_login': last_login_display,
