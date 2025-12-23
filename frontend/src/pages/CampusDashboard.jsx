@@ -387,13 +387,19 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
   const totalPeople = data.stats?.total_people || 0;
   // Use service breakdown sum if it exists and has data, otherwise fall back to avg_attendance
   const sundayAdultAttendance = Math.round(sundayAttendanceFromServices > 0 ? sundayAttendanceFromServices : (data.stats?.avg_attendance || 0));
-  const youthAttendance = Math.round(data.stats?.avg_youth_attendance || 0); // ALWAYS average
+  const youthAttendance = Math.round(data.stats?.avg_youth_attendance || 0); // ALWAYS average (Friday youth)
   const kidsAttendance = Math.round(data.stats?.avg_kids_attendance || 0); // Kids only
   const kidsLeaders = Math.round(data.stats?.avg_kids_leaders || 0); // Leaders only
   const kidsTotalForSunday = kidsAttendance + kidsLeaders; // Kids + leaders
   const saintsAttendance = Math.round(data.stats?.avg_saints || 0); // Saints average
-  const sundayCombinedAttendance = sundayAdultAttendance + kidsTotalForSunday + saintsAttendance;
-  const totalAttendance = sundayAdultAttendance + youthAttendance + kidsAttendance + kidsLeaders + saintsAttendance; // Weekend = Sunday + Youth + Kids + Kids Leaders + Saints
+  const seniorsAttendance = Math.round(data.stats?.avg_seniors || 0); // Seniors average (if available)
+  
+  // SUNDAY ATTENDANCE = Service Times + Kids + Kids Leaders + Saints + Seniors (NO Youth - youth is Friday)
+  const sundayCombinedAttendance = sundayAdultAttendance + kidsTotalForSunday + saintsAttendance + seniorsAttendance;
+  
+  // WEEKEND TOTAL = Sunday + Youth (Friday)
+  const totalAttendance = sundayCombinedAttendance + youthAttendance;
+  
   const attendancePercentage = totalPeople > 0 ? Math.round((totalAttendance / totalPeople) * 100) : 0;
   const connectGroupPercentage = sundayAdultAttendance > 0 ? Math.round((data.stats?.avg_connect_groups || 0) / sundayAdultAttendance * 100) : 0;
 
@@ -546,7 +552,11 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
               className="group relative bg-gradient-to-br from-[#AC9B25]/20 to-[#FF8432]/20 backdrop-blur-sm rounded-2xl p-6 border border-[#AC9B25]/20 shadow-2xl hover:shadow-[#AC9B25]/25 transition-all duration-500 hover:scale-105 cursor-pointer"
               onClick={() => openModal('weekend-attendance', { 
                 total: totalAttendance,
-                sunday: sundayAdultAttendance,
+                sunday: sundayCombinedAttendance,  // Pass complete Sunday total, not just adults
+                sundayAdults: sundayAdultAttendance,
+                kids: kidsTotalForSunday,
+                saints: saintsAttendance,
+                seniors: seniorsAttendance,
                 youth: youthAttendance,
                 percentage: attendancePercentage,
                 campus: campusName
@@ -565,7 +575,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                   {totalAttendance.toLocaleString()}
                 </div>
                 <p className="text-[#AC9B25]/80 text-sm">
-                  Average per service
+                  Sunday + Youth (Friday)
                 </p>
               </div>
             </div>
@@ -579,6 +589,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                   adults: sundayAdultAttendance,
                   kids: kidsTotalForSunday, // Kids + leaders for clarity in modal
                   saints: saintsAttendance,
+                  seniors: seniorsAttendance,
                   services: services,
                   campus: campusName
                 });
@@ -597,7 +608,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                   {sundayCombinedAttendance.toLocaleString()}
                 </div>
                 <p className="text-purple-200/80 text-sm">
-                  Adults + Kids (incl. leaders) + Saints = Total
+                  Adults + Kids (incl. leaders) + Saints {seniorsAttendance > 0 && '+ Seniors'} (No Youth)
                 </p>
                 <p className="text-purple-200/60 text-xs mt-1">
                   {services.length > 1 ? `${services.length} services • Average per service` : 'Average per service'}
@@ -1154,11 +1165,11 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                     </div>
                     <p className="text-white/60">
                       {isRollup 
-                        ? 'Average attendance across all campuses (adults + kids + kids leaders + saints, excluding youth)' 
-                        : 'Average per service: Adults + Kids (incl. leaders) + Saints'}
+                        ? 'Average attendance across all campuses (adults + kids + kids leaders + saints + seniors, excluding youth)' 
+                        : 'Average per service: Adults + Kids (incl. leaders) + Saints + Seniors (No Youth - Youth is Friday)'}
                     </p>
                     <p className="text-white/50 text-sm mt-2">
-                      Adults: {(modalData?.adults ?? sundayAdultAttendance).toLocaleString()} • Kids (incl. leaders): {(modalData?.kids ?? kidsTotalForSunday).toLocaleString()} • Saints: {(modalData?.saints ?? saintsAttendance).toLocaleString()}
+                      Adults: {(modalData?.adults ?? sundayAdultAttendance).toLocaleString()} • Kids (incl. leaders): {(modalData?.kids ?? kidsTotalForSunday).toLocaleString()} • Saints: {(modalData?.saints ?? saintsAttendance).toLocaleString()}{(modalData?.seniors ?? seniorsAttendance) > 0 && ` • Seniors: ${(modalData?.seniors ?? seniorsAttendance).toLocaleString()}`}
                     </p>
                   </div>
                   
@@ -1232,9 +1243,9 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                       <div className="bg-purple-500/10 rounded-xl p-4 border border-purple-400/20">
                         <h4 className="text-lg font-semibold text-purple-300 mb-2">Sunday Services</h4>
                         <div className="text-3xl font-bold text-purple-400 mb-1">
-                          {(modalData?.sunday ?? sundayAdultAttendance).toLocaleString()}
+                          {(modalData?.sundayAdults ?? sundayAdultAttendance).toLocaleString()}
                         </div>
-                        <p className="text-purple-200/80 text-sm">Average Sunday attendance</p>
+                        <p className="text-purple-200/80 text-sm">Adult service times only</p>
                       </div>
                       <div className="bg-blue-500/10 rounded-xl p-4 border border-blue-400/20">
                         <h4 className="text-lg font-semibold text-blue-300 mb-2">Youth Friday</h4>
@@ -1272,6 +1283,9 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                           {totalAttendance.toLocaleString()}
                         </div>
                       </div>
+                      <p className="text-emerald-200/60 text-xs mt-2">
+                        Sunday ({(modalData?.sunday ?? sundayCombinedAttendance).toLocaleString()}) + Youth Friday ({youthAttendance.toLocaleString()})
+                      </p>
                     </div>
                   </div>
                   
