@@ -610,13 +610,26 @@ const Resources = () => {
       <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-6 md:p-8 space-y-8 shadow-2xl">
         <div className="flex flex-col gap-4 pb-6 border-b border-white/10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h3 className="text-white text-2xl font-bold">
-                {selectedCategory.displayName || selectedCategory.name} Resources
-              </h3>
-              <p className="text-white/50 text-sm mt-1">
-                Files and folders from Google Drive
-              </p>
+            <div className="flex items-center gap-3">
+              {folderBreadcrumb.length > 0 && (
+                <button
+                  onClick={() => handleBreadcrumbClick(folderBreadcrumb.length - 2)}
+                  className="p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-blue-200 transition-all duration-300 shadow-lg hover:shadow-xl group"
+                  title="Go back"
+                >
+                  <svg className="w-6 h-6 transform group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+              <div>
+                <h3 className="text-white text-2xl font-bold">
+                  {selectedCategory.displayName || selectedCategory.name} Resources
+                </h3>
+                <p className="text-white/50 text-sm mt-1">
+                  Files and folders from Google Drive
+                </p>
+              </div>
             </div>
             <button
               type="button"
@@ -629,22 +642,27 @@ const Resources = () => {
           </div>
           
           {folderBreadcrumb.length > 0 && (
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm bg-white/5 rounded-xl px-4 py-2.5 border border-white/10">
+              <span className="text-white/40">📍</span>
               <button
                 onClick={() => handleBreadcrumbClick(-1)}
-                className="text-blue-300 hover:text-blue-200 transition-colors font-medium"
+                className="text-blue-300 hover:text-blue-200 transition-colors font-medium hover:underline"
               >
-                📁 {selectedCategory.displayName || selectedCategory.name}
+                {selectedCategory.displayName || selectedCategory.name}
               </button>
               {folderBreadcrumb.map((crumb, index) => (
                 <div key={crumb.id} className="flex items-center gap-2">
                   <span className="text-white/30">/</span>
-                  <button
-                    onClick={() => handleBreadcrumbClick(index)}
-                    className="text-blue-300 hover:text-blue-200 transition-colors font-medium"
-                  >
-                    {crumb.name}
-                  </button>
+                  {index === folderBreadcrumb.length - 1 ? (
+                    <span className="text-white font-medium">{crumb.name}</span>
+                  ) : (
+                    <button
+                      onClick={() => handleBreadcrumbClick(index)}
+                      className="text-blue-300 hover:text-blue-200 transition-colors font-medium hover:underline"
+                    >
+                      {crumb.name}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
