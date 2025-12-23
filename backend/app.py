@@ -6765,7 +6765,50 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 print(f"[DASHBOARD] Service breakdown: {list(service_breakdown.keys())}")
                 print(f"[DASHBOARD] Kids service breakdown: {list(kids_service_breakdown.keys())}")
                 
-                # Build chart_data from monthly_trends for Year-To-Date view
+                # Build chart_data from YTD database records (not just filtered range)
+                # Query ALL records from January 1st to today for YTD chart
+                now = datetime.now()
+                ytd_start = datetime(now.year, 1, 1)
+                ytd_end = now
+                
+                print(f"[DASHBOARD YTD] Querying YTD records from {ytd_start.strftime('%Y-%m-%d')} to {ytd_end.strftime('%Y-%m-%d')}")
+                
+                # Query YTD records (separate from filtered records)
+                if campus in ['all_campuses', 'australia', 'usa']:
+                    # Multi-campus query
+                    ytd_records = AttendanceRecord.query.filter(
+                        AttendanceRecord.date >= ytd_start,
+                        AttendanceRecord.date <= ytd_end
+                    ).all()
+                else:
+                    # Single campus query
+                    ytd_records = AttendanceRecord.query.filter(
+                        AttendanceRecord.campus_id == campus_obj.id,
+                        AttendanceRecord.date >= ytd_start,
+                        AttendanceRecord.date <= ytd_end
+                    ).all()
+                
+                print(f"[DASHBOARD YTD] Found {len(ytd_records)} YTD records for chart")
+                
+                # Build monthly aggregates for YTD
+                ytd_monthly = {}
+                for record in ytd_records:
+                    month_key = record.date.strftime('%Y-%m')
+                    if month_key not in ytd_monthly:
+                        ytd_monthly[month_key] = {
+                            'attendance': 0,
+                            'new_people': 0,
+                            'new_christians': 0,
+                            'count': 0
+                        }
+                    ytd_monthly[month_key]['attendance'] += record.total_attendance or 0
+                    ytd_monthly[month_key]['new_people'] += (record.first_time_visitors or 0) + (record.visitors or 0)
+                    ytd_monthly[month_key]['new_christians'] += (record.first_time_christians or 0) + (record.rededications or 0)
+                    ytd_monthly[month_key]['count'] += 1
+                
+                print(f"[DASHBOARD YTD] Monthly aggregates: {list(ytd_monthly.keys())}")
+                
+                # Build chart_data for Year-To-Date view
                 chart_data = {
                     'labels': [],
                     'attendance': [],
@@ -6780,23 +6823,23 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 }
                 
                 # Populate chart with YTD data (January through current month)
-                now = datetime.now()
-                ytd_start = datetime(now.year, 1, 1)
-                ytd_end = now.replace(day=1)
                 
                 current_date = ytd_start.replace(day=1)
-                end_month = ytd_end.replace(day=1)
+                end_month = now.replace(day=1)
                 
                 while current_date <= end_month:
                     month_key = current_date.strftime('%Y-%m')
                     month_name = current_date.strftime('%b %Y')
                     chart_data['labels'].append(month_name)
                     
-                    # Get data for this month from monthly_trends
-                    month_data = monthly_trends.get(month_key, {})
-                    attendance_val = month_data.get('avg_attendance', 0)
-                    new_people_val = month_data.get('avg_new_people', 0)
-                    new_christians_val = month_data.get('avg_new_christians', 0)
+                    # Get data for this month from ytd_monthly (not monthly_trends!)
+                    month_data = ytd_monthly.get(month_key, {'attendance': 0, 'new_people': 0, 'new_christians': 0, 'count': 0})
+                    
+                    # Calculate average per service
+                    count = month_data['count'] or 1
+                    attendance_val = month_data['attendance'] / count if month_data['count'] > 0 else 0
+                    new_people_val = month_data['new_people'] / count if month_data['count'] > 0 else 0
+                    new_christians_val = month_data['new_christians'] / count if month_data['count'] > 0 else 0
                     
                     chart_data['attendance'].append(attendance_val)
                     chart_data['new_people'].append(new_people_val)
@@ -6808,6 +6851,7 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     current_date = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
                 
                 print(f"[DASHBOARD] Built chart_data with {len(chart_data['labels'])} months: {chart_data['labels']}")
+                print(f"[DASHBOARD] Chart attendance values: {chart_data['attendance']}")
                 
                 return {
                     'stats': stats,
