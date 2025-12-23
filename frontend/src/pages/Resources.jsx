@@ -447,14 +447,9 @@ const Resources = () => {
                           📁
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-yellow-50 font-semibold leading-tight group-hover:text-yellow-100 transition-colors duration-300 mb-1">
+                          <h4 className="text-yellow-50 font-semibold leading-tight group-hover:text-yellow-100 transition-colors duration-300">
                             {file.displayName || file.name}
                           </h4>
-                          {file.displayName && (
-                            <p className="text-yellow-200/30 text-xs italic truncate">
-                              {file.name}
-                            </p>
-                          )}
                         </div>
                       </div>
                       <div className="text-white/30 text-xs border-t border-yellow-500/10 pt-2">
@@ -494,14 +489,9 @@ const Resources = () => {
                           📄
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-white font-semibold leading-tight group-hover:text-blue-200 transition-colors duration-300 mb-1">
+                          <h4 className="text-white font-semibold leading-tight group-hover:text-blue-200 transition-colors duration-300">
                             {file.displayName || file.name}
                           </h4>
-                          {file.displayName && (
-                            <p className="text-white/20 text-xs italic truncate">
-                              {file.name}
-                            </p>
-                          )}
                         </div>
                       </div>
                       <div className="text-white/30 text-xs border-t border-white/5 pt-2">
