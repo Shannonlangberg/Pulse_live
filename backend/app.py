@@ -6655,6 +6655,7 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 recent_entries = []
                 monthly_trends = {}
                 service_breakdown = {}
+                kids_service_breakdown = {}
                 
                 for record in records:
                     # Aggregate totals
@@ -6681,12 +6682,27 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     stats['child_dedications'] += record.child_dedications or 0
                     stats['tithe'] += float(record.tithe or 0)
                     
-                    # Service breakdown for charts
+                    # Adult service breakdown for charts
                     if record.adult_service_breakdown:
                         try:
                             adult_breakdown = json.loads(record.adult_service_breakdown)
                             for service_time, count in adult_breakdown.items():
-                                service_breakdown[service_time] = service_breakdown.get(service_time, 0) + count
+                                if service_time not in service_breakdown:
+                                    service_breakdown[service_time] = {'total': 0, 'count': 0}
+                                service_breakdown[service_time]['total'] += count
+                                service_breakdown[service_time]['count'] += 1
+                        except:
+                            pass
+                    
+                    # Kids service breakdown for charts
+                    if record.kids_service_breakdown:
+                        try:
+                            kids_breakdown = json.loads(record.kids_service_breakdown)
+                            for service_time, count in kids_breakdown.items():
+                                if service_time not in kids_service_breakdown:
+                                    kids_service_breakdown[service_time] = {'total': 0, 'count': 0}
+                                kids_service_breakdown[service_time]['total'] += count
+                                kids_service_breakdown[service_time]['count'] += 1
                         except:
                             pass
                     
@@ -6738,7 +6754,16 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     month_data['avg_new_people'] = month_data['new_people'] / count
                     month_data['avg_new_christians'] = month_data['new_christians'] / count
                 
+                # Calculate averages for service breakdowns (for frontend display)
+                for service_time, data in service_breakdown.items():
+                    data['average'] = data['total'] / data['count'] if data['count'] > 0 else 0
+                
+                for service_time, data in kids_service_breakdown.items():
+                    data['average'] = data['total'] / data['count'] if data['count'] > 0 else 0
+                
                 print(f"[DASHBOARD] ✅ Database aggregation complete: total_attendance={stats['total_attendance']}, avg={stats['avg_attendance']:.1f}")
+                print(f"[DASHBOARD] Service breakdown: {list(service_breakdown.keys())}")
+                print(f"[DASHBOARD] Kids service breakdown: {list(kids_service_breakdown.keys())}")
                 
                 # Build chart_data from monthly_trends for Year-To-Date view
                 chart_data = {
@@ -6789,6 +6814,7 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     'recent_entries': recent_entries,
                     'trends': monthly_trends,
                     'service_breakdown': service_breakdown,
+                    'kids_service_breakdown': kids_service_breakdown,
                     'chart_data': chart_data,
                     'data_source': 'Database'
                 }
