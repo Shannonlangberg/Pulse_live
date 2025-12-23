@@ -6767,17 +6767,19 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 
                 # FALLBACK: If service breakdown exists but count doesn't match entry_count,
                 # it means some records lack adult_service_breakdown data
-                # In this case, we should use entry_count as the service count
+                # In this case, we should use the total_attendance and entry_count from stats
                 if service_breakdown:
                     # Check if any service time has a count less than entry_count
                     for service_time, data in service_breakdown.items():
                         original_count = data['count']
                         if original_count < entry_count and original_count > 0:
                             # Some records are missing breakdown data
-                            # Recalculate using entry_count as the actual service count
+                            # Use the overall stats instead of incomplete breakdown data
+                            data['total'] = stats['total_attendance']
                             data['count'] = entry_count
-                            data['average'] = data['total'] / entry_count
-                            print(f"[DASHBOARD] ⚠️  Service {service_time} had incomplete data (only {original_count} of {entry_count} records had breakdown), adjusted count to {entry_count}")
+                            data['average'] = stats['avg_attendance']
+                            print(f"[DASHBOARD] ⚠️  Service {service_time} had incomplete data (only {original_count} of {entry_count} records had breakdown)")
+                            print(f"[DASHBOARD] ⚠️  Using overall stats: total={data['total']}, count={data['count']}, avg={data['average']:.1f}")
                 
                 # FALLBACK 2: If no service breakdown data exists at all
                 elif not service_breakdown and stats['avg_attendance'] > 0:
