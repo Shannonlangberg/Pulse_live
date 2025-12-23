@@ -1738,8 +1738,6 @@ except Exception as e:
     print(f"[ERROR] ❌ Migration error: {e}")
     logger.error(f"❌ Migration error: {e}", exc_info=True)
     import traceback
-                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
-                available_ids = []
     traceback.print_exc()
     # Don't fail startup - app should still work with graceful error handling
 
