@@ -6739,11 +6739,56 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 
                 print(f"[DASHBOARD] ✅ Database aggregation complete: total_attendance={stats['total_attendance']}, avg={stats['avg_attendance']:.1f}")
                 
+                # Build chart_data from monthly_trends for Year-To-Date view
+                chart_data = {
+                    'labels': [],
+                    'attendance': [],
+                    'new_people': [],
+                    'new_christians': [],
+                    'youth': [],
+                    'kids': [],
+                    'tithe_ytd': [],
+                    'tithe_previous_year': [],
+                    'attendance_previous_year': [],
+                    'tithe_labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                }
+                
+                # Populate chart with YTD data (January through current month)
+                now = datetime.now()
+                ytd_start = datetime(now.year, 1, 1)
+                ytd_end = now.replace(day=1)
+                
+                current_date = ytd_start.replace(day=1)
+                end_month = ytd_end.replace(day=1)
+                
+                while current_date <= end_month:
+                    month_key = current_date.strftime('%Y-%m')
+                    month_name = current_date.strftime('%b %Y')
+                    chart_data['labels'].append(month_name)
+                    
+                    # Get data for this month from monthly_trends
+                    month_data = monthly_trends.get(month_key, {})
+                    attendance_val = month_data.get('avg_attendance', 0)
+                    new_people_val = month_data.get('avg_new_people', 0)
+                    new_christians_val = month_data.get('avg_new_christians', 0)
+                    
+                    chart_data['attendance'].append(attendance_val)
+                    chart_data['new_people'].append(new_people_val)
+                    chart_data['new_christians'].append(new_christians_val)
+                    chart_data['youth'].append(0)  # TODO: Add youth breakdown if needed
+                    chart_data['kids'].append(0)  # TODO: Add kids breakdown if needed
+                    
+                    # Move to next month
+                    current_date = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+                
+                print(f"[DASHBOARD] Built chart_data with {len(chart_data['labels'])} months: {chart_data['labels']}")
+                
                 return {
                     'stats': stats,
                     'recent_entries': recent_entries,
                     'trends': monthly_trends,
                     'service_breakdown': service_breakdown,
+                    'chart_data': chart_data,
                     'data_source': 'Database'
                 }
             else:
