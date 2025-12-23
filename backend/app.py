@@ -2063,12 +2063,23 @@ class User(UserMixin):
         perms = role_permissions.get(self.role, {})
         perm_value = perms.get(permission_type, False)
         
+        # Log permission check for debugging
+        if permission_type == 'log_stats':
+            logger.info(f"[PERMISSION_CHECK] User role: '{self.role}', permission_type: '{permission_type}', perm_value: {perm_value}, campus: {campus}, user_campus: {getattr(self, 'campus', None)}")
+        
         # Handle campus-specific permissions
         if permission_type == 'log_stats':
             if perm_value is True:
                 return True
             elif perm_value == 'own_campus':
-                return campus is None or campus == self.campus
+                # For own_campus, allow if no campus specified or if it matches user's campus
+                user_campus = getattr(self, 'campus', None)
+                result = campus is None or campus == user_campus or user_campus == 'all_campuses'
+                logger.info(f"[PERMISSION_CHECK] own_campus check: campus={campus}, user_campus={user_campus}, result={result}")
+                return result
+            # If role not found in permissions, default to False but log it
+            if self.role not in role_permissions:
+                logger.warning(f"[PERMISSION_CHECK] Role '{self.role}' not found in role_permissions. Available roles: {list(role_permissions.keys())}")
             return False
             
         elif permission_type == 'recall_stats':
