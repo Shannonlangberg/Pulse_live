@@ -293,17 +293,17 @@ const UserManagement = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
-                <UserGroupIcon className="w-10 h-10 mr-3 text-blue-500" />
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 flex items-center">
+                <UserGroupIcon className="w-8 h-8 sm:w-10 sm:h-10 mr-2 sm:mr-3 text-blue-500" />
                 User Management
               </h1>
-              <p className="text-slate-400">Manage user accounts and permissions</p>
+              <p className="text-slate-400 text-sm sm:text-base">Manage user accounts and permissions</p>
             </div>
             <button
               onClick={() => handleOpenModal()}
-              className="flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              className="flex items-center justify-center px-4 sm:px-6 py-2.5 sm:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
             >
               <PlusIcon className="w-5 h-5 mr-2" />
               Add User
@@ -318,9 +318,16 @@ const UserManagement = () => {
           </div>
         )}
 
+        {/* Mobile Scroll Hint */}
+        <div className="lg:hidden mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-center">
+          <p className="text-sm text-blue-300">
+            👆 <strong>Swipe left/right</strong> to see all user details
+          </p>
+        </div>
+
         {/* Users Table */}
         <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
             <table className="w-full">
               <thead className="bg-slate-700/50">
                 <tr>
@@ -426,21 +433,21 @@ const UserManagement = () => {
 
       {/* Add/Edit User Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 rounded-xl border border-slate-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-slate-700 flex items-center justify-between sticky top-0 bg-slate-800 z-10">
-              <h2 className="text-2xl font-bold text-white">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-slate-800 rounded-xl border border-slate-700 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-slate-700 flex items-center justify-between sticky top-0 bg-slate-800 z-10">
+              <h2 className="text-xl sm:text-2xl font-bold text-white">
                 {editingUser ? 'Edit User' : 'Add New User'}
               </h2>
               <button
                 onClick={handleCloseModal}
-                className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
+                className="p-2 hover:bg-slate-700 rounded-lg transition-colors touch-manipulation"
               >
                 <XMarkIcon className="w-6 h-6 text-slate-400" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Username */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -571,13 +578,13 @@ const UserManagement = () => {
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="flex-1 px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                  className="flex-1 px-4 sm:px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors touch-manipulation text-sm sm:text-base"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  className="flex-1 px-4 sm:px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors touch-manipulation text-sm sm:text-base font-medium"
                 >
                   {editingUser ? 'Update User' : 'Create User'}
                 </button>

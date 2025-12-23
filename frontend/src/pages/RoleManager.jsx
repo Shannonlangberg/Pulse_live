@@ -422,10 +422,10 @@ const RoleManager = () => {
       // Update original permissions
       setOriginalPermissions(JSON.parse(JSON.stringify(permissions)));
       setHasChanges(false);
-      setSuccess('Permissions saved successfully!');
+      setSuccess('✅ Permissions saved successfully! Users must REFRESH their browser (Cmd/Ctrl + Shift + R) to see changes.');
       
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
+      // Clear success message after 8 seconds (longer to give time to read)
+      setTimeout(() => setSuccess(''), 8000);
     } catch (err) {
       console.error('Error saving permissions:', err);
       setError(err.message || 'Failed to save permissions. Please try again.');
@@ -714,15 +714,23 @@ const RoleManager = () => {
                 <p>• <strong>Settings Sub-Pages</strong>: Admin tools visible in Settings section (Users, Role Manager, Campuses, etc.)</p>
                 <p>• <strong>Toggle any cell</strong> to grant or revoke access for a specific user - overrides their role defaults</p>
                 <p>• <strong>Blue dot</strong> indicates a custom permission override</p>
-                <p className="pt-2 text-blue-300"><strong>Note:</strong> Campus Pastors should typically only see "My Profile" in Settings by default.</p>
+                <p className="pt-2 text-yellow-300">⚠️ <strong>IMPORTANT:</strong> After saving, users must refresh their browser (Cmd/Ctrl + Shift + R) to see changes!</p>
+                <p className="text-blue-300"><strong>Note:</strong> Campus Pastors should typically only see "My Profile" in Settings by default.</p>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Mobile Scroll Hint */}
+        <div className="lg:hidden mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-center">
+          <p className="text-sm text-blue-300">
+            👆 <strong>Swipe left/right</strong> to see all permission columns
+          </p>
+        </div>
+
         {/* Permission Matrix */}
         <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
             <table className="w-full">
               <thead className="bg-slate-700/50 sticky top-0 z-10">
                 <tr>
