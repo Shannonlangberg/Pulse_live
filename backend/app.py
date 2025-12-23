@@ -11768,6 +11768,45 @@ def get_database_viewer():
         logger.error(f"[DATABASE_VIEWER] Full traceback: {error_trace}")
         return jsonify({"error": f"Failed to load database records: {str(e)}"}), 500
 
+@app.route('/api/attendance_records/<int:record_id>', methods=['DELETE'])
+@login_required
+def delete_attendance_record(record_id):
+    """Delete an attendance record - Admin only"""
+    try:
+        from models import AttendanceRecord
+        
+        # Check user role - only admins can delete
+        user_role = getattr(current_user, 'role', 'member')
+        print(f"[DELETE_RECORD] User role: {user_role}, attempting to delete record {record_id}")
+        logger.info(f"[DELETE_RECORD] User role: {user_role}, record_id: {record_id}")
+        
+        if user_role not in ['superadmin', 'admin']:
+            print(f"[DELETE_RECORD] Access denied for role: {user_role}")
+            return jsonify({"error": "Access denied - admin only"}), 403
+        
+        # Find and delete the record
+        record = AttendanceRecord.query.get(record_id)
+        
+        if not record:
+            print(f"[DELETE_RECORD] Record {record_id} not found")
+            return jsonify({"error": "Record not found"}), 404
+        
+        print(f"[DELETE_RECORD] Deleting record: campus_id={record.campus_id}, date={record.date}")
+        
+        db.session.delete(record)
+        db.session.commit()
+        
+        print(f"[DELETE_RECORD] Successfully deleted record {record_id}")
+        logger.info(f"[DELETE_RECORD] Successfully deleted record {record_id}")
+        
+        return jsonify({"success": True, "message": "Record deleted successfully"}), 200
+        
+    except Exception as e:
+        print(f"[DELETE_RECORD] Error: {e}")
+        logger.error(f"[DELETE_RECORD] Error: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({"error": f"Failed to delete record: {str(e)}"}), 500
+
 @app.route('/api/recent_entries', methods=['GET'])
 @login_required
 def get_recent_entries():
