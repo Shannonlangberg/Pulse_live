@@ -38,8 +38,14 @@ def fix_all_attendance_records():
         
         # Get Google Sheets data
         try:
-            from app import get_google_sheets_data
-            google_data = get_google_sheets_data()
+            from app import client
+            if not client:
+                print("❌ Google Sheets client not available!")
+                return
+            
+            spreadsheet = client.open("Stats")
+            sheet = spreadsheet.worksheet("Stats")
+            google_data = sheet.get_all_records()
             print(f"✓ Loaded {len(google_data)} rows from Google Sheets")
             print()
         except Exception as e:
