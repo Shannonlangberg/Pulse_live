@@ -11834,6 +11834,7 @@ def save_attendance_record(data, user_id=None):
         # Expire all objects to ensure we see committed data
         db.session.expire_all()
         
+        print(f"[SAVE_ATTENDANCE DEBUG] Starting campus lookup: campus='{campus_value}', campus_id='{campus_id_value}'", flush=True)
         logger.info(f"[SAVE_ATTENDANCE] Looking up campus. campus='{campus_value}', campus_id='{campus_id_value}'")
         
         # Use direct session query to avoid session issues
