@@ -935,10 +935,15 @@ def save_attendance_record(data, user_id=None):
             )
         
         # Update fields
-        record.total_attendance = int(data.get('Total Attendance', 0) or 0)
-        record.total_people_in_campus = int(data.get('Total People in Campus', 0) or 0)
+        # Frontend sends 'Total People in Campus' so use that for both fields
+        total_people = int(data.get('Total People in Campus', 0) or data.get('Total Attendance', 0) or 0)
+        record.total_attendance = total_people
+        record.total_people_in_campus = total_people
         record.adult_service_breakdown = json.dumps(adult_breakdown) if adult_breakdown else None
-        record.kids_attendance = int(data.get('Kids Attendance', 0) or 0)
+        
+        # Calculate kids_attendance from service breakdown
+        kids_total = sum(kids_breakdown.values()) if kids_breakdown else 0
+        record.kids_attendance = int(data.get('Kids Attendance', kids_total) or kids_total or 0)
         record.kids_leaders = int(data.get('Kids Leaders', 0) or 0)
         record.new_kids = int(data.get('New Kids', 0) or 0)
         record.new_kids_salvations = int(data.get('New Kids Salvations', 0) or 0)
@@ -12012,10 +12017,15 @@ def save_attendance_record(data, user_id=None):
             )
         
         # Update fields
-        record.total_attendance = int(data.get('Total Attendance', 0) or 0)
-        record.total_people_in_campus = int(data.get('Total People in Campus', 0) or 0)
+        # Frontend sends 'Total People in Campus' so use that for both fields
+        total_people = int(data.get('Total People in Campus', 0) or data.get('Total Attendance', 0) or 0)
+        record.total_attendance = total_people
+        record.total_people_in_campus = total_people
         record.adult_service_breakdown = json.dumps(adult_breakdown) if adult_breakdown else None
-        record.kids_attendance = int(data.get('Kids Attendance', 0) or 0)
+        
+        # Calculate kids_attendance from service breakdown
+        kids_total = sum(kids_breakdown.values()) if kids_breakdown else 0
+        record.kids_attendance = int(data.get('Kids Attendance', kids_total) or kids_total or 0)
         record.kids_leaders = int(data.get('Kids Leaders', 0) or 0)
         record.new_kids = int(data.get('New Kids', 0) or 0)
         record.new_kids_salvations = int(data.get('New Kids Salvations', 0) or 0)
