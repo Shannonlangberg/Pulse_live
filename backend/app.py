@@ -1262,7 +1262,7 @@ def get_db_path():
         db_path = instance_path if os.path.exists(instance_path) else os.path.join(backend_dir, 'futures_link.db')
     return db_path
 
-# Configure direct database connection for new tables (regions, campuses_new)
+# Configure direct database connection for new tables (regions, campuses_v2)
 # These are in church_voice.db, while SQLAlchemy uses futures_link.db
 CHURCH_VOICE_DB_PATH = os.path.join(os.path.dirname(__file__), 'instance', 'church_voice.db')
 
@@ -2332,7 +2332,7 @@ def get_active_campuses():
         cursor = conn.cursor()
         cursor.execute('''
             SELECT c.campus_id, c.name, c.display_name, c.region_id, r.code as region_code, c.service_times
-            FROM campuses_new c
+            FROM campuses_v2 c
             LEFT JOIN regions r ON c.region_id = r.id
             WHERE c.active = 1
             ORDER BY c.display_name
@@ -10955,7 +10955,7 @@ def get_campuses_v2():
                 c.postal_code, c.country, c.active, c.service_times,
                 c.detection_patterns, c.notes, c.created_at,
                 r.name as region_name, r.code as region_code, r.display_name as region_display_name
-            FROM campuses_new c
+            FROM campuses_v2 c
             LEFT JOIN regions r ON c.region_id = r.id
             ORDER BY r.display_name, c.display_name
         """)
@@ -11019,7 +11019,7 @@ def create_campus_v2():
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO campuses_new 
+            INSERT INTO campuses_v2 
             (campus_id, name, display_name, region_id, pastor_name, pastor_email, 
              address, city, state, postal_code, country, active, service_times, 
              detection_patterns, notes)
@@ -11067,7 +11067,7 @@ def update_campus_v2(campus_id):
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("""
-            UPDATE campuses_new
+            UPDATE campuses_v2
             SET name = ?, display_name = ?, region_id = ?, pastor_name = ?, 
                 pastor_email = ?, address = ?, city = ?, state = ?, postal_code = ?,
                 country = ?, active = ?, service_times = ?, detection_patterns = ?, notes = ?
@@ -11106,7 +11106,7 @@ def delete_campus_v2(campus_id):
     try:
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM campuses_new WHERE campus_id = ?", (campus_id,))
+        cursor.execute("DELETE FROM campuses_v2 WHERE campus_id = ?", (campus_id,))
         conn.commit()
         
         return jsonify({
@@ -21078,8 +21078,15 @@ def create_resource_category():
         if not data.get('displayName'):
             return jsonify({'error': 'Display name is required'}), 400
         
-        if not data.get('slug'):
-            return jsonify({'error': 'Slug is required'}), 400
+        # Auto-generate slug from display name if not provided
+        slug = data.get('slug', '').strip()
+        if not slug:
+            # Generate slug from display name: lowercase, replace spaces with hyphens, remove special chars
+            slug = data['displayName'].lower().strip()
+            slug = re.sub(r'[^\w\s-]', '', slug)  # Remove special characters
+            slug = re.sub(r'[\s_]+', '-', slug)  # Replace spaces/underscores with hyphens
+            slug = re.sub(r'-+', '-', slug)  # Replace multiple hyphens with single hyphen
+            slug = slug.strip('-')  # Remove leading/trailing hyphens
         
         # Ensure table exists
         try:
@@ -21087,15 +21094,17 @@ def create_resource_category():
         except Exception as create_error:
             logger.warning(f"Table creation check: {create_error}")
         
-        # Check if slug already exists
-        existing = ResourceCategory.query.filter_by(slug=data['slug']).first()
-        if existing:
-            return jsonify({'error': 'A category with this slug already exists'}), 400
+        # Check if slug already exists, and make it unique if needed
+        base_slug = slug
+        counter = 1
+        while ResourceCategory.query.filter_by(slug=slug).first():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
         
         # Create new category
         category = ResourceCategory(
             display_name=data['displayName'],
-            slug=data['slug'],
+            slug=slug,
             description=data.get('description', ''),
             folder_id=data.get('folderId', ''),
             sort_order=data.get('sortOrder', 0),
@@ -21161,6 +21170,35 @@ def update_resource_category(category_id):
         db.session.rollback()
         logger.error(f"Error updating resource category: {e}")
         return jsonify({'error': f'Failed to update resource category: {str(e)}'}), 500
+
+@app.route('/api/admin/resource-categories/<category_id>', methods=['DELETE'])
+@admin_required_json
+def delete_resource_category(category_id):
+    """Delete a resource category (admin only)"""
+    try:
+        
+        # Find category by slug or ID
+        category = ResourceCategory.query.filter(
+            (ResourceCategory.slug == category_id) | (ResourceCategory.id == category_id)
+        ).first()
+        
+        if not category:
+            return jsonify({'error': 'Resource category not found'}), 404
+        
+        # Store category name for response message
+        category_name = category.display_name
+        
+        # Delete the category (cascade will handle related links if using proper foreign keys)
+        db.session.delete(category)
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Resource category "{category_name}" deleted successfully'
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting resource category: {e}")
+        return jsonify({'error': f'Failed to delete resource category: {str(e)}'}), 500
 
 @app.route('/api/resources/categories', methods=['GET'])
 @login_required_json
