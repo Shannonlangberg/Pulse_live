@@ -11650,35 +11650,55 @@ def get_recent_entries():
         if not campus and hasattr(current_user, 'campus'):
             campus = current_user.campus
         
-        if not campus:
-            return jsonify({"entries": []}), 200
-        
         # Calculate date range (last 7 days)
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=7)
-        
-        logger.info(f"[RECENT_ENTRIES] Looking for entries from {start_date} to {end_date} for campus '{campus}'")
         
         # Get data from DATABASE (primary source)
         entries = []
         try:
             from models import AttendanceRecord, CampusV2
             
-            # Find campus by campus_id (e.g., 'adelaide_city', 'paradise')
-            campus_obj = CampusV2.query.filter_by(campus_id=campus).first()
+            # Check user role - superadmin/admin can see all campuses
+            user_role = getattr(current_user, 'role', 'member')
+            can_see_all = user_role in ['superadmin', 'admin', 'senior_leader', 'senior_pastor', 'lead_pastor']
             
-            if not campus_obj:
-                logger.warning(f"[RECENT_ENTRIES] Campus '{campus}' not found in database")
-                return jsonify({"entries": []}), 200
+            if not campus or campus == 'all_campuses':
+                # Show all campuses (for superadmin) or user's accessible campuses
+                if can_see_all:
+                    logger.info(f"[RECENT_ENTRIES] Fetching ALL campuses entries (user role: {user_role})")
+                    records = AttendanceRecord.query.filter(
+                        AttendanceRecord.date >= start_date,
+                        AttendanceRecord.date <= end_date
+                    ).order_by(AttendanceRecord.date.desc()).all()
+                    logger.info(f"[RECENT_ENTRIES] Found {len(records)} records across all campuses")
+                else:
+                    # Regular users - use their default campus
+                    if hasattr(current_user, 'campus'):
+                        campus = current_user.campus
+                    else:
+                        logger.warning(f"[RECENT_ENTRIES] No campus specified and user has no default campus")
+                        return jsonify({"entries": []}), 200
             
-            # Query attendance records from database
-            records = AttendanceRecord.query.filter(
-                AttendanceRecord.campus_id == campus_obj.id,
-                AttendanceRecord.date >= start_date,
-                AttendanceRecord.date <= end_date
-            ).order_by(AttendanceRecord.date.desc()).all()
-            
-            logger.info(f"[RECENT_ENTRIES] Found {len(records)} records in database for campus '{campus}'")
+            # If specific campus requested
+            if campus and campus != 'all_campuses':
+                logger.info(f"[RECENT_ENTRIES] Looking for entries from {start_date} to {end_date} for campus '{campus}'")
+                
+                # Find campus by campus_id (e.g., 'adelaide_city', 'paradise')
+                campus_obj = CampusV2.query.filter_by(campus_id=campus).first()
+                
+                if not campus_obj:
+                    logger.warning(f"[RECENT_ENTRIES] Campus '{campus}' not found in database")
+                    return jsonify({"entries": []}), 200
+                
+                # Query attendance records from database
+                records = AttendanceRecord.query.filter(
+                    AttendanceRecord.campus_id == campus_obj.id,
+                    AttendanceRecord.date >= start_date,
+                    AttendanceRecord.date <= end_date
+                ).order_by(AttendanceRecord.date.desc()).all()
+                
+                logger.info(f"[RECENT_ENTRIES] Found {len(records)} records in database for campus '{campus}'")
             
             for record in records:
                 # Convert database record to frontend format
