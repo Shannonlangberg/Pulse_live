@@ -11883,9 +11883,9 @@ def save_attendance_record(data, user_id=None):
                 
                 logger.error(f"[SAVE_ATTENDANCE] Campus not found. Searched for: '{campus_value}' or '{campus_id_value}'. Available campus_ids: {available_ids}")
             except Exception as e:
-                logger.error(f"[SAVE_ATTENDANCE] Error querying campuses: {e}")
+                logger.error(f"[SAVE_ATTENDANCE] Error querying campuses: {e}", exc_info=True)
                 import traceback
-                traceback.print_exc()
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
                 available_ids = []
             return False, None, f"Campus not found: {campus_value or campus_id_value}"
         
