@@ -409,32 +409,45 @@ const Resources = () => {
     const renderDriveFiles = () => (
       <div className="space-y-3">
         <h4 className="text-white text-lg font-semibold">
-          Drive Files
+          Google Drive Contents
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {files.map((file) => (
-            <a
-              key={file.id}
-              href={file.webViewLink || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-gradient-to-br from-slate-800/70 to-slate-900/70 border border-white/5 hover:border-blue-400/40 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] flex flex-col gap-4"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-2xl">
-                  {file.mimeType && file.mimeType.includes('folder') ? '📂' : '📄'}
+          {files.map((file) => {
+            const isFolder = file.mimeType && file.mimeType.includes('folder');
+            return (
+              <a
+                key={file.id}
+                href={file.webViewLink || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`group bg-gradient-to-br ${
+                  isFolder 
+                    ? 'from-yellow-500/10 via-orange-500/10 to-yellow-500/10 border-yellow-500/20 hover:border-yellow-400/40' 
+                    : 'from-slate-800/70 to-slate-900/70 border-white/5 hover:border-blue-400/40'
+                } border rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] flex flex-col gap-4`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+                    isFolder ? 'bg-yellow-500/20' : 'bg-blue-500/10'
+                  }`}>
+                    {isFolder ? '📁' : '📄'}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className={`font-semibold leading-tight transition-colors duration-300 ${
+                      isFolder 
+                        ? 'text-yellow-100 group-hover:text-yellow-50' 
+                        : 'text-white group-hover:text-blue-200'
+                    }`}>
+                      {file.name}
+                    </h4>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h4 className="text-white font-semibold leading-tight group-hover:text-blue-200 transition-colors duration-300">
-                    {file.name}
-                  </h4>
+                <div className="text-white/40 text-xs">
+                  {formatModifiedTime(file.modifiedTime)}
                 </div>
-              </div>
-              <div className="text-white/40 text-xs">
-                {formatModifiedTime(file.modifiedTime)}
-              </div>
-            </a>
-          ))}
+              </a>
+            );
+          })}
         </div>
       </div>
     );

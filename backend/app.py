@@ -21545,7 +21545,7 @@ def fetch_drive_folder_files(folder_id, access_token):
         
         logger.info(f"Attempting to fetch files from Google Drive folder: {folder_id}")
         
-        # Fetch files from folder (first 100 files, ordered by name)
+        # Fetch files AND folders from folder (first 100 items, folders first then by name)
         results = service.files().list(
             q=f"'{folder_id}' in parents and trashed=false",
             pageSize=100,
@@ -21606,9 +21606,9 @@ def get_resource_category_files(category_id):
                     logger.info(f"Fetching files from Google Drive folder: {category.folder_id}")
                     files = fetch_drive_folder_files(category.folder_id, access_token)
                     
-                    # If we got no files, there might be an access issue
+                    # Log result but don't treat empty as error - folder might just be empty or only have subfolders
                     if len(files) == 0:
-                        drive_error = "No files returned from Drive API. Check folder permissions and that the folder ID is correct."
+                        logger.warning(f"No items returned from Drive API for folder {category.folder_id}. Folder may be empty or user may lack permissions.")
                 else:
                     logger.info(f"Google Drive token expired for user (expiry: {token_expiry}, current: {current_time})")
                     drive_auth_needed = True
