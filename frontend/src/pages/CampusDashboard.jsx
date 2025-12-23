@@ -82,8 +82,46 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
         
         const result = await response.json();
         console.log(`[CampusDashboard] Regional dashboard data:`, result);
-        setData(result);
-        setCampusData(result);
+        
+        // Normalize regional data structure to match campus dashboard format
+        const normalizedData = {
+          stats: {
+            // Map regional fields to campus dashboard fields
+            total_attendance: result.stats?.total_attendance || 0,
+            avg_attendance: result.stats?.avg_weekly_attendance || 0,
+            total_people: result.stats?.total_attendance || 0,
+            avg_kids_attendance: result.stats?.total_kids / result.stats?.week_count || 0,
+            avg_youth_attendance: result.stats?.total_youth / result.stats?.week_count || 0,
+            avg_kids_leaders: 0,
+            avg_connect_groups: 0,
+            avg_dream_team: 0,
+            first_time_christians: result.stats?.total_salvations || 0,
+            youth_salvations: 0,
+            new_kids_salvations: 0,
+            rededications: 0,
+            baptisms: result.stats?.total_baptisms || 0,
+            child_dedications: 0,
+            new_people: result.stats?.total_visitors || 0,
+            first_time_visitors: result.stats?.total_visitors || 0,
+            visitors: 0,
+            information_gathered: 0,
+            packs_out: 0,
+            new_kids: 0,
+            hands_up: 0,
+            salvation_cards_returned: 0,
+            avg_saints: 0,
+            tithe: result.stats?.total_giving || 0,
+            avg_tithe: result.stats?.avg_weekly_giving || 0
+          },
+          service_breakdown: {},
+          region: result.region,
+          campuses: result.campuses || [],
+          date_range: result.date_range || {},
+          week_count: result.stats?.week_count || 0
+        };
+        
+        setData(normalizedData);
+        setCampusData(normalizedData);
         setLastRefresh(new Date());
       } else {
         // Regular campus dashboard
@@ -119,6 +157,30 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
   };
 
   // AI Report Generation Functions
+  const normalizeRegionalData = (result) => {
+    if (!result.stats) return result;
+    
+    return {
+      stats: {
+        total_attendance: result.stats?.total_attendance || 0,
+        avg_attendance: result.stats?.avg_weekly_attendance || 0,
+        total_people: result.stats?.total_attendance || 0,
+        avg_kids_attendance: result.stats?.total_kids / result.stats?.week_count || 0,
+        avg_youth_attendance: result.stats?.total_youth / result.stats?.week_count || 0,
+        first_time_christians: result.stats?.total_salvations || 0,
+        baptisms: result.stats?.total_baptisms || 0,
+        new_people: result.stats?.total_visitors || 0,
+        first_time_visitors: result.stats?.total_visitors || 0,
+        tithe: result.stats?.total_giving || 0,
+        avg_tithe: result.stats?.avg_weekly_giving || 0
+      },
+      service_breakdown: {},
+      region: result.region,
+      campuses: result.campuses || [],
+      date_range: result.date_range || {}
+    };
+  };
+
   const generateWeekendReport = async () => {
     try {
       setAiLoading(true);
@@ -128,7 +190,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
         : `/api/dashboard_data_public?campus=${campusId}&date_filter=last_7_days&_t=${Date.now()}`;
       const response = await fetch(endpoint, { credentials: 'include' });
       const fetchedData = await response.json();
-      setAiReportData(fetchedData);
+      setAiReportData(isRollup ? normalizeRegionalData(fetchedData) : fetchedData);
     } catch (error) {
       setAiReportData({ error: 'Error generating weekend report. Please try again.' });
     } finally {
@@ -145,7 +207,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
         : `/api/dashboard_data_public?campus=${campusId}&date_filter=last_30_days&_t=${Date.now()}`;
       const response = await fetch(endpoint, { credentials: 'include' });
       const fetchedData = await response.json();
-      setAiReportData(fetchedData);
+      setAiReportData(isRollup ? normalizeRegionalData(fetchedData) : fetchedData);
     } catch (error) {
       setAiReportData({ error: 'Error generating monthly report. Please try again.' });
     } finally {
@@ -162,7 +224,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
         : `/api/dashboard_data_public?campus=${campusId}&date_filter=year_to_date&_t=${Date.now()}`;
       const response = await fetch(endpoint, { credentials: 'include' });
       const fetchedData = await response.json();
-      setAiReportData(fetchedData);
+      setAiReportData(isRollup ? normalizeRegionalData(fetchedData) : fetchedData);
     } catch (error) {
       setAiReportData({ error: 'Error generating annual report. Please try again.' });
     } finally {
@@ -179,7 +241,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
         : `/api/dashboard_data_public?campus=${campusId}&date_filter=last_12_months&_t=${Date.now()}`;
       const response = await fetch(endpoint, { credentials: 'include' });
       const fetchedData = await response.json();
-      setAiReportData(fetchedData);
+      setAiReportData(isRollup ? normalizeRegionalData(fetchedData) : fetchedData);
     } catch (error) {
       setAiReportData({ error: 'Error generating growth analysis. Please try again.' });
     } finally {
