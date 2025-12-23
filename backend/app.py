@@ -11801,6 +11801,8 @@ def save_attendance_record(data, user_id=None):
     Returns:
         tuple: (success: bool, record: AttendanceRecord or None, error: str or None)
     """
+    from models import AttendanceRecord, CampusV2, Region, db
+    
     try:
         # Get campus object - try multiple lookup strategies
         campus = None
@@ -11842,11 +11844,30 @@ def save_attendance_record(data, user_id=None):
                 logger.info(f"[SAVE_ATTENDANCE] Found campus by name: {campus.campus_id}")
         
         if not campus:
-            # Log all available campuses for debugging
-            all_campuses = CampusV2.query.all()
-            available_ids = [c.campus_id for c in all_campuses]
-            logger.error(f"[SAVE_ATTENDANCE] Campus not found. Searched for: '{campus_value}' or '{campus_id_value}'. Available campus_ids: {available_ids}")
-            return False, None, f"Campus not found: {campus_value or campus_id_value}"
+            # Log all available campuses for debugging - try to refresh session first
+            try:
+                db.session.expire_all()  # Refresh all objects in session
+                all_campuses = CampusV2.query.all()
+                available_ids = [c.campus_id for c in all_campuses] if all_campuses else []
+                logger.error(f"[SAVE_ATTENDANCE] Campus not found. Searched for: '{campus_value}' or '{campus_id_value}'. Available campus_ids: {available_ids}")
+            except Exception as e:
+                logger.error(f"[SAVE_ATTENDANCE] Error querying campuses: {e}")
+                available_ids = []
+            
+            # Try one more time with a direct query using the exact campus_id
+            if campus_id_value or campus_value:
+                search_value = campus_id_value or campus_value
+                try:
+                    campus = db.session.query(CampusV2).filter(CampusV2.campus_id == search_value).first()
+                    if not campus:
+                        campus = db.session.query(CampusV2).filter(CampusV2.campus_id == search_value.lower()).first()
+                    if campus:
+                        logger.info(f"[SAVE_ATTENDANCE] Found campus on retry: {campus.campus_id}")
+                except Exception as e:
+                    logger.error(f"[SAVE_ATTENDANCE] Error on retry query: {e}")
+            
+            if not campus:
+                return False, None, f"Campus not found: {campus_value or campus_id_value}"
         
         # Parse date
         date_val = None
