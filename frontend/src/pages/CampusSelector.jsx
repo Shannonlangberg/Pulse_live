@@ -289,6 +289,70 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
           </p>
         </div>
 
+        {/* Global Dashboard - Only for super admins and senior leadership */}
+        {!selectedRegion && hasFullAccess && (
+          <div className="mb-12">
+            <div
+              onClick={() => onCampusSelect({ 
+                id: 'global', 
+                name: 'Global Ministry', 
+                description: 'Worldwide Overview', 
+                icon: '🌍',
+                isRollup: true,
+                isGlobal: true 
+              })}
+              className="group relative bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 backdrop-blur-sm rounded-2xl p-8 border border-purple-500/30 shadow-2xl hover:shadow-purple-500/50 transition-all duration-500 hover:scale-[1.02] cursor-pointer max-w-4xl mx-auto"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-pink-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              
+              <div className="relative flex flex-col md:flex-row items-center gap-6">
+                <div className="w-24 h-24 bg-gradient-to-r from-purple-500/30 to-pink-500/30 rounded-2xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                  <span className="text-5xl">🌍</span>
+                </div>
+                
+                <div className="flex-1 text-center md:text-left">
+                  <h3 className="text-3xl font-bold text-white mb-2">
+                    Global Ministry Dashboard
+                  </h3>
+                  <p className="text-white/70 text-lg mb-3">
+                    View combined analytics from all regions worldwide
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-white/50 text-sm">
+                    <span className="flex items-center gap-1">
+                      <span className="text-purple-400">🇦🇺</span> Australia
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <span className="text-blue-400">🇺🇸</span> United States
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <span className="text-green-400">🇧🇷</span> Brazil
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <span className="text-red-400">🇮🇩</span> Indonesia
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 text-purple-400 font-semibold text-lg">
+                  <span>View Dashboard</span>
+                  <span className="text-2xl group-hover:translate-x-1 transition-transform duration-300">→</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="text-center mt-8 mb-4">
+              <div className="inline-flex items-center gap-2 text-white/40 text-sm">
+                <span className="w-16 h-[1px] bg-gradient-to-r from-transparent to-white/20"></span>
+                <span>or select a specific region</span>
+                <span className="w-16 h-[1px] bg-gradient-to-l from-transparent to-white/20"></span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Region Selection */}
         {!selectedRegion && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">

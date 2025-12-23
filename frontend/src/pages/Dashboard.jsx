@@ -649,6 +649,7 @@ const Dashboard = () => {
         campusId={selectedCampus.id} 
         campusName={selectedCampus.name} 
         isRollup={selectedCampus.isRollup}
+        isGlobal={selectedCampus.isGlobal}
         onBackToSelector={handleBackToSelector}
       />
     );

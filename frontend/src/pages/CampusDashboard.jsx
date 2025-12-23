@@ -27,7 +27,7 @@ ChartJS.register(
   Filler
 );
 
-const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelector }) => {
+const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = false, onBackToSelector }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [campusData, setCampusData] = useState(null);
@@ -69,8 +69,62 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
 
       const cacheBuster = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // If this is a rollup (regional) dashboard, use the regional API endpoint
-      if (isRollup) {
+      // If this is a global dashboard, use the global API endpoint
+      if (isGlobal) {
+        console.log(`[CampusDashboard] Fetching GLOBAL dashboard`);
+        const response = await fetch(`/api/dashboard/global?date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&_t=${cacheBuster}`, {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Global dashboard API error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log(`[CampusDashboard] Global dashboard data:`, result);
+        
+        // Normalize global data structure to match campus dashboard format
+        const weekCount = result.global_stats?.week_count || 1;
+        const normalizedData = {
+          stats: {
+            total_attendance: result.global_stats?.total_attendance || 0,
+            avg_attendance: result.global_stats?.avg_weekly_attendance || 0,
+            total_people: result.global_stats?.total_attendance || 0,
+            avg_kids_attendance: (result.global_stats?.total_kids || 0) / weekCount,
+            avg_youth_attendance: (result.global_stats?.total_youth || 0) / weekCount,
+            avg_kids_leaders: 0,
+            avg_connect_groups: 0,
+            avg_dream_team: 0,
+            first_time_christians: result.global_stats?.total_salvations || 0,
+            youth_salvations: 0,
+            new_kids_salvations: 0,
+            rededications: 0,
+            baptisms: result.global_stats?.total_baptisms || 0,
+            child_dedications: 0,
+            new_people: result.global_stats?.total_visitors || 0,
+            first_time_visitors: result.global_stats?.total_visitors || 0,
+            visitors: 0,
+            information_gathered: 0,
+            packs_out: 0,
+            new_kids: 0,
+            hands_up: 0,
+            salvation_cards_returned: 0,
+            avg_saints: 0,
+            tithe: result.global_stats?.total_giving || 0,
+            avg_tithe: result.global_stats?.avg_weekly_giving || 0
+          },
+          service_breakdown: {},
+          regions: result.regions || [],
+          global_stats: result.global_stats,
+          date_range: result.date_range || {},
+          week_count: weekCount,
+          isGlobal: true
+        };
+        
+        setData(normalizedData);
+        setCampusData(normalizedData);
+        setLastRefresh(new Date());
+      } else if (isRollup) {
         console.log(`[CampusDashboard] Fetching regional dashboard for region: ${campusId}`);
         const response = await fetch(`/api/dashboard/regional?region=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&_t=${cacheBuster}`, {
           credentials: 'include'
@@ -727,13 +781,71 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
           </div>
         </div>
 
+        {/* Global Dashboard: Regions Breakdown */}
+        {isGlobal && data?.regions && data.regions.length > 0 && (
+          <div className="mb-12">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-1 h-12 bg-gradient-to-b from-purple-400 to-pink-400 rounded-full"></div>
+              <div>
+                <h2 className="text-3xl font-bold text-white">
+                  Regional Breakdown
+                </h2>
+                <p className="text-white/60 text-lg">
+                  Performance across all {data.regions.length} regions
+                </p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {data.regions.map((region) => (
+                <div 
+                  key={region.region_code}
+                  className="group relative bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 shadow-2xl hover:shadow-purple-500/20 transition-all duration-500 hover:scale-105"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                        <span className="text-2xl">
+                          {region.region_code === 'AU' ? '🇦🇺' : 
+                           region.region_code === 'US' ? '🇺🇸' : 
+                           region.region_code === 'BR' ? '🇧🇷' : 
+                           region.region_code === 'ID' ? '🇮🇩' : '🌏'}
+                        </span>
+                      </div>
+                      <div className="text-purple-400 text-xs font-semibold">{region.campus_count} campuses</div>
+                    </div>
+                    
+                    <h3 className="text-white text-lg font-bold mb-4">{region.region_name}</h3>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/60 text-sm">Avg Attendance:</span>
+                        <span className="text-white font-semibold">{region.avg_weekly_attendance.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/60 text-sm">Total Salvations:</span>
+                        <span className="text-emerald-400 font-semibold">{region.total_salvations.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/60 text-sm">Total Giving:</span>
+                        <span className="text-yellow-400 font-semibold">${region.total_giving.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Insights and Charts */}
         <div className="mb-12">
           <div className="flex items-center gap-4 mb-8">
             <div className="w-1 h-12 bg-gradient-to-b from-emerald-400 to-cyan-400 rounded-full"></div>
             <div>
               <h2 className="text-3xl font-bold text-white">
-                Campus Insights
+                {isGlobal ? 'Global Insights' : 'Campus Insights'}
               </h2>
               <p className="text-white/60 text-lg">
                 Detailed analytics and trends for {campusName}
