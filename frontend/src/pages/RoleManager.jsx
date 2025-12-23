@@ -77,6 +77,7 @@ const RoleManager = () => {
   const settingsFeatures = [
     { key: 'user_management', label: 'Users', icon: '👤', description: 'User management page' },
     { key: 'user_management', label: 'Role Manager', icon: '🛡️', description: 'Role & permissions matrix' },
+    { key: 'database_viewer', label: 'Database Viewer', icon: '🗄️', description: 'View attendance records database' },
     { key: 'homepage_manager', label: 'Homepage Manager', icon: '📢', description: 'Homepage announcements' },
     { key: 'campus_management', label: 'Campuses', icon: '🏢', description: 'Campus management' },
     { key: 'beacon_management', label: 'Beacons', icon: '📡', description: 'Bluetooth beacons' },

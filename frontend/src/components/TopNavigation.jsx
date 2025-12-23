@@ -12,6 +12,7 @@ import {
   BellIcon,
   PlayIcon,
   CalendarIcon,
+  TableCellsIcon,
   MegaphoneIcon
 } from '@heroicons/react/24/outline';
 
@@ -72,6 +73,13 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       icon: ShieldCheckIcon, 
       roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
       featureKey: 'user_management'
+    },
+    { 
+      name: 'Database Viewer', 
+      href: '/database-viewer', 
+      icon: TableCellsIcon, 
+      roles: ['superadmin', 'admin'],
+      featureKey: 'database_viewer'
     },
     { 
       name: 'Homepage Manager', 
