@@ -10885,6 +10885,12 @@ def get_weekly_submission_status():
         # Also check for Saturday submissions (many campuses submit Saturday evening)
         most_recent_saturday = most_recent_sunday - timedelta(days=1)
         
+        # For the current week, include today (Mon-Fri submissions count too!)
+        end_date = today.date() if today.date() > most_recent_sunday else most_recent_sunday
+        
+        print(f"[WEEKLY_SUBMISSION] Date range: {most_recent_saturday} to {end_date}")
+        logger.info(f"[WEEKLY_SUBMISSION] Checking submissions from {most_recent_saturday} to {end_date}")
+        
         # Get all campuses for this region
         campuses = CampusV2.query.filter_by(region_id=region_id, active=True).all()
         
@@ -10900,11 +10906,11 @@ def get_weekly_submission_status():
         for campus in campuses:
             print(f"[WEEKLY_SUBMISSION] Checking campus: {campus.display_name} (ID: {campus.id}, campus_id: {campus.campus_id})")
             
-            # Find the most recent submission for this campus (Saturday or Sunday)
+            # Find the most recent submission for this campus (Saturday through today)
             latest_record = AttendanceRecord.query.filter(
                 AttendanceRecord.campus_id == campus.id,
                 AttendanceRecord.date >= most_recent_saturday,
-                AttendanceRecord.date <= most_recent_sunday
+                AttendanceRecord.date <= end_date
             ).order_by(AttendanceRecord.date.desc()).first()
             
             print(f"[WEEKLY_SUBMISSION] Campus {campus.campus_id}: Record found = {latest_record is not None}")
@@ -11867,6 +11873,11 @@ def save_attendance_record(data, user_id=None):
     from models import AttendanceRecord, CampusV2, Region, db
     
     try:
+        # DEBUG: Log all incoming data
+        logger.info(f"[SAVE_ATTENDANCE] === RECEIVED DATA ===")
+        logger.info(f"[SAVE_ATTENDANCE] Data keys: {list(data.keys())}")
+        logger.info(f"[SAVE_ATTENDANCE] Full data: {data}")
+        
         # Get campus object - try multiple lookup strategies
         campus = None
         campus_value = data.get('campus', '').strip() if data.get('campus') else ''
