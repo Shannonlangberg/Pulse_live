@@ -9953,10 +9953,9 @@ def session_info():
             'beacon_management': os.getenv('BEACON_MGMT_ENABLED', 'false').lower() == 'true',
         }
         
-        # Merge with user's custom permissions (user permissions override feature flags)
+        # Get user's actual custom permissions (do NOT merge with feature flags)
+        # The frontend needs the raw custom_permissions to properly filter navigation
         user_custom_perms = getattr(current_user, 'custom_permissions', {})
-        if user_custom_perms:
-            feature_flags.update(user_custom_perms)
         
         response = jsonify({
             "authenticated": True,
@@ -9965,7 +9964,7 @@ def session_info():
             "role": current_user.role,
             "campus": current_user.campus,
             "full_name": current_user.full_name,
-            "custom_permissions": feature_flags,
+            "custom_permissions": user_custom_perms,  # Return ONLY user's custom permissions, not merged feature flags
             "needs_drive_auth": needs_drive_auth,
             "drive_status": drive_status,  # Debug info
             "user_id": current_user.id,  # Debug info
