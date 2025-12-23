@@ -6545,16 +6545,214 @@ def get_tithe_breakdown(campus, start_date, end_date):
 
 def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='', custom_end_date='', show_previous_year=False):
     """
-    Get dashboard data - SIMPLE CLEAN VERSION
-    Reads from Google Sheets:
-    - Column B: Date (service date)
-    - Column D: Total Attendance
-    - Column I: First Time Christians
-    - Column J: Rededications  
-    - Column K: First Time Visitors
-    - Column L: Visitors
+    Get dashboard data - DATABASE FIRST VERSION
+    Primary source: attendance_records table (database)
+    Fallback: Google Sheets (if database is empty or unavailable)
     """
     try:
+        # ============================================================
+        # STEP 1: TRY DATABASE FIRST (PRIMARY SOURCE)
+        # ============================================================
+        from models import AttendanceRecord, CampusV2
+        
+        data_source = "Database"
+        
+        # Calculate date range
+        now = datetime.now()
+        end_date = now.date()
+        if date_filter == 'last_7_days':
+            start_date = end_date - timedelta(days=7)
+        elif date_filter == 'last_30_days':
+            start_date = end_date - timedelta(days=30)
+        elif date_filter == 'last_90_days':
+            start_date = end_date - timedelta(days=90)
+        elif date_filter == 'this_year':
+            start_date = datetime(end_date.year, 1, 1).date()
+        elif date_filter == 'last_12_months':
+            start_date = end_date - timedelta(days=365)
+        elif custom_start_date and custom_end_date:
+            start_date = datetime.strptime(custom_start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(custom_end_date, '%Y-%m-%d').date()
+        else:
+            start_date = end_date - timedelta(days=365)
+        
+        print(f"[DASHBOARD] Campus: {campus}, Date range: {start_date} to {end_date}, Source: Trying Database first")
+        logger.info(f"[DASHBOARD] Campus: {campus}, Date range: {start_date} to {end_date}")
+        
+        # Query database for records
+        try:
+            if campus in ['all_campuses', 'australia']:
+                # All campuses - get all active campuses
+                campuses_query = CampusV2.query.filter_by(active=True).all()
+                campus_ids = [c.id for c in campuses_query]
+                
+                records = AttendanceRecord.query.filter(
+                    AttendanceRecord.campus_id.in_(campus_ids),
+                    AttendanceRecord.date >= start_date,
+                    AttendanceRecord.date <= end_date
+                ).order_by(AttendanceRecord.date.desc()).all()
+                
+                print(f"[DASHBOARD] Found {len(records)} database records across {len(campus_ids)} campuses")
+            else:
+                # Single campus - find by campus_id (e.g., 'adelaide_city', 'paradise')
+                campus_obj = CampusV2.query.filter_by(campus_id=campus).first()
+                
+                if not campus_obj:
+                    print(f"[DASHBOARD] Campus '{campus}' not found in database, falling back to Google Sheets")
+                    raise Exception("Campus not found - will use Google Sheets")
+                
+                records = AttendanceRecord.query.filter(
+                    AttendanceRecord.campus_id == campus_obj.id,
+                    AttendanceRecord.date >= start_date,
+                    AttendanceRecord.date <= end_date
+                ).order_by(AttendanceRecord.date.desc()).all()
+                
+                print(f"[DASHBOARD] Found {len(records)} database records for campus '{campus}' (ID: {campus_obj.id})")
+            
+            # If we have database records, use them!
+            if records and len(records) > 0:
+                print(f"[DASHBOARD] ✅ Using DATABASE as primary source ({len(records)} records)")
+                logger.info(f"[DASHBOARD] Using database data source with {len(records)} records")
+                
+                # Aggregate stats from database
+                stats = {
+                    'total_attendance': 0,
+                    'total_people': 0,
+                    'first_time_visitors': 0,
+                    'visitors': 0,
+                    'new_people': 0,
+                    'first_time_christians': 0,
+                    'rededications': 0,
+                    'new_christians': 0,
+                    'hands_up': 0,
+                    'salvation_cards_returned': 0,
+                    'youth_attendance': 0,
+                    'youth_salvations': 0,
+                    'youth_new_people': 0,
+                    'youth_leaders': 0,
+                    'kids_attendance': 0,
+                    'kids_leaders': 0,
+                    'new_kids': 0,
+                    'new_kids_salvations': 0,
+                    'packs_out': 0,
+                    'information_gathered': 0,
+                    'connect_groups': 0,
+                    'dream_team': 0,
+                    'saints': 0,
+                    'baptisms': 0,
+                    'child_dedications': 0,
+                    'tithe': 0.0,
+                    'entry_count': len(records),
+                }
+                
+                recent_entries = []
+                monthly_trends = {}
+                service_breakdown = {}
+                
+                for record in records:
+                    # Aggregate totals
+                    stats['total_attendance'] += record.total_attendance or 0
+                    stats['total_people'] += record.total_people_in_campus or 0
+                    stats['first_time_visitors'] += record.first_time_visitors or 0
+                    stats['visitors'] += record.visitors or 0
+                    stats['first_time_christians'] += record.first_time_christians or 0
+                    stats['rededications'] += record.rededications or 0
+                    stats['hands_up'] += record.hands_up or 0
+                    stats['salvation_cards_returned'] += record.salvation_cards_returned or 0
+                    stats['youth_attendance'] += record.youth_attendance or 0
+                    stats['youth_salvations'] += record.youth_salvations or 0
+                    stats['youth_new_people'] += record.youth_new_people or 0
+                    stats['youth_leaders'] += record.youth_leaders or 0
+                    stats['kids_attendance'] += record.kids_attendance or 0
+                    stats['kids_leaders'] += record.kids_leaders or 0
+                    stats['new_kids'] += record.new_kids or 0
+                    stats['new_kids_salvations'] += record.new_kids_salvations or 0
+                    stats['packs_out'] += record.packs_out or 0
+                    stats['connect_groups'] += record.connect_groups or 0
+                    stats['dream_team'] += record.dream_team or 0
+                    stats['baptisms'] += record.baptisms or 0
+                    stats['child_dedications'] += record.child_dedications or 0
+                    stats['tithe'] += float(record.tithe or 0)
+                    
+                    # Service breakdown for charts
+                    if record.adult_service_breakdown:
+                        try:
+                            adult_breakdown = json.loads(record.adult_service_breakdown)
+                            for service_time, count in adult_breakdown.items():
+                                service_breakdown[service_time] = service_breakdown.get(service_time, 0) + count
+                        except:
+                            pass
+                    
+                    # Recent entries (last 10)
+                    if len(recent_entries) < 10:
+                        campus_obj_entry = CampusV2.query.get(record.campus_id)
+                        recent_entries.append({
+                            'date': record.date.strftime('%Y-%m-%d'),
+                            'campus': campus_obj_entry.display_name if campus_obj_entry else 'Unknown',
+                            'total_attendance': record.total_attendance or 0,
+                            'kids_attendance': record.kids_attendance or 0,
+                            'new_people': (record.first_time_visitors or 0) + (record.visitors or 0),
+                            'new_christians': (record.first_time_christians or 0) + (record.rededications or 0)
+                        })
+                    
+                    # Monthly trends
+                    month_key = record.date.strftime('%Y-%m')
+                    if month_key not in monthly_trends:
+                        monthly_trends[month_key] = {
+                            'attendance': 0,
+                            'new_people': 0,
+                            'new_christians': 0,
+                            'count': 0
+                        }
+                    monthly_trends[month_key]['attendance'] += record.total_attendance or 0
+                    monthly_trends[month_key]['new_people'] += (record.first_time_visitors or 0) + (record.visitors or 0)
+                    monthly_trends[month_key]['new_christians'] += (record.first_time_christians or 0) + (record.rededications or 0)
+                    monthly_trends[month_key]['count'] += 1
+                
+                # Calculate derived stats
+                stats['new_people'] = stats['first_time_visitors'] + stats['visitors']
+                stats['new_christians'] = stats['first_time_christians'] + stats['rededications']
+                
+                # Calculate averages
+                entry_count = stats['entry_count'] or 1
+                stats['avg_attendance'] = stats['total_attendance'] / entry_count
+                stats['avg_kids_attendance'] = stats['kids_attendance'] / entry_count
+                stats['avg_youth_attendance'] = stats['youth_attendance'] / entry_count
+                stats['avg_tithe'] = stats['tithe'] / entry_count
+                stats['avg_connect_groups'] = stats['connect_groups'] / entry_count
+                stats['avg_dream_team'] = stats['dream_team'] / entry_count
+                stats['avg_saints'] = stats['saints'] / entry_count
+                
+                # Calculate monthly averages for trends
+                for month_key, month_data in monthly_trends.items():
+                    count = month_data['count'] or 1
+                    month_data['avg_attendance'] = month_data['attendance'] / count
+                    month_data['avg_new_people'] = month_data['new_people'] / count
+                    month_data['avg_new_christians'] = month_data['new_christians'] / count
+                
+                print(f"[DASHBOARD] ✅ Database aggregation complete: total_attendance={stats['total_attendance']}, avg={stats['avg_attendance']:.1f}")
+                
+                return {
+                    'stats': stats,
+                    'recent_entries': recent_entries,
+                    'trends': monthly_trends,
+                    'service_breakdown': service_breakdown,
+                    'data_source': 'Database'
+                }
+            else:
+                print(f"[DASHBOARD] ⚠️  No database records found, falling back to Google Sheets")
+                data_source = "Google Sheets (database empty)"
+                
+        except Exception as db_error:
+            print(f"[DASHBOARD] ⚠️  Database error: {db_error}, falling back to Google Sheets")
+            logger.warning(f"[DASHBOARD] Database query failed, using Google Sheets fallback: {db_error}")
+            data_source = "Google Sheets (database error)"
+        
+        # ============================================================
+        # STEP 2: FALLBACK TO GOOGLE SHEETS (IF DATABASE FAILED/EMPTY)
+        # ============================================================
+        print(f"[DASHBOARD] Using Google Sheets as fallback")
+        
         # Try to get data from Google Sheets first, fallback to local data
         if sheet:
             try:
