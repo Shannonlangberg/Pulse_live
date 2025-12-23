@@ -151,14 +151,17 @@ def fix_all_attendance_records():
                 
                 # Sunday Total = Adults + Saints + Kids (including leaders)
                 # Youth is tracked separately, NOT included in Sunday total
-                total_people = adult_total + saints + kids_total
+                calculated_total_attendance = adult_total + saints + kids_total
                 
-                # FALLBACK: If calculated total is 0, try reading "Total People in Campus" column
-                if not total_people:
-                    total_people = safe_int(sheets_row.get('Total People in Campus', 0)) or safe_int(sheets_row.get('Total Attendance', 0))
+                # FALLBACK: If calculated total is 0, try reading "Total Attendance" column
+                if not calculated_total_attendance:
+                    calculated_total_attendance = safe_int(sheets_row.get('Total Attendance', 0))
                 
-                record.total_attendance = total_people
-                record.total_people_in_campus = safe_int(sheets_row.get('Total People in Campus', 0)) or total_people
+                # Set the two DIFFERENT metrics:
+                # 1. total_attendance = CALCULATED Sunday total (adults + saints + kids + leaders)
+                # 2. total_people_in_campus = MANUAL input from "Total People in Campus" column
+                record.total_attendance = calculated_total_attendance
+                record.total_people_in_campus = safe_int(sheets_row.get('Total People in Campus', 0))
                 
                 # Update all other fields too
                 kids_attendance = safe_int(sheets_row.get('Kids Attendance', 0))
