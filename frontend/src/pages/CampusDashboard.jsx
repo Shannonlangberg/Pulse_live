@@ -385,19 +385,21 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
   
   // Calculate percentages and metrics
   const totalPeople = data.stats?.total_people || 0;
-  // Use service breakdown sum if it exists and has data, otherwise fall back to avg_attendance
+  
+  // SIMPLIFIED APPROACH: Use the pre-calculated total_attendance from database
+  // This already includes: Adults + Kids + Kids Leaders + Saints + Seniors (NO Youth)
+  const sundayCombinedAttendance = Math.round(data.stats?.avg_attendance || 0);
+  
+  // Individual components for modal display (these are for breakdown purposes only, not for calculation)
   const sundayAdultAttendance = Math.round(sundayAttendanceFromServices > 0 ? sundayAttendanceFromServices : (data.stats?.avg_attendance || 0));
-  const youthAttendance = Math.round(data.stats?.avg_youth_attendance || 0); // ALWAYS average (Friday youth)
-  const kidsAttendance = Math.round(data.stats?.avg_kids_attendance || 0); // Kids only
-  const kidsLeaders = Math.round(data.stats?.avg_kids_leaders || 0); // Leaders only
-  const kidsTotalForSunday = kidsAttendance + kidsLeaders; // Kids + leaders
-  const saintsAttendance = Math.round(data.stats?.avg_saints || 0); // Saints average
-  const seniorsAttendance = Math.round(data.stats?.avg_seniors || 0); // Seniors average (if available)
+  const youthAttendance = Math.round(data.stats?.avg_youth_attendance || 0);
+  const kidsAttendance = Math.round(data.stats?.avg_kids_attendance || 0);
+  const kidsLeaders = Math.round(data.stats?.avg_kids_leaders || 0);
+  const kidsTotalForSunday = kidsAttendance + kidsLeaders;
+  const saintsAttendance = Math.round(data.stats?.avg_saints || 0);
+  const seniorsAttendance = Math.round(data.stats?.avg_seniors || 0);
   
-  // SUNDAY ATTENDANCE = Service Times + Kids + Kids Leaders + Saints + Seniors (NO Youth - youth is Friday)
-  const sundayCombinedAttendance = sundayAdultAttendance + kidsTotalForSunday + saintsAttendance + seniorsAttendance;
-  
-  // WEEKEND TOTAL = Sunday + Youth (Friday)
+  // WEEKEND TOTAL = Sunday (pre-calculated) + Youth (Friday)
   const totalAttendance = sundayCombinedAttendance + youthAttendance;
   
   const attendancePercentage = totalPeople > 0 ? Math.round((totalAttendance / totalPeople) * 100) : 0;
