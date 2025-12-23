@@ -6765,9 +6765,22 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 for service_time, data in kids_service_breakdown.items():
                     data['average'] = data['total'] / data['count'] if data['count'] > 0 else 0
                 
-                # FALLBACK: If no service breakdown data exists (adult_service_breakdown is NULL in all records),
-                # create a default breakdown based on average attendance
-                if not service_breakdown and stats['avg_attendance'] > 0:
+                # FALLBACK: If service breakdown exists but count doesn't match entry_count,
+                # it means some records lack adult_service_breakdown data
+                # In this case, we should use entry_count as the service count
+                if service_breakdown:
+                    # Check if any service time has a count less than entry_count
+                    for service_time, data in service_breakdown.items():
+                        original_count = data['count']
+                        if original_count < entry_count and original_count > 0:
+                            # Some records are missing breakdown data
+                            # Recalculate using entry_count as the actual service count
+                            data['count'] = entry_count
+                            data['average'] = data['total'] / entry_count
+                            print(f"[DASHBOARD] ⚠️  Service {service_time} had incomplete data (only {original_count} of {entry_count} records had breakdown), adjusted count to {entry_count}")
+                
+                # FALLBACK 2: If no service breakdown data exists at all
+                elif not service_breakdown and stats['avg_attendance'] > 0:
                     # Get the primary service time for this campus (usually 10:00 AM)
                     default_service_time = '10:00 AM'
                     service_breakdown[default_service_time] = {
