@@ -935,10 +935,8 @@ def save_attendance_record(data, user_id=None):
             )
         
         # Update fields
-        # Frontend sends 'Total People in Campus' so use that for both fields
-        total_people = int(data.get('Total People in Campus', 0) or data.get('Total Attendance', 0) or 0)
-        record.total_attendance = total_people
-        record.total_people_in_campus = total_people
+        # Store the manually entered "Total People in Campus" value
+        record.total_people_in_campus = int(data.get('Total People in Campus', 0) or 0)
         record.adult_service_breakdown = json.dumps(adult_breakdown) if adult_breakdown else None
         
         # Calculate kids_attendance from service breakdown
@@ -966,6 +964,15 @@ def save_attendance_record(data, user_id=None):
         record.dream_team = int(data.get('Dream Team', 0) or 0)
         record.tithe = float(data.get('Tithe', 0) or 0)
         record.notes = data.get('notes')
+        
+        # CALCULATE Total Attendance = Service Times + Saints + Kids + Kids Leaders (exclude Youth for Sundays)
+        adult_total = sum(adult_breakdown.values()) if adult_breakdown else 0
+        saints = int(data.get('Saints', 0) or 0)
+        total_attendance_calculated = adult_total + saints + record.kids_attendance + record.kids_leaders
+        record.total_attendance = total_attendance_calculated
+        
+        print(f"[SAVE_ATTENDANCE] Calculated total_attendance: {total_attendance_calculated} (adult:{adult_total} + saints:{saints} + kids:{record.kids_attendance} + kids_leaders:{record.kids_leaders})")
+        logger.info(f"[SAVE_ATTENDANCE] Calculated total_attendance: {total_attendance_calculated} (adult:{adult_total} + saints:{saints} + kids:{record.kids_attendance} + kids_leaders:{record.kids_leaders})")
         
         # Save to database
         if not existing:
@@ -12316,10 +12323,8 @@ def save_attendance_record(data, user_id=None):
             )
         
         # Update fields
-        # Frontend sends 'Total People in Campus' so use that for both fields
-        total_people = int(data.get('Total People in Campus', 0) or data.get('Total Attendance', 0) or 0)
-        record.total_attendance = total_people
-        record.total_people_in_campus = total_people
+        # Store the manually entered "Total People in Campus" value
+        record.total_people_in_campus = int(data.get('Total People in Campus', 0) or 0)
         record.adult_service_breakdown = json.dumps(adult_breakdown) if adult_breakdown else None
         
         # Calculate kids_attendance from service breakdown
@@ -12347,6 +12352,15 @@ def save_attendance_record(data, user_id=None):
         record.dream_team = int(data.get('Dream Team', 0) or 0)
         record.tithe = float(data.get('Tithe', 0) or 0)
         record.notes = data.get('notes')
+        
+        # CALCULATE Total Attendance = Service Times + Saints + Kids + Kids Leaders (exclude Youth for Sundays)
+        adult_total = sum(adult_breakdown.values()) if adult_breakdown else 0
+        saints = int(data.get('Saints', 0) or 0)
+        total_attendance_calculated = adult_total + saints + record.kids_attendance + record.kids_leaders
+        record.total_attendance = total_attendance_calculated
+        
+        print(f"[SAVE_ATTENDANCE] Calculated total_attendance: {total_attendance_calculated} (adult:{adult_total} + saints:{saints} + kids:{record.kids_attendance} + kids_leaders:{record.kids_leaders})")
+        logger.info(f"[SAVE_ATTENDANCE] Calculated total_attendance: {total_attendance_calculated} (adult:{adult_total} + saints:{saints} + kids:{record.kids_attendance} + kids_leaders:{record.kids_leaders})")
         
         # Save to database
         if not existing:

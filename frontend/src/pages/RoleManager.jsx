@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ShieldCheckIcon, 
   CheckIcon, 
@@ -13,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const RoleManager = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -25,6 +27,8 @@ const RoleManager = () => {
   const [campuses, setCampuses] = useState([]);
   const [regions, setRegions] = useState([]);
   const [expandedUsers, setExpandedUsers] = useState({}); // { userId: true/false } for campus selection
+  const [userRole, setUserRole] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   // Define all features grouped by category (matching EnhancedNavigation groups)
   const pageFeatures = {
@@ -248,11 +252,55 @@ const RoleManager = () => {
     }
   };
 
+  // Check user authorization first
   useEffect(() => {
-    loadUsers();
-    loadCampuses();
-    loadRegions();
+    checkAuthorization();
   }, []);
+
+  useEffect(() => {
+    if (userRole && !checkingAuth) {
+      loadUsers();
+      loadCampuses();
+      loadRegions();
+    }
+  }, [userRole, checkingAuth]);
+
+  const checkAuthorization = async () => {
+    try {
+      const response = await fetch('/api/session', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const role = data.role || 'member';
+        
+        // Only allow admin and leadership roles to access Role Manager
+        const allowedRoles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'];
+        
+        if (!allowedRoles.includes(role)) {
+          // Redirect unauthorized users to their profile
+          console.warn('[RoleManager] Unauthorized access attempt by role:', role);
+          navigate('/profile', { replace: true });
+          return;
+        }
+        
+        setUserRole(role);
+        setCheckingAuth(false);
+      } else {
+        // Session failed - redirect to login
+        navigate('/login', { replace: true });
+      }
+    } catch (err) {
+      console.error('[RoleManager] Authorization check failed:', err);
+      navigate('/profile', { replace: true });
+    }
+  };
 
   const loadRegions = async () => {
     try {
@@ -519,6 +567,18 @@ const RoleManager = () => {
       (user.email || '').toLowerCase().includes(search)
     );
   });
+
+  // Show loading while checking authorization
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <ShieldCheckIcon className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-pulse" />
+          <div className="text-white text-xl">Checking authorization...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

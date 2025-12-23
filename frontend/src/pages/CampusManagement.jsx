@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BuildingOfficeIcon,
   PlusIcon,
@@ -13,12 +14,15 @@ import {
 } from '@heroicons/react/24/outline';
 
 const CampusManagement = () => {
+  const navigate = useNavigate();
   const [regions, setRegions] = useState([]);
   const [campuses, setCampuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCampus, setEditingCampus] = useState(null);
   const [selectedRegion, setSelectedRegion] = useState('all');
+  const [userRole, setUserRole] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -36,10 +40,54 @@ const CampusManagement = () => {
     notes: ''
   });
 
+  // Check user authorization first
   useEffect(() => {
-    fetchRegions();
-    fetchCampuses();
+    checkAuthorization();
   }, []);
+
+  useEffect(() => {
+    if (userRole && !checkingAuth) {
+      fetchRegions();
+      fetchCampuses();
+    }
+  }, [userRole, checkingAuth]);
+
+  const checkAuthorization = async () => {
+    try {
+      const response = await fetch('/api/session', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const role = data.role || 'member';
+        
+        // Only allow admin and leadership roles to access Campus Management
+        const allowedRoles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'];
+        
+        if (!allowedRoles.includes(role)) {
+          // Redirect unauthorized users to their profile
+          console.warn('[CampusManagement] Unauthorized access attempt by role:', role);
+          navigate('/profile', { replace: true });
+          return;
+        }
+        
+        setUserRole(role);
+        setCheckingAuth(false);
+      } else {
+        // Session failed - redirect to login
+        navigate('/login', { replace: true });
+      }
+    } catch (err) {
+      console.error('[CampusManagement] Authorization check failed:', err);
+      navigate('/profile', { replace: true });
+    }
+  };
 
   const fetchRegions = async () => {
     try {
@@ -210,6 +258,26 @@ const CampusManagement = () => {
   };
 
   const campusesByRegion = getCampusesByRegion();
+
+  // Show loading while checking authorization
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <BuildingOfficeIcon className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-pulse" />
+          <div className="text-white text-xl">Checking authorization...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
+        <div className="text-white text-xl">Loading campuses...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 p-6">

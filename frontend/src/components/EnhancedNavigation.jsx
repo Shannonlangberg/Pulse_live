@@ -42,7 +42,7 @@ const MAIN_SECTIONS = {
     id: 'settings',
     name: 'Settings',
     icon: Cog6ToothIcon,
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
     hasSubPages: true
   }
 };
@@ -80,13 +80,15 @@ const PORTAL_ITEMS = [
 ];
 
 // Settings sub-pages
+// IMPORTANT: Campus Pastors and Staff should ONLY see "My Profile" by default
+// All other settings pages require admin/leadership roles OR custom permissions override
 const SETTINGS_ITEMS = [
   { 
     name: 'My Profile', 
     href: '/profile', 
     icon: UserCircleIcon, 
     roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
-    featureKey: null
+    featureKey: null  // Always visible for all roles - cannot be overridden
   },
   { 
     name: 'Users', 

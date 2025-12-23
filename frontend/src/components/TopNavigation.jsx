@@ -52,13 +52,15 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
   ];
 
   // Settings sub-pages (when Settings section is active)
+  // IMPORTANT: Campus Pastors and Staff should ONLY see "My Profile" by default
+  // All other settings pages require admin/leadership roles OR custom permissions override
   const settingsItems = [
     { 
       name: 'My Profile', 
       href: '/profile', 
       icon: UserCircleIcon, 
       roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
-      featureKey: null
+      featureKey: null  // Always visible for all roles - cannot be overridden
     },
     { 
       name: 'Users', 
