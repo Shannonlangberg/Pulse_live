@@ -21602,11 +21602,14 @@ def fetch_drive_folder_files(folder_id, access_token):
         logger.info(f"Attempting to fetch files from Google Drive folder: {folder_id}")
         
         # Fetch files AND folders from folder (first 100 items, folders first then by name)
+        # Include Shared Drive support with supportsAllDrives and includeItemsFromAllDrives
         results = service.files().list(
             q=f"'{folder_id}' in parents and trashed=false",
             pageSize=100,
             fields="files(id, name, mimeType, modifiedTime, webViewLink, iconLink)",
-            orderBy="folder,name"
+            orderBy="folder,name",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
         ).execute()
         
         files = results.get('files', [])
