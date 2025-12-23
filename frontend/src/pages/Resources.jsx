@@ -82,6 +82,10 @@ const Resources = () => {
   const [filesError, setFilesError] = useState('');
   const [authRequired, setAuthRequired] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
+  
+  // Folder navigation state
+  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [folderBreadcrumb, setFolderBreadcrumb] = useState([]);
 
   const selectedCategory = useMemo(
     () => categories.find((item) => item.id === selectedCategoryId) || null,
@@ -138,7 +142,7 @@ const Resources = () => {
   }, []);
 
   const fetchFiles = useCallback(
-    async (categoryId) => {
+    async (categoryId, folderId = null) => {
       if (!categoryId) {
         return;
       }
@@ -146,10 +150,16 @@ const Resources = () => {
       setFilesLoading(true);
       setFilesError('');
       setAuthRequired(false);
-      setLinks([]);
+      if (!folderId) {
+        setLinks([]);
+      }
 
       try {
-        const response = await fetch(`/api/resources/${encodeURIComponent(categoryId)}`, {
+        const url = folderId 
+          ? `/api/resources/${encodeURIComponent(categoryId)}/folder/${encodeURIComponent(folderId)}`
+          : `/api/resources/${encodeURIComponent(categoryId)}`;
+        
+        const response = await fetch(url, {
           credentials: 'include',
         });
 
@@ -159,6 +169,7 @@ const Resources = () => {
         console.log('Resources API Response:', {
           status: response.status,
           categoryId,
+          folderId,
           filesCount: payload.files?.length || 0,
           linksCount: payload.links?.length || 0,
           driveAuthNeeded: payload.drive_auth_needed,
@@ -198,7 +209,11 @@ const Resources = () => {
         items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         console.log('Setting files:', items.length, 'files');
         setFiles(items);
-        setLinks(normalizeLinks(payload.links));
+        
+        // Only update links when at root level
+        if (!folderId) {
+          setLinks(normalizeLinks(payload.links));
+        }
         
         // Only clear auth required if we got files or if no folder is configured
         if (!payload.drive_auth_needed) {
@@ -207,13 +222,38 @@ const Resources = () => {
       } catch (error) {
         setFilesError(error.message || 'Something went wrong while loading files.');
         setFiles([]);
-        setLinks([]);
+        if (!folderId) {
+          setLinks([]);
+        }
       } finally {
         setFilesLoading(false);
       }
     },
     []
   );
+
+  const handleFolderClick = (folder) => {
+    // Add current folder to breadcrumb
+    setFolderBreadcrumb(prev => [...prev, { id: folder.id, name: folder.displayName || folder.name }]);
+    setCurrentFolderId(folder.id);
+    fetchFiles(selectedCategoryId, folder.id);
+  };
+
+  const handleBreadcrumbClick = (index) => {
+    if (index === -1) {
+      // Go back to root
+      setFolderBreadcrumb([]);
+      setCurrentFolderId(null);
+      fetchFiles(selectedCategoryId);
+    } else {
+      // Go to specific breadcrumb
+      const newBreadcrumb = folderBreadcrumb.slice(0, index + 1);
+      const folderId = folderBreadcrumb[index].id;
+      setFolderBreadcrumb(newBreadcrumb);
+      setCurrentFolderId(folderId);
+      fetchFiles(selectedCategoryId, folderId);
+    }
+  };
 
   const handleAuthorize = useCallback(async () => {
     setIsLinking(true);
@@ -253,6 +293,8 @@ const Resources = () => {
 
   useEffect(() => {
     if (selectedCategoryId) {
+      setFolderBreadcrumb([]);
+      setCurrentFolderId(null);
       fetchFiles(selectedCategoryId);
     }
   }, [selectedCategoryId, fetchFiles]);
@@ -433,12 +475,10 @@ const Resources = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {folders.map((file) => (
-                  <a
+                  <button
                     key={file.id}
-                    href={file.webViewLink || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group relative bg-gradient-to-br from-yellow-500/10 via-orange-500/5 to-yellow-500/10 border border-yellow-500/20 hover:border-yellow-400/50 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-yellow-500/10"
+                    onClick={() => handleFolderClick(file)}
+                    className="group relative bg-gradient-to-br from-yellow-500/10 via-orange-500/5 to-yellow-500/10 border border-yellow-500/20 hover:border-yellow-400/50 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-yellow-500/10 text-left w-full"
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/0 via-yellow-400/0 to-yellow-400/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     <div className="relative flex flex-col gap-3">
@@ -456,7 +496,7 @@ const Resources = () => {
                         {formatModifiedTime(file.modifiedTime)}
                       </div>
                     </div>
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
@@ -568,26 +608,50 @@ const Resources = () => {
 
     return (
       <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-6 md:p-8 space-y-8 shadow-2xl">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-white/10">
-          <div>
-            <h3 className="text-white text-2xl font-bold">
-              {selectedCategory.displayName || selectedCategory.name} Resources
-            </h3>
-            <p className="text-white/50 text-sm mt-1">
-              Files and folders from Google Drive
-            </p>
+        <div className="flex flex-col gap-4 pb-6 border-b border-white/10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 className="text-white text-2xl font-bold">
+                {selectedCategory.displayName || selectedCategory.name} Resources
+              </h3>
+              <p className="text-white/50 text-sm mt-1">
+                Files and folders from Google Drive
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchFiles(selectedCategory.id, currentFolderId)}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 rounded-xl transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
+            >
+              <span className="text-lg">⟳</span>
+              Refresh
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => fetchFiles(selectedCategory.id)}
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 rounded-xl transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
-          >
-            <span className="text-lg">⟳</span>
-            Refresh
-          </button>
+          
+          {folderBreadcrumb.length > 0 && (
+            <div className="flex items-center gap-2 text-sm">
+              <button
+                onClick={() => handleBreadcrumbClick(-1)}
+                className="text-blue-300 hover:text-blue-200 transition-colors font-medium"
+              >
+                📁 {selectedCategory.displayName || selectedCategory.name}
+              </button>
+              {folderBreadcrumb.map((crumb, index) => (
+                <div key={crumb.id} className="flex items-center gap-2">
+                  <span className="text-white/30">/</span>
+                  <button
+                    onClick={() => handleBreadcrumbClick(index)}
+                    className="text-blue-300 hover:text-blue-200 transition-colors font-medium"
+                  >
+                    {crumb.name}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {hasQuickLinks && renderQuickLinks()}
+        {hasQuickLinks && currentFolderId === null && renderQuickLinks()}
         {hasDriveFiles && renderDriveFiles()}
       </div>
     );

@@ -11652,7 +11652,11 @@ def get_database_viewer():
         
         # Check user role - only admins can view full database
         user_role = getattr(current_user, 'role', 'member')
+        print(f"[DATABASE_VIEWER] User role: {user_role}")
+        logger.info(f"[DATABASE_VIEWER] User role: {user_role}")
+        
         if user_role not in ['superadmin', 'admin']:
+            print(f"[DATABASE_VIEWER] Access denied for role: {user_role}")
             return jsonify({"error": "Access denied - admin only"}), 403
         
         # Get filters from query params
@@ -11662,6 +11666,7 @@ def get_database_viewer():
         limit = int(request.args.get('limit', 100))  # Default to last 100 records
         
         print(f"[DATABASE_VIEWER] Fetching records with filters: campus={campus_filter}, start={start_date_str}, end={end_date_str}, limit={limit}")
+        logger.info(f"[DATABASE_VIEWER] Fetching records with filters: campus={campus_filter}, start={start_date_str}, end={end_date_str}, limit={limit}")
         
         # Build query
         query = AttendanceRecord.query
@@ -11684,6 +11689,7 @@ def get_database_viewer():
         records = query.order_by(AttendanceRecord.date.desc(), AttendanceRecord.created_at.desc()).limit(limit).all()
         
         print(f"[DATABASE_VIEWER] Found {len(records)} records")
+        logger.info(f"[DATABASE_VIEWER] Found {len(records)} records")
         
         # Convert to list of dicts
         records_data = []
@@ -22067,6 +22073,75 @@ def get_resource_category_files(category_id):
     except Exception as e:
         logger.error(f"Error fetching resource category files: {e}", exc_info=True)
         return jsonify({'error': 'Failed to fetch resource files'}), 500
+
+@app.route('/api/resources/<category_id>/folder/<folder_id>', methods=['GET'])
+@login_required_json
+def get_resource_folder_files(category_id, folder_id):
+    """Get files from a specific subfolder in a resource category"""
+    try:
+        # Get category to verify it exists
+        category = ResourceCategory.query.filter(
+            (ResourceCategory.slug == category_id) | (ResourceCategory.id == category_id)
+        ).filter_by(is_active=True).first()
+        
+        if not category:
+            return jsonify({'files': [], 'links': []})
+        
+        # Get display name overrides for this category
+        overrides = {}
+        if category.id:
+            override_records = DriveItemOverride.query.filter_by(category_id=category.id).all()
+            overrides = {override.drive_item_id: override.custom_name for override in override_records}
+        
+        # Fetch files from the specific folder
+        files = []
+        drive_auth_needed = False
+        drive_error = None
+        
+        # Check if user has Google Drive access token
+        access_token = session.get('google_drive_access_token')
+        token_expiry = session.get('google_drive_token_expiry', 0)
+        current_time = datetime.now(timezone.utc).timestamp()
+        
+        if access_token and current_time < token_expiry:
+            # Fetch files from the subfolder
+            logger.info(f"Fetching files from Google Drive subfolder: {folder_id}")
+            files = fetch_drive_folder_files(folder_id, access_token)
+            
+            # Apply custom display names from overrides
+            for file in files:
+                if file['id'] in overrides:
+                    file['displayName'] = overrides[file['id']]
+                    file['originalName'] = file['name']
+            
+            if len(files) == 0:
+                logger.warning(f"No items returned from Drive API for folder {folder_id}")
+        elif access_token:
+            logger.info(f"Google Drive token expired for user")
+            drive_auth_needed = True
+            drive_error = "Google Drive authentication expired. Please reconnect."
+        else:
+            logger.info("No Google Drive access token found in session")
+            drive_auth_needed = True
+            drive_error = "Google Drive not connected. Please authenticate."
+        
+        response_data = {
+            'files': files,
+            'links': [],  # No quick links in subfolders
+            'drive_auth_needed': drive_auth_needed,
+            'has_access_token': bool(session.get('google_drive_access_token')),
+            'folder_id': folder_id
+        }
+        
+        if drive_error:
+            response_data['drive_error'] = drive_error
+        
+        logger.info(f"Returning {len(files)} files from subfolder {folder_id}")
+        
+        return jsonify(response_data)
+    except Exception as e:
+        logger.error(f"Error fetching subfolder files: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to fetch subfolder files'}), 500
 
 @app.route('/api/admin/resource-categories/<category_id>/drive-overrides', methods=['GET'])
 @admin_required_json
