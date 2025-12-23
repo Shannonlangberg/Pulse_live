@@ -46,11 +46,14 @@ def migrate_sheets_to_database():
             
             print(f"✓ Loaded {len(campuses)} campuses\n")
             
-            # Get regions
+            # Get regions using raw SQL (avoid model column issues)
             print("[3/5] Loading regions...")
-            regions = Region.query.all()
-            region_by_id = {r.id: r for r in regions}
-            print(f"✓ Loaded {len(regions)} regions\n")
+            conn = get_db()
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, code FROM regions WHERE active = 1")
+            region_rows = cursor.fetchall()
+            region_by_id = {row[0]: {'id': row[0], 'name': row[1], 'code': row[2]} for row in region_rows}
+            print(f"✓ Loaded {len(region_rows)} regions\n")
             
             # Process each record
             print("[4/5] Processing records...")
