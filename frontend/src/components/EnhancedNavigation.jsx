@@ -95,14 +95,14 @@ const SETTINGS_ITEMS = [
     href: '/users', 
     icon: UserGroupIcon, 
     roles: ['superadmin', 'admin'],
-    featureKey: 'user_management'
+    featureKey: null  // Admin-only, cannot be overridden by custom permissions
   },
   { 
     name: 'Role Manager', 
     href: '/role-manager', 
     icon: ShieldCheckIcon, 
     roles: ['superadmin', 'admin'],
-    featureKey: 'user_management'
+    featureKey: null  // Admin-only, cannot be overridden by custom permissions
   },
   { 
     name: 'Database Viewer', 
@@ -123,7 +123,7 @@ const SETTINGS_ITEMS = [
     href: '/campuses', 
     icon: BuildingOfficeIcon, 
     roles: ['superadmin', 'admin'],
-    featureKey: 'campus_management'
+    featureKey: null  // Admin-only, cannot be overridden by custom permissions
   },
   { 
     name: 'Beacons', 
@@ -137,7 +137,7 @@ const SETTINGS_ITEMS = [
     href: '/resources/manage', 
     icon: BookOpenIcon, 
     roles: ['superadmin', 'admin'],
-    featureKey: 'resource_manager'
+    featureKey: null  // Admin-only, cannot be overridden by custom permissions
   },
   { 
     name: 'TV Manager', 

@@ -67,14 +67,14 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       href: '/users', 
       icon: UserGroupIcon, 
       roles: ['superadmin', 'admin'],
-      featureKey: 'user_management'
+      featureKey: null  // Admin-only, cannot be overridden by custom permissions
     },
     { 
       name: 'Role Manager', 
       href: '/role-manager', 
       icon: ShieldCheckIcon, 
       roles: ['superadmin', 'admin'],
-      featureKey: 'user_management'
+      featureKey: null  // Admin-only, cannot be overridden by custom permissions
     },
     { 
       name: 'Database Viewer', 
@@ -95,7 +95,7 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       href: '/campuses', 
       icon: BuildingOfficeIcon, 
       roles: ['superadmin', 'admin'],
-      featureKey: 'campus_management'
+      featureKey: null  // Admin-only, cannot be overridden by custom permissions
     },
     { 
       name: 'Beacons', 
@@ -109,7 +109,7 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       href: '/resources/manage', 
       icon: BookOpenIcon, 
       roles: ['superadmin', 'admin'],
-      featureKey: 'resource_manager'
+      featureKey: null  // Admin-only, cannot be overridden by custom permissions
     },
     { 
       name: 'TV Manager', 
