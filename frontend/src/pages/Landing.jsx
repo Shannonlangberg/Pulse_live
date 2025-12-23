@@ -349,7 +349,7 @@ const Landing = () => {
                       <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white/30 group-hover:text-blue-200 transition-colors" />
                     </div>
                     <h3 className="text-base sm:text-lg font-semibold text-white group-hover:text-blue-200 transition-colors duration-200 mb-1.5 sm:mb-2">
-                      {category.name}
+                      {category.displayName || category.name}
                     </h3>
                     {category.description && (
                       <p className="text-xs sm:text-sm text-white/60 leading-relaxed line-clamp-3">
