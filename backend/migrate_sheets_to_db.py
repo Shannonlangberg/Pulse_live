@@ -1,315 +1,225 @@
+#!/usr/bin/env python3
 """
-Migration script to import existing Google Sheets data into database
-Run with --preview to see what will be imported without making changes
-Run with --dry-run to test migration without saving
+Migration Script: Import Google Sheets Stats Data into Database
+Migrates all existing attendance data from Google Sheets to attendance_records table
 """
-
-import os
 import sys
+import os
+
+# Add backend directory to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from app import app, logger, sheet, get_db
+from models import db, CampusV2, Region, AttendanceRecord
 from datetime import datetime
-from dotenv import load_dotenv
-import argparse
+import json
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(__file__))
-
-load_dotenv()
-
-from app import app, db, sheet, initialize_google_sheets, safe_sheets_request
-from models import AttendanceRecord, CampusV2, Region
-
-def preview_sheets_data():
-    """Preview what data exists in Google Sheets"""
+def migrate_sheets_to_database():
+    """Migrate all existing Google Sheets data to attendance_records table"""
     
     with app.app_context():
-        print("=" * 60)
-        print("PREVIEW: Google Sheets Data")
-        print("=" * 60)
-        
-        # Initialize Google Sheets if needed
-        if not sheet:
-            print("Initializing Google Sheets connection...")
-            try:
-                initialize_google_sheets()
-            except Exception as e:
-                print(f"ERROR: Could not connect to Google Sheets: {e}")
-                return False
-        
-        if not sheet:
-            print("ERROR: Google Sheets not available")
-            return False
-        
-        print("\n✓ Google Sheets connected")
-        
-        # Get all rows
-        print("\n📥 Fetching data from Google Sheets...")
         try:
-            all_rows = safe_sheets_request(sheet.get_all_records)
-            print(f"✓ Retrieved {len(all_rows)} rows from Google Sheets")
-        except Exception as e:
-            print(f"ERROR: Failed to fetch: {e}")
-            return False
-        
-        if not all_rows:
-            print("⚠️  No data found in Google Sheets")
-            return False
-        
-        # Analyze the data
-        campuses = set()
-        dates = []
-        sample_row = None
-        
-        for row in all_rows:
-            campus = row.get('Campus', '').strip()
-            if campus:
-                campuses.add(campus)
+            print("\n" + "="*80)
+            print("📊 MIGRATING GOOGLE SHEETS DATA TO DATABASE")
+            print("="*80 + "\n")
             
-            date_str = str(row.get('Date', '')).strip()
-            if date_str:
+            # Get all records from Google Sheets Stats tab
+            print("[1/5] Fetching data from Google Sheets...")
+            all_records = sheet.get_all_records()
+            print(f"✓ Found {len(all_records)} records in Google Sheets\n")
+            
+            # Get all campuses and create lookup dict
+            print("[2/5] Loading campus mappings...")
+            campuses = CampusV2.query.all()
+            campus_lookup = {}
+            
+            for campus in campuses:
+                # Map by campus_id (primary)
+                campus_lookup[campus.campus_id] = campus
+                # Also map by display_name
+                campus_lookup[campus.display_name] = campus
+                # Also map by name
+                campus_lookup[campus.name] = campus
+                # Lowercase versions
+                campus_lookup[campus.campus_id.lower()] = campus
+                campus_lookup[campus.display_name.lower()] = campus
+            
+            print(f"✓ Loaded {len(campuses)} campuses\n")
+            
+            # Get regions
+            print("[3/5] Loading regions...")
+            regions = Region.query.all()
+            region_by_id = {r.id: r for r in regions}
+            print(f"✓ Loaded {len(regions)} regions\n")
+            
+            # Process each record
+            print("[4/5] Processing records...")
+            migrated_count = 0
+            skipped_count = 0
+            error_count = 0
+            
+            for idx, row in enumerate(all_records, 1):
                 try:
-                    date_val = datetime.strptime(date_str, '%Y-%m-%d').date()
-                    dates.append(date_val)
-                except:
-                    try:
-                        date_val = datetime.strptime(date_str, '%m/%d/%Y').date()
-                        dates.append(date_val)
-                    except:
-                        pass
-            
-            if not sample_row and campus and date_str:
-                sample_row = row
-        
-        # Display summary
-        print("\n" + "=" * 60)
-        print("DATA SUMMARY")
-        print("=" * 60)
-        print(f"📊 Total Rows: {len(all_rows)}")
-        print(f"🏢 Campuses: {len(campuses)}")
-        print(f"   {', '.join(sorted(campuses))}")
-        
-        if dates:
-            dates.sort()
-            print(f"📅 Date Range: {dates[0]} to {dates[-1]}")
-            print(f"   ({(dates[-1] - dates[0]).days} days of data)")
-        
-        if sample_row:
-            print(f"\n📝 Sample Row Fields:")
-            print(f"   Available fields: {len(sample_row.keys())}")
-            
-            # Show first row's non-empty fields
-            non_empty = {k: v for k, v in sample_row.items() if v}
-            print(f"   Non-empty fields in sample: {len(non_empty)}")
-            
-            print(f"\n   Sample data from {sample_row.get('Campus')} on {sample_row.get('Date')}:")
-            for key, value in list(non_empty.items())[:10]:
-                print(f"      • {key}: {value}")
-            if len(non_empty) > 10:
-                print(f"      ... and {len(non_empty) - 10} more fields")
-        
-        print("\n" + "=" * 60)
-        
-        # Check database campuses
-        print("\n🗄️  Checking Database Campuses...")
-        campuses_in_db = CampusV2.query.filter_by(active=True).all()
-        print(f"   Found {len(campuses_in_db)} active campuses in database:")
-        for campus in campuses_in_db:
-            print(f"      • {campus.display_name} (ID: {campus.campus_id})")
-        
-        # Check for existing records
-        existing_count = AttendanceRecord.query.count()
-        print(f"\n📦 Existing Records in Database: {existing_count}")
-        
-        if existing_count > 0:
-            print("   ⚠️  Database already has attendance records!")
-            print("   Migration will skip duplicates (same campus + date)")
-        
-        print("\n" + "=" * 60)
-        return True
-
-
-def migrate_sheets_data(dry_run=False):
-    """Import all existing Google Sheets data into database"""
-    
-    with app.app_context():
-        print("=" * 60)
-        if dry_run:
-            print("DRY RUN: Testing Migration (no changes will be made)")
-        else:
-            print("MIGRATION: Google Sheets → PostgreSQL Database")
-        print("=" * 60)
-        
-        # Initialize Google Sheets if needed
-        if not sheet:
-            print("Initializing Google Sheets connection...")
-            try:
-                initialize_google_sheets()
-            except Exception as e:
-                print(f"ERROR: Could not connect to Google Sheets: {e}")
-                return False
-        
-        if not sheet:
-            print("ERROR: Google Sheets not available")
-            return False
-        
-        print("\n✓ Google Sheets connected")
-        
-        # Get all campuses from database
-        campuses = CampusV2.query.filter_by(active=True).all()
-        print(f"\n✓ Found {len(campuses)} active campuses in database")
-        
-        if len(campuses) == 0:
-            print("\n⚠️  ERROR: No campuses found in database!")
-            print("   Please run campus seeding first:")
-            print("   python seed_campuses_v2.py")
-            return False
-        
-        # Get all rows from Google Sheets
-        print("\n📥 Fetching data from Google Sheets...")
-        try:
-            all_rows = safe_sheets_request(sheet.get_all_records)
-            print(f"✓ Retrieved {len(all_rows)} rows from Google Sheets")
-        except Exception as e:
-            print(f"ERROR: Failed to fetch from Google Sheets: {e}")
-            return False
-        
-        if len(all_rows) == 0:
-            print("⚠️  No data to import")
-            return False
-        
-        # Create campus name lookup
-        campus_lookup = {}
-        for c in campuses:
-            campus_lookup[c.display_name] = c
-            campus_lookup[c.name] = c
-            campus_lookup[c.campus_id] = c
-            # Add lowercase versions
-            campus_lookup[c.display_name.lower()] = c
-            campus_lookup[c.name.lower()] = c
-        
-        print(f"\n✓ Campus lookup created with {len(campus_lookup)} entries")
-        
-        # Import each row
-        imported = 0
-        skipped = 0
-        errors = 0
-        error_details = []
-        
-        print("\n🔄 Processing records...")
-        print("-" * 60)
-        
-        for i, row in enumerate(all_rows, 1):
-            try:
-                # Get campus
-                campus_name = row.get('Campus', '').strip()
-                if not campus_name:
-                    skipped += 1
-                    continue
-                
-                # Try to find campus
-                campus = campus_lookup.get(campus_name)
-                if not campus:
-                    # Try case-insensitive match
-                    campus_name_lower = campus_name.lower()
-                    campus = campus_lookup.get(campus_name_lower)
-                
-                if not campus:
-                    if errors < 10:  # Only show first 10 errors
-                        error_details.append(f"Campus not found: '{campus_name}'")
-                    errors += 1
-                    continue
-                
-                # Parse date
-                date_str = str(row.get('Date', '')).strip()
-                if not date_str:
-                    skipped += 1
-                    continue
-                
-                try:
-                    date_val = datetime.strptime(date_str, '%Y-%m-%d').date()
-                except:
-                    try:
-                        date_val = datetime.strptime(date_str, '%m/%d/%Y').date()
-                    except:
-                        if errors < 10:
-                            error_details.append(f"Invalid date format: '{date_str}'")
-                        errors += 1
+                    # Parse date
+                    date_str = row.get('Date', '')
+                    if not date_str:
+                        print(f"  ⚠ Row {idx}: Skipping - no date")
+                        skipped_count += 1
                         continue
-                
-                # Check if already exists
-                existing = AttendanceRecord.query.filter_by(
-                    campus_id=campus.id,
-                    date=date_val
-                ).first()
-                
-                if existing:
-                    skipped += 1
-                    continue
-                
-                if not dry_run:
-                    # Create record from sheet row
-                    record = AttendanceRecord.from_sheets_row(row, campus)
                     
-                    if record.date:  # Only add if we got a valid date
-                        db.session.add(record)
-                        imported += 1
+                    try:
+                        date_val = datetime.strptime(date_str, '%m/%d/%Y').date()
+                    except:
+                        try:
+                            date_val = datetime.strptime(date_str, '%Y-%m-%d').date()
+                        except:
+                            print(f"  ⚠ Row {idx}: Skipping - invalid date format: {date_str}")
+                            skipped_count += 1
+                            continue
+                    
+                    # Find campus
+                    campus_name = row.get('Campus', '').strip()
+                    if not campus_name:
+                        print(f"  ⚠ Row {idx}: Skipping - no campus")
+                        skipped_count += 1
+                        continue
+                    
+                    # Try multiple lookup strategies
+                    campus = None
+                    lookup_keys = [
+                        campus_name,
+                        campus_name.lower(),
+                        campus_name.lower().replace(' ', '_'),
+                    ]
+                    
+                    for key in lookup_keys:
+                        if key in campus_lookup:
+                            campus = campus_lookup[key]
+                            break
+                    
+                    if not campus:
+                        print(f"  ⚠ Row {idx}: Skipping - campus not found: {campus_name}")
+                        skipped_count += 1
+                        continue
+                    
+                    # Check if record already exists
+                    existing = AttendanceRecord.query.filter_by(
+                        campus_id=campus.id,
+                        date=date_val
+                    ).first()
+                    
+                    if existing:
+                        print(f"  → Row {idx}: Skipping - record already exists for {campus.display_name} on {date_val}")
+                        skipped_count += 1
+                        continue
+                    
+                    # Parse service breakdown
+                    service_breakdown = {}
+                    service_times = json.loads(campus.service_times) if campus.service_times else []
+                    for service_time in service_times:
+                        col_name = f"Adult {service_time}"
+                        if col_name in row:
+                            try:
+                                service_breakdown[service_time] = int(row[col_name] or 0)
+                            except:
+                                pass
+                    
+                    # Calculate total attendance
+                    total_attendance = sum(service_breakdown.values())
+                    kids_attendance = int(row.get('Kids Attendance', 0) or 0)
+                    youth_attendance = int(row.get('Youth Attendance', 0) or 0)
+                    total_attendance += kids_attendance + youth_attendance
+                    
+                    # Create attendance record
+                    record = AttendanceRecord(
+                        campus_id=campus.id,
+                        region_id=campus.region_id,
+                        date=date_val,
+                        total_attendance=total_attendance,
+                        adult_service_breakdown=json.dumps(service_breakdown) if service_breakdown else None,
                         
-                        # Commit in batches of 100
-                        if imported % 100 == 0:
-                            db.session.commit()
-                            print(f"  ✓ Imported {imported} records so far...")
-                    else:
-                        skipped += 1
-                else:
-                    # Dry run - just count
-                    imported += 1
-                    if imported % 100 == 0:
-                        print(f"  Would import {imported} records so far...")
+                        # Kids
+                        kids_attendance=kids_attendance,
+                        kids_leaders=int(row.get('Kids Leaders', 0) or 0),
+                        new_kids=int(row.get('New Kids', 0) or 0),
+                        new_kids_salvations=int(row.get('Kids Salvations', 0) or 0),
+                        packs_out=int(row.get('Packs Out', 0) or 0),
+                        
+                        # Youth
+                        youth_attendance=youth_attendance,
+                        youth_salvations=int(row.get('Youth Salvations', 0) or 0),
+                        youth_new_people=int(row.get('Youth New People', 0) or 0),
+                        youth_leaders=int(row.get('Youth Leaders', 0) or 0),
+                        
+                        # Visitors & Salvations
+                        first_time_visitors=int(row.get('First Time Visitors', 0) or 0),
+                        visitors=int(row.get('Visitors', 0) or 0),
+                        hands_up=int(row.get('Hands Up', 0) or 0),
+                        cards_back=int(row.get('Cards Back', 0) or 0),
+                        first_time_christians=int(row.get('First Time Christians', 0) or 0),
+                        rededications=int(row.get('Rededications', 0) or 0),
+                        salvation_cards_returned=int(row.get('Salvation Cards Returned', 0) or 0),
+                        
+                        # Milestones
+                        baptisms=int(row.get('Baptisms', 0) or 0),
+                        child_dedications=int(row.get('Child Dedications', 0) or 0),
+                        
+                        # Engagement
+                        connect_groups=int(row.get('Connect Groups', 0) or 0),
+                        dream_team=int(row.get('Dream Team', 0) or 0),
+                        
+                        # Financial
+                        tithe=float(row.get('Tithe', 0) or 0),
+                        
+                        # Metadata
+                        synced_to_sheets=True,  # Already in sheets
+                        notes=row.get('Notes', '')
+                    )
+                    
+                    db.session.add(record)
+                    migrated_count += 1
+                    
+                    if migrated_count % 10 == 0:
+                        print(f"  ✓ Migrated {migrated_count} records...")
                 
-            except Exception as e:
-                if errors < 10:
-                    error_details.append(f"Row {i}: {str(e)}")
-                errors += 1
-                continue
-        
-        # Final commit
-        if not dry_run:
+                except Exception as e:
+                    print(f"  ✗ Row {idx}: Error - {e}")
+                    error_count += 1
+                    continue
+            
+            # Commit all records
+            print(f"\n[5/5] Committing {migrated_count} records to database...")
             db.session.commit()
-        
-        # Summary
-        print("\n" + "=" * 60)
-        if dry_run:
-            print("DRY RUN COMPLETE - No changes made")
-        else:
-            print("MIGRATION COMPLETE")
-        print("=" * 60)
-        print(f"✓ Would import / Imported: {imported} records")
-        print(f"⊘ Skipped (duplicates/empty): {skipped} records")
-        print(f"✗ Errors:                     {errors} records")
-        
-        if error_details:
-            print(f"\n⚠️  First {len(error_details)} errors:")
-            for detail in error_details:
-                print(f"   • {detail}")
-        
-        print("=" * 60)
-        
-        if not dry_run and imported > 0:
-            print("\n✅ SUCCESS! Your historical data is now in the database.")
-            print("   You can now use the dual-write system for new entries.")
-        
-        return True
-
+            print(f"✓ Successfully committed all records\n")
+            
+            # Print summary
+            print("="*80)
+            print("📊 MIGRATION SUMMARY")
+            print("="*80)
+            print(f"✓ Migrated:  {migrated_count} records")
+            print(f"⚠ Skipped:   {skipped_count} records")
+            print(f"✗ Errors:    {error_count} records")
+            print(f"━ Total:     {len(all_records)} records")
+            print("="*80 + "\n")
+            
+            if migrated_count > 0:
+                print("✅ Migration completed successfully!")
+                print("\nNext steps:")
+                print("1. Regional dashboards will now show historical data")
+                print("2. Weekly submission tracker will reflect past submissions")
+                print("3. All new stats will continue dual-writing to both systems")
+                print()
+            
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"\n❌ Migration failed: {e}")
+            import traceback
+            print(traceback.format_exc())
+            return False
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Migrate Google Sheets data to database')
-    parser.add_argument('--preview', action='store_true', 
-                       help='Preview data without importing')
-    parser.add_argument('--dry-run', action='store_true', 
-                       help='Test migration without making changes')
-    
-    args = parser.parse_args()
-    
-    if args.preview:
-        preview_sheets_data()
-    else:
-        migrate_sheets_data(dry_run=args.dry_run)
+    print("\n🚀 Starting Google Sheets to Database Migration\n")
+    success = migrate_sheets_to_database()
+    sys.exit(0 if success else 1)
