@@ -162,6 +162,10 @@ const Resources = () => {
           filesCount: payload.files?.length || 0,
           linksCount: payload.links?.length || 0,
           driveAuthNeeded: payload.drive_auth_needed,
+          driveError: payload.drive_error,
+          hasFolderId: payload.has_folder_id,
+          hasAccessToken: payload.has_access_token,
+          folderId: payload.folder_id,
           files: payload.files,
           links: payload.links
         });
@@ -175,8 +179,14 @@ const Resources = () => {
         
         // Check if we need Google Drive authentication
         if (payload.drive_auth_needed) {
-          console.warn('Google Drive authentication needed');
+          console.warn('Google Drive authentication needed:', payload.drive_error);
           setAuthRequired(true);
+        }
+        
+        // Show drive error in UI if present
+        if (payload.drive_error && !payload.drive_auth_needed) {
+          console.error('Drive error:', payload.drive_error);
+          setFilesError(payload.drive_error);
         }
 
         if (!response.ok) {

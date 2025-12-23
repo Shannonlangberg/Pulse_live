@@ -21506,6 +21506,7 @@ def fetch_drive_folder_files(folder_id, access_token):
     """Fetch files from a Google Drive folder using the Drive API"""
     from googleapiclient.discovery import build
     from google.oauth2.credentials import Credentials
+    from googleapiclient.errors import HttpError
     
     try:
         # Create credentials from access token
@@ -21513,6 +21514,8 @@ def fetch_drive_folder_files(folder_id, access_token):
         
         # Build Drive API service
         service = build('drive', 'v3', credentials=credentials)
+        
+        logger.info(f"Attempting to fetch files from Google Drive folder: {folder_id}")
         
         # Fetch files from folder (first 100 files, ordered by name)
         results = service.files().list(
@@ -21523,10 +21526,19 @@ def fetch_drive_folder_files(folder_id, access_token):
         ).execute()
         
         files = results.get('files', [])
-        logger.info(f"Fetched {len(files)} files from Google Drive folder {folder_id}")
+        logger.info(f"Successfully fetched {len(files)} files from Google Drive folder {folder_id}")
         return files
+    except HttpError as e:
+        logger.error(f"Google Drive API HttpError for folder {folder_id}: {e.status_code} - {e.reason}", exc_info=True)
+        if e.status_code == 401:
+            logger.error("Drive API returned 401 - token is invalid or expired")
+        elif e.status_code == 403:
+            logger.error("Drive API returned 403 - insufficient permissions or folder not accessible")
+        elif e.status_code == 404:
+            logger.error("Drive API returned 404 - folder not found or not accessible")
+        return []
     except Exception as e:
-        logger.error(f"Error fetching Drive folder files: {e}", exc_info=True)
+        logger.error(f"Unexpected error fetching Drive folder files: {type(e).__name__} - {str(e)}", exc_info=True)
         return []
 
 @app.route('/api/resources/<category_id>', methods=['GET'])
@@ -21549,23 +21561,34 @@ def get_resource_category_files(category_id):
         # Try to fetch files from Google Drive if folder_id is set
         files = []
         drive_auth_needed = False
+        drive_error = None
+        
         if category.folder_id:
             # Check if user has Google Drive access token
             access_token = session.get('google_drive_access_token')
+            token_expiry = session.get('google_drive_token_expiry', 0)
+            current_time = datetime.now(timezone.utc).timestamp()
+            
+            logger.info(f"Drive auth check - has_token: {bool(access_token)}, expiry: {token_expiry}, current: {current_time}, expired: {current_time >= token_expiry}")
+            
             if access_token:
                 # Check if token is expired
-                token_expiry = session.get('google_drive_token_expiry', 0)
-                current_time = datetime.now(timezone.utc).timestamp()
                 if current_time < token_expiry:
                     # Fetch files from Drive
                     logger.info(f"Fetching files from Google Drive folder: {category.folder_id}")
                     files = fetch_drive_folder_files(category.folder_id, access_token)
+                    
+                    # If we got no files, there might be an access issue
+                    if len(files) == 0:
+                        drive_error = "No files returned from Drive API. Check folder permissions and that the folder ID is correct."
                 else:
-                    logger.info(f"Google Drive token expired for user, needs re-authentication")
+                    logger.info(f"Google Drive token expired for user (expiry: {token_expiry}, current: {current_time})")
                     drive_auth_needed = True
+                    drive_error = "Google Drive authentication expired. Please reconnect."
             else:
                 logger.info("No Google Drive access token found in session")
                 drive_auth_needed = True
+                drive_error = "Google Drive not connected. Please authenticate."
         else:
             logger.info(f"Category {category.slug} has no folder_id configured")
         
@@ -21574,10 +21597,14 @@ def get_resource_category_files(category_id):
             'links': links,
             'drive_auth_needed': drive_auth_needed,
             'has_folder_id': bool(category.folder_id),
-            'has_access_token': bool(session.get('google_drive_access_token'))
+            'has_access_token': bool(session.get('google_drive_access_token')),
+            'folder_id': category.folder_id if category.folder_id else None
         }
         
-        logger.info(f"Returning {len(files)} files and {len(links)} links for category {category.slug}, drive_auth_needed={drive_auth_needed}")
+        if drive_error:
+            response_data['drive_error'] = drive_error
+        
+        logger.info(f"Returning {len(files)} files and {len(links)} links for category {category.slug}, drive_auth_needed={drive_auth_needed}, error={drive_error}")
         
         return jsonify(response_data)
     except Exception as e:
