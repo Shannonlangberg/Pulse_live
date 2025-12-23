@@ -42,7 +42,7 @@ const MAIN_SECTIONS = {
     id: 'settings',
     name: 'Settings',
     icon: Cog6ToothIcon,
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
     hasSubPages: true
   }
 };
@@ -443,10 +443,13 @@ const EnhancedNavigation = ({
 
           {/* Footer with User Info and Logout */}
           <div className="p-4 border-t border-slate-700/50 space-y-3 flex-shrink-0 bg-slate-900">
-            <div className="px-4 py-2 bg-slate-800/50 rounded-lg">
+            <Link 
+              to="/profile"
+              className="block px-4 py-2 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors"
+            >
               <div className="text-sm text-slate-300 font-medium truncate">{userName}</div>
               <div className="text-xs text-slate-500">{getRoleDisplayName(userRole)}</div>
-            </div>
+            </Link>
             
             <button
               onClick={onLogout}

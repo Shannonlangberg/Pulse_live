@@ -251,6 +251,10 @@ const LogStats = () => {
   };
 
   const handleEditFromRecent = (entry) => {
+    // DEBUG: Log the entire entry to see what data we're receiving
+    console.log('[EDIT_FROM_RECENT] Full entry:', entry);
+    console.log('[EDIT_FROM_RECENT] Entry stats:', entry.stats);
+    
     // Map backend field names to frontend field names
     const fieldMapping = {
       'Total People in Campus': 'Total People in Campus',
@@ -295,6 +299,7 @@ const LogStats = () => {
       newStats[key] = value !== undefined && value !== null && value !== '' ? String(value) : '';
     });
 
+    console.log('[EDIT_FROM_RECENT] Mapped stats:', newStats);
     setQuickInputStats(newStats);
     setQuickInputDate(entry.date);
     setIsEditMode(true);
