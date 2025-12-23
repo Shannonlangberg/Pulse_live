@@ -12031,6 +12031,8 @@ def quick_input():
         date_str = data.get('date', '').strip()
         stats = data.get('stats', {})
         
+        logger.info(f"[QUICK_INPUT] Received request - campus: '{campus}', date: '{date_str}'")
+        
         if not campus:
             return jsonify({"error": "Campus is required"}), 400
         
@@ -12041,10 +12043,14 @@ def quick_input():
         if not current_user.has_permission('log_stats'):
             return jsonify({"error": "You don't have permission to log stats"}), 403
         
+        # Normalize campus_id
+        normalized_campus_id = campus.lower().replace(' ', '_')
+        logger.info(f"[QUICK_INPUT] Normalized campus_id: '{normalized_campus_id}' from campus: '{campus}'")
+        
         # Prepare data for save_attendance_record
         save_data = {
             'campus': campus,
-            'campus_id': campus.lower().replace(' ', '_'),
+            'campus_id': normalized_campus_id,
             'date': date_str,
             **stats  # Spread all stats fields
         }
