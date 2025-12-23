@@ -11873,7 +11873,12 @@ def save_attendance_record(data, user_id=None):
     from models import AttendanceRecord, CampusV2, Region, db
     
     try:
-        # DEBUG: Log all incoming data
+        # DEBUG: Log all incoming data (using both print and logger for visibility)
+        print(f"\n{'='*80}")
+        print(f"[SAVE_ATTENDANCE] === RECEIVED DATA ===")
+        print(f"[SAVE_ATTENDANCE] Data keys: {list(data.keys())}")
+        print(f"[SAVE_ATTENDANCE] Full data: {data}")
+        print(f"{'='*80}\n")
         logger.info(f"[SAVE_ATTENDANCE] === RECEIVED DATA ===")
         logger.info(f"[SAVE_ATTENDANCE] Data keys: {list(data.keys())}")
         logger.info(f"[SAVE_ATTENDANCE] Full data: {data}")
