@@ -6765,6 +6765,18 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 for service_time, data in kids_service_breakdown.items():
                     data['average'] = data['total'] / data['count'] if data['count'] > 0 else 0
                 
+                # FALLBACK: If no service breakdown data exists (adult_service_breakdown is NULL in all records),
+                # create a default breakdown based on average attendance
+                if not service_breakdown and stats['avg_attendance'] > 0:
+                    # Get the primary service time for this campus (usually 10:00 AM)
+                    default_service_time = '10:00 AM'
+                    service_breakdown[default_service_time] = {
+                        'total': stats['total_attendance'],
+                        'count': entry_count,
+                        'average': stats['avg_attendance']
+                    }
+                    print(f"[DASHBOARD] ⚠️  No service breakdown data in records, created fallback for {default_service_time}")
+                
                 print(f"[DASHBOARD] ✅ Database aggregation complete: total_attendance={stats['total_attendance']}, avg={stats['avg_attendance']:.1f}")
                 print(f"[DASHBOARD] Service breakdown: {list(service_breakdown.keys())}")
                 print(f"[DASHBOARD] Kids service breakdown: {list(kids_service_breakdown.keys())}")
