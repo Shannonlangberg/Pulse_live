@@ -11891,22 +11891,46 @@ def get_recent_entries():
                         pass
                 
                 # Build stats dict manually with TITLE CASE field names (frontend expects these)
+                # NOTE: Field names must match the frontend's fieldMapping in LogStats.jsx
                 stats_dict = {
                     'id': record.id,
                     'date': record.date.strftime('%Y-%m-%d'),
                     'campus': campus.display_name if campus else 'Unknown',
                     'campusId': campus.campus_id if campus else None,
+                    # Main totals
                     'Total Attendance': record.total_attendance or 0,
+                    'Total People in Campus': record.total_people_in_campus or 0,
                     'Kids Attendance': record.kids_attendance or 0,
-                    'Kids Leaders': record.kids_leaders or 0,
                     'Youth Attendance': record.youth_attendance or 0,
+                    # Calculated fields
                     'New People': (record.first_time_visitors or 0) + (record.visitors or 0),
                     'New Christians': (record.first_time_christians or 0) + (record.rededications or 0),
-                    'First Time Visitors': record.first_time_visitors or 0,
+                    # Kids fields (matching frontend expectations)
+                    'Kids Leaders': record.kids_leaders or 0,
+                    'New Kids': record.new_kids or 0,
+                    'New Kids Salvations': record.new_kids_salvations or 0,  # Frontend expects this name
+                    'Packs Out': record.packs_out or 0,
+                    # Visitors & Salvations (matching frontend expectations)
+                    'First Time Visitors': record.first_time_visitors or 0,  # Frontend maps to 'First Time'
                     'Visitors': record.visitors or 0,
-                    'First Time Christians': record.first_time_christians or 0,
-                    'Rededications': record.rededications or 0,
+                    'Hands up': record.hands_up or 0,
+                    'Cards Back': record.cards_back or 0,  # Frontend maps to 'Cards Returned'
+                    'First Time Christians': record.first_time_christians or 0,  # Frontend maps to 'First Time Decision'
+                    'Rededications': record.rededications or 0,  # Frontend maps to 'Rededication'
+                    'Salvation Cards Returned': record.salvation_cards_returned or 0,
+                    # Youth fields (matching frontend expectations)
+                    'Youth New People': record.youth_new_people or 0,  # Frontend maps to 'Youth NP'
+                    'Youth Salvations': record.youth_salvations or 0,
+                    'Youth Leaders': record.youth_leaders or 0,
+                    # Church life
+                    'Saints': 0,  # Not stored in DB yet
+                    'Connect Groups': record.connect_groups or 0,
+                    'Dream Team': record.dream_team or 0,
+                    'Baptisms': record.baptisms or 0,
+                    'Child Dedications': record.child_dedications or 0,
+                    'Seniors': 0,  # Not stored in DB yet
                     'Tithe': float(record.tithe) if record.tithe else 0.0,
+                    # Service time breakdowns (from JSON fields)
                     **adult_breakdown,
                     **kids_breakdown
                 }
