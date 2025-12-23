@@ -11831,6 +11831,8 @@ def save_attendance_record(data, user_id=None):
         campus = None
         campus_value = data.get('campus', '').strip() if data.get('campus') else ''
         campus_id_value = data.get('campus_id', '').strip() if data.get('campus_id') else ''
+        # Expire all objects to ensure we see committed data
+        db.session.expire_all()
         
         logger.info(f"[SAVE_ATTENDANCE] Looking up campus. campus='{campus_value}', campus_id='{campus_id_value}'")
         
@@ -11867,14 +11869,23 @@ def save_attendance_record(data, user_id=None):
             if campus:
                 logger.info(f"[SAVE_ATTENDANCE] Found campus by name: {campus.campus_id}")
         
-        if not campus:
-            # Log all available campuses for debugging - use direct session query
             try:
+                db.session.expire_all()
                 all_campuses = db.session.query(CampusV2).all()
                 available_ids = [c.campus_id for c in all_campuses] if all_campuses else []
+                
+                # If still empty, try direct SQL query as fallback
+                if not available_ids:
+                    from sqlalchemy import text
+                    result = db.session.execute(text("SELECT campus_id FROM campuses_v2 WHERE active = 1"))
+                    available_ids = [row[0] for row in result.fetchall()]
+                    logger.info(f"[SAVE_ATTENDANCE] Fallback SQL query found {len(available_ids)} campuses")
+                
                 logger.error(f"[SAVE_ATTENDANCE] Campus not found. Searched for: '{campus_value}' or '{campus_id_value}'. Available campus_ids: {available_ids}")
             except Exception as e:
                 logger.error(f"[SAVE_ATTENDANCE] Error querying campuses: {e}")
+                import traceback
+                available_ids = []
                 available_ids = []
             return False, None, f"Campus not found: {campus_value or campus_id_value}"
         
