@@ -17,8 +17,19 @@ echo "PORT=$PORT"
 echo "PYTHONUNBUFFERED=$PYTHONUNBUFFERED"
 
 echo ""
-echo "=== Starting Python app ==="
+echo "=== Running Database Migration ==="
 cd backend
+
+# Run migration script first
+echo "📊 Migrating Google Sheets data to database..."
+if python migrate_sheets_to_db.py; then
+  echo "✅ Migration completed successfully!"
+else
+  echo "⚠️  Migration failed or skipped - continuing with server startup"
+fi
+
+echo ""
+echo "=== Starting Python app ==="
 
 if command -v gunicorn >/dev/null 2>&1; then
   WORKERS=${GUNICORN_WORKERS:-2}
