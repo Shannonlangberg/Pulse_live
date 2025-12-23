@@ -125,25 +125,27 @@ def fix_all_attendance_records():
                 # OLD attendance value
                 old_attendance = record.total_attendance
                 
-                # Update with correct field mapping - prioritize "Total People in Campus"
-                total_people = safe_int(sheets_row.get('Total People in Campus', 0)) or safe_int(sheets_row.get('Total Attendance', 0))
+                # ALWAYS calculate from service time breakdowns (same logic as dashboards)
+                # This ensures consistency with dashboard calculations
+                adult_total = 0
+                for time in ['9:00 AM', '10:00 AM', '11:00 AM', '5:00 PM', '5:30 PM']:
+                    adult_total += safe_int(sheets_row.get(time, 0))
                 
-                # FALLBACK: If both are 0/empty, calculate from service time breakdowns
+                kids_total = 0
+                for time in ['Kids 9:00 AM', 'Kids 10:00 AM', 'Kids 11:00 AM', 'Kids 5:00 PM', 'Kids 5:30 PM']:
+                    kids_total += safe_int(sheets_row.get(time, 0))
+                
+                youth_total = safe_int(sheets_row.get('Youth Attendance', 0))
+                
+                # Total = Adults + Kids + Youth (same as dashboard logic)
+                total_people = adult_total + kids_total + youth_total
+                
+                # FALLBACK: If calculated total is 0, try reading "Total People in Campus" column
                 if not total_people:
-                    adult_total = 0
-                    for time in ['9:00 AM', '10:00 AM', '11:00 AM', '5:00 PM', '5:30 PM']:
-                        adult_total += safe_int(sheets_row.get(time, 0))
-                    
-                    kids_total = 0
-                    for time in ['Kids 9:00 AM', 'Kids 10:00 AM', 'Kids 11:00 AM', 'Kids 5:00 PM', 'Kids 5:30 PM']:
-                        kids_total += safe_int(sheets_row.get(time, 0))
-                    
-                    youth_total = safe_int(sheets_row.get('Youth Attendance', 0))
-                    
-                    total_people = adult_total + kids_total + youth_total
+                    total_people = safe_int(sheets_row.get('Total People in Campus', 0)) or safe_int(sheets_row.get('Total Attendance', 0))
                 
                 record.total_attendance = total_people
-                record.total_people_in_campus = total_people
+                record.total_people_in_campus = safe_int(sheets_row.get('Total People in Campus', 0)) or total_people
                 
                 # Update all other fields too
                 kids_attendance = safe_int(sheets_row.get('Kids Attendance', 0))
