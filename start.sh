@@ -28,10 +28,10 @@ else
   echo "⚠️  Migration failed or skipped - continuing with server startup"
 fi
 
-# Fix any records with zero attendance
+# Fix ALL attendance records with correct field mapping
 echo ""
-echo "🔧 Fixing attendance records with missing data..."
-if python fix_zero_attendance_records.py; then
+echo "🔧 Fixing ALL attendance records with correct 'Total People in Campus' field..."
+if python fix_all_attendance_records.py; then
   echo "✅ Data fix completed successfully!"
 else
   echo "⚠️  Data fix failed or skipped - continuing with server startup"

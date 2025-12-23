@@ -113,3 +113,4 @@ VALUES ('campus.pastor.test', '<hashed_password>', 'Test Campus Pastor', 'campus
 ✅ Custom permissions in Role Manager can grant access to specific pages
 ✅ Changes persist after logout/login
 
+

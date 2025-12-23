@@ -102,3 +102,4 @@ The Role Manager now provides a comprehensive matrix where you can:
 - Changes save to database `users.custom_permissions` column
 - Frontend checks both role arrays AND custom permissions
 
+
