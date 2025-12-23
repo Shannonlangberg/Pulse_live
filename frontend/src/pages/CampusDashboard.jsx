@@ -386,12 +386,13 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
   // Calculate percentages and metrics
   const totalPeople = data.stats?.total_people || 0;
   
-  // SIMPLIFIED APPROACH: Use the pre-calculated total_attendance from database
-  // This already includes: Adults + Kids + Kids Leaders + Saints + Seniors (NO Youth)
-  const sundayCombinedAttendance = Math.round(data.stats?.avg_attendance || 0);
+  // SIMPLIFIED APPROACH: Use the pre-calculated attendance from database
+  // For individual campuses: avg_attendance = average per service
+  // For regional/rollup: total_attendance = sum of all campuses in date range
+  const sundayCombinedAttendance = Math.round(isRollup ? (data.stats?.total_attendance || 0) : (data.stats?.avg_attendance || 0));
   
   // Individual components for modal display (these are for breakdown purposes only, not for calculation)
-  const sundayAdultAttendance = Math.round(sundayAttendanceFromServices > 0 ? sundayAttendanceFromServices : (data.stats?.avg_attendance || 0));
+  const sundayAdultAttendance = Math.round(sundayAttendanceFromServices > 0 ? sundayAttendanceFromServices : (isRollup ? (data.stats?.total_attendance || 0) : (data.stats?.avg_attendance || 0)));
   const youthAttendance = Math.round(data.stats?.avg_youth_attendance || 0);
   const kidsAttendance = Math.round(data.stats?.avg_kids_attendance || 0);
   const kidsLeaders = Math.round(data.stats?.avg_kids_leaders || 0);
