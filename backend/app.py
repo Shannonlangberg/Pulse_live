@@ -11804,25 +11804,49 @@ def save_attendance_record(data, user_id=None):
     try:
         # Get campus object - try multiple lookup strategies
         campus = None
+        campus_value = data.get('campus', '').strip() if data.get('campus') else ''
+        campus_id_value = data.get('campus_id', '').strip() if data.get('campus_id') else ''
+        
+        logger.info(f"[SAVE_ATTENDANCE] Looking up campus. campus='{campus_value}', campus_id='{campus_id_value}'")
         
         # First, try campus_id from data
-        if data.get('campus_id'):
-            campus = CampusV2.query.filter_by(campus_id=data.get('campus_id')).first()
+        if campus_id_value:
+            campus = CampusV2.query.filter_by(campus_id=campus_id_value).first()
+            if campus:
+                logger.info(f"[SAVE_ATTENDANCE] Found campus by campus_id: {campus.campus_id}")
         
         # If not found, try using campus field as campus_id (common case)
-        if not campus and data.get('campus'):
-            campus = CampusV2.query.filter_by(campus_id=data.get('campus')).first()
+        if not campus and campus_value:
+            # Try exact match first
+            campus = CampusV2.query.filter_by(campus_id=campus_value).first()
+            if campus:
+                logger.info(f"[SAVE_ATTENDANCE] Found campus by campus field as campus_id: {campus.campus_id}")
+            
+            # Try lowercase version
+            if not campus:
+                campus_lower = campus_value.lower().replace(' ', '_')
+                campus = CampusV2.query.filter_by(campus_id=campus_lower).first()
+                if campus:
+                    logger.info(f"[SAVE_ATTENDANCE] Found campus by lowercase campus_id: {campus.campus_id}")
         
         # If still not found, try display_name match
-        if not campus and data.get('campus'):
-            campus = CampusV2.query.filter_by(display_name=data.get('campus')).first()
+        if not campus and campus_value:
+            campus = CampusV2.query.filter_by(display_name=campus_value).first()
+            if campus:
+                logger.info(f"[SAVE_ATTENDANCE] Found campus by display_name: {campus.campus_id}")
         
         # If still not found, try name match
-        if not campus and data.get('campus'):
-            campus = CampusV2.query.filter_by(name=data.get('campus')).first()
+        if not campus and campus_value:
+            campus = CampusV2.query.filter_by(name=campus_value).first()
+            if campus:
+                logger.info(f"[SAVE_ATTENDANCE] Found campus by name: {campus.campus_id}")
         
         if not campus:
-            return False, None, f"Campus not found: {data.get('campus') or data.get('campus_id')}"
+            # Log all available campuses for debugging
+            all_campuses = CampusV2.query.all()
+            available_ids = [c.campus_id for c in all_campuses]
+            logger.error(f"[SAVE_ATTENDANCE] Campus not found. Searched for: '{campus_value}' or '{campus_id_value}'. Available campus_ids: {available_ids}")
+            return False, None, f"Campus not found: {campus_value or campus_id_value}"
         
         # Parse date
         date_val = None
