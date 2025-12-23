@@ -1706,6 +1706,7 @@ CORS(app,
          "http://192.168.15.167:8081",
          "http://192.168.15.167:8082",
          "https://futures-pulse-production.up.railway.app",  # Production domain
+         "https://pulse.futures.church",  # Custom domain
          "*"  # Allow all origins for mobile app testing
      ], 
      allow_headers=["Content-Type", "Authorization", "Accept", "Cache-Control", "Pragma", "Expires"],
@@ -11811,63 +11812,49 @@ def save_attendance_record(data, user_id=None):
         
         logger.info(f"[SAVE_ATTENDANCE] Looking up campus. campus='{campus_value}', campus_id='{campus_id_value}'")
         
+        # Use direct session query to avoid session issues
         # First, try campus_id from data
         if campus_id_value:
-            campus = CampusV2.query.filter_by(campus_id=campus_id_value).first()
+            campus = db.session.query(CampusV2).filter(CampusV2.campus_id == campus_id_value).first()
             if campus:
                 logger.info(f"[SAVE_ATTENDANCE] Found campus by campus_id: {campus.campus_id}")
         
         # If not found, try using campus field as campus_id (common case)
         if not campus and campus_value:
             # Try exact match first
-            campus = CampusV2.query.filter_by(campus_id=campus_value).first()
+            campus = db.session.query(CampusV2).filter(CampusV2.campus_id == campus_value).first()
             if campus:
                 logger.info(f"[SAVE_ATTENDANCE] Found campus by campus field as campus_id: {campus.campus_id}")
             
             # Try lowercase version
             if not campus:
                 campus_lower = campus_value.lower().replace(' ', '_')
-                campus = CampusV2.query.filter_by(campus_id=campus_lower).first()
+                campus = db.session.query(CampusV2).filter(CampusV2.campus_id == campus_lower).first()
                 if campus:
                     logger.info(f"[SAVE_ATTENDANCE] Found campus by lowercase campus_id: {campus.campus_id}")
         
         # If still not found, try display_name match
         if not campus and campus_value:
-            campus = CampusV2.query.filter_by(display_name=campus_value).first()
+            campus = db.session.query(CampusV2).filter(CampusV2.display_name == campus_value).first()
             if campus:
                 logger.info(f"[SAVE_ATTENDANCE] Found campus by display_name: {campus.campus_id}")
         
         # If still not found, try name match
         if not campus and campus_value:
-            campus = CampusV2.query.filter_by(name=campus_value).first()
+            campus = db.session.query(CampusV2).filter(CampusV2.name == campus_value).first()
             if campus:
                 logger.info(f"[SAVE_ATTENDANCE] Found campus by name: {campus.campus_id}")
         
         if not campus:
-            # Log all available campuses for debugging - try to refresh session first
+            # Log all available campuses for debugging - use direct session query
             try:
-                db.session.expire_all()  # Refresh all objects in session
-                all_campuses = CampusV2.query.all()
+                all_campuses = db.session.query(CampusV2).all()
                 available_ids = [c.campus_id for c in all_campuses] if all_campuses else []
                 logger.error(f"[SAVE_ATTENDANCE] Campus not found. Searched for: '{campus_value}' or '{campus_id_value}'. Available campus_ids: {available_ids}")
             except Exception as e:
                 logger.error(f"[SAVE_ATTENDANCE] Error querying campuses: {e}")
                 available_ids = []
-            
-            # Try one more time with a direct query using the exact campus_id
-            if campus_id_value or campus_value:
-                search_value = campus_id_value or campus_value
-                try:
-                    campus = db.session.query(CampusV2).filter(CampusV2.campus_id == search_value).first()
-                    if not campus:
-                        campus = db.session.query(CampusV2).filter(CampusV2.campus_id == search_value.lower()).first()
-                    if campus:
-                        logger.info(f"[SAVE_ATTENDANCE] Found campus on retry: {campus.campus_id}")
-                except Exception as e:
-                    logger.error(f"[SAVE_ATTENDANCE] Error on retry query: {e}")
-            
-            if not campus:
-                return False, None, f"Campus not found: {campus_value or campus_id_value}"
+            return False, None, f"Campus not found: {campus_value or campus_id_value}"
         
         # Parse date
         date_val = None
