@@ -21571,14 +21571,13 @@ def get_resource_category_files(category_id):
         
         response_data = {
             'files': files,
-            'links': links
+            'links': links,
+            'drive_auth_needed': drive_auth_needed,
+            'has_folder_id': bool(category.folder_id),
+            'has_access_token': bool(session.get('google_drive_access_token'))
         }
         
-        # Add auth needed flag if relevant
-        if drive_auth_needed and category.folder_id:
-            response_data['drive_auth_needed'] = True
-        
-        logger.info(f"Returning {len(files)} files and {len(links)} links for category {category.slug}")
+        logger.info(f"Returning {len(files)} files and {len(links)} links for category {category.slug}, drive_auth_needed={drive_auth_needed}")
         
         return jsonify(response_data)
     except Exception as e:

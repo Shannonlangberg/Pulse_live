@@ -429,10 +429,8 @@ const Resources = () => {
       </div>
     );
 
-    // Only show Google Drive auth if we actually need it (e.g., trying to fetch Drive files)
-    // For now, we're just showing links, so this shouldn't be needed
-    // But keep it for future when we implement Drive file fetching
-    if (authRequired && files.length === 0 && links.length === 0) {
+    // Show Google Drive auth prompt if needed and no files available
+    if (authRequired && files.length === 0) {
       return (
         <div className="bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 border border-blue-400/30 rounded-3xl p-10 space-y-6">
           <div className="text-center space-y-6">
