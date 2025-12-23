@@ -11001,15 +11001,20 @@ def create_campus_v2():
     """Create a new campus"""
     try:
         data = request.get_json()
+        print(f"[CREATE_CAMPUS] Received data: {data}")
+        logger.info(f"[CREATE_CAMPUS] Received data: {data}")
         
         # Validate required fields
         required = ['name', 'display_name', 'region_id']
         for field in required:
             if field not in data:
-                return jsonify({"error": f"Missing required field: {field}"}), 400
+                error_msg = f"Missing required field: {field}"
+                print(f"[CREATE_CAMPUS] ERROR: {error_msg}")
+                return jsonify({"error": error_msg}), 400
         
         # Generate campus_id from name
         campus_id = data['name'].lower().replace(' ', '_').replace('-', '_')
+        print(f"[CREATE_CAMPUS] Generated campus_id: {campus_id}")
         
         # Prepare service times and detection patterns
         service_times = json.dumps(data.get('service_times', []))
@@ -11018,6 +11023,7 @@ def create_campus_v2():
         # Insert into database
         conn = get_db()
         cursor = conn.cursor()
+        print(f"[CREATE_CAMPUS] Inserting into database...")
         cursor.execute("""
             INSERT INTO campuses_v2 
             (campus_id, name, display_name, region_id, pastor_name, pastor_email, 
@@ -11042,6 +11048,8 @@ def create_campus_v2():
             data.get('notes', '')
         ))
         conn.commit()
+        print(f"[CREATE_CAMPUS] Successfully created campus: {campus_id}")
+        logger.info(f"[CREATE_CAMPUS] Successfully created campus: {campus_id}")
         
         return jsonify({
             "success": True,
@@ -11049,7 +11057,10 @@ def create_campus_v2():
             "campus_id": campus_id
         })
     except Exception as e:
-        logger.error(f"Failed to create campus: {e}")
+        print(f"[CREATE_CAMPUS] EXCEPTION: {e}")
+        import traceback
+        print(f"[CREATE_CAMPUS] Traceback: {traceback.format_exc()}")
+        logger.error(f"[CREATE_CAMPUS] Failed to create campus: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/v2/campuses/<campus_id>', methods=['PUT'])
