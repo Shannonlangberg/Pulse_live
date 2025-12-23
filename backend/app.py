@@ -11873,7 +11873,8 @@ def get_recent_entries():
             
             for record in records:
                 # Convert database record to frontend format
-                stats_dict = record.to_dict()
+                # DON'T use to_dict() - it tries to access region which has schema issues
+                campus = CampusV2.query.get(record.campus_id)
                 
                 # Extract service time breakdowns
                 adult_breakdown = {}
@@ -11889,163 +11890,46 @@ def get_recent_entries():
                     except:
                         pass
                 
-                # Calculate totals
-                total_attendance = record.total_attendance or sum(adult_breakdown.values())
-                kids_attendance = record.kids_attendance or sum(kids_breakdown.values())
-                new_people = (record.first_time_visitors or 0) + (record.visitors or 0)
-                new_christians = (record.first_time_christians or 0) + (record.rededications or 0)
-                
-                # Build stats object in format expected by frontend
-                stats = {
-                    'Total Attendance': total_attendance,
-                    'Kids Attendance': kids_attendance,
-                    'Youth Attendance': record.youth_attendance or 0,
-                    'New People': new_people,
-                    'New Christians': new_christians,
-                    'Total People in Campus': record.total_people_in_campus or 0,
-                    # Include all service times
+                # Build stats dict manually
+                stats_dict = {
+                    'id': record.id,
+                    'date': record.date.strftime('%Y-%m-%d'),
+                    'campus': campus.display_name if campus else 'Unknown',
+                    'campusId': campus.campus_id if campus else None,
+                    'total_attendance': record.total_attendance or 0,
+                    'kids_attendance': record.kids_attendance or 0,
+                    'kids_leaders': record.kids_leaders or 0,
+                    'youth_attendance': record.youth_attendance or 0,
+                    'first_time_visitors': record.first_time_visitors or 0,
+                    'visitors': record.visitors or 0,
+                    'first_time_christians': record.first_time_christians or 0,
+                    'rededications': record.rededications or 0,
+                    'tithe': float(record.tithe) if record.tithe else 0.0,
                     **adult_breakdown,
-                    **kids_breakdown,
-                    # Include other fields
-                    'Kids Leaders': record.kids_leaders or 0,
-                    'New Kids': record.new_kids or 0,
-                    'Kids Salvations': record.new_kids_salvations or 0,
-                    'Packs Out': record.packs_out or 0,
-                    'Cards Returned': record.cards_back or 0,
-                    'First Time': record.first_time_visitors or 0,
-                    'Visitors': record.visitors or 0,
-                    'Hands up': record.hands_up or 0,
-                    'First Time Decision': record.first_time_christians or 0,
-                    'Rededication': record.rededications or 0,
-                    'Salvation Cards Returned': record.salvation_cards_returned or 0,
-                    'Youth Total': record.youth_attendance or 0,
-                    'Youth NP': record.youth_new_people or 0,
-                    'Youth Salvations': record.youth_salvations or 0,
-                    'Youth Leaders': record.youth_leaders or 0,
-                    'Saints': stats_dict.get('saints', 0),
-                    'Connect Groups': record.connect_groups or 0,
-                    'Dream Team': record.dream_team or 0,
-                    'Seniors': stats_dict.get('seniors', 0),
-                    'Baptisms': record.baptisms or 0,
-                    'Child Dedications': record.child_dedications or 0
+                    **kids_breakdown
                 }
                 
                 entries.append({
-                    'campus': campus_obj.display_name,
-                    'campusId': campus_obj.campus_id,  # Include campus_id for proper lookup
                     'date': record.date.strftime('%Y-%m-%d'),
-                    'stats': stats,
-                    'id': record.id  # Include record ID for editing
+                    'campus': campus.display_name if campus else 'Unknown',
+                    'campusId': campus.campus_id if campus else None,
+                    'stats': stats_dict,
+                    'originalDate': record.date.strftime('%Y-%m-%d'),
+                    'timestamp': record.created_at.isoformat() if record.created_at else None
                 })
             
+            logger.info(f"[RECENT_ENTRIES] Converted {len(entries)} database records to frontend format")
             return jsonify({"entries": entries}), 200
             
         except Exception as e:
             logger.error(f"[RECENT_ENTRIES] Error loading from database: {e}")
-            # Fallback to Google Sheets if database fails
-            if sheet:
-                try:
-                    all_records = safe_sheets_request(sheet.get_all_records)
-                    
-                    # Handle "all_campuses" - show entries from all campuses
-                    show_all_campuses = campus.lower() in ['all_campuses', 'all', 'australia']
-                    
-                    print(f"[RECENT_ENTRIES] Requested campus: '{campus}', show_all_campuses: {show_all_campuses}")
-                    
-                    if not show_all_campuses:
-                        campus_normalized = normalize_campus(campus)
-                        logger.info(f"[RECENT_ENTRIES] Processing {len(all_records)} total records, filtering by campus: '{campus_normalized}'")
-                    else:
-                        logger.info(f"[RECENT_ENTRIES] Processing {len(all_records)} total records, showing ALL campuses")
-                    
-                    for record in all_records:
-                        record_campus_str = record.get('Campus', '')
-                        record_date_str = record.get('Date', '')
-                        
-                        # Skip if no date
-                        if not record_date_str:
-                            continue
-                        
-                        # Check campus match (skip if filtering by campus)
-                        if not show_all_campuses:
-                            record_campus = normalize_campus(record_campus_str)
-                            campus_match = (record_campus == campus_normalized or 
-                                           campus_normalized in record_campus or
-                                           record_campus in campus_normalized)
-                            if not campus_match:
-                                continue
-                        
-                        # Check if date is within last 7 days
-                        try:
-                            # Try different date formats
-                            record_date = None
-                            for date_format in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']:
-                                try:
-                                    record_date = datetime.strptime(str(record_date_str), date_format).date()
-                                    break
-                                except:
-                                    continue
-                            
-                            if record_date and start_date <= record_date <= end_date:
-                                # Calculate New People and New Christians from the actual field names
-                                first_time_visitors = safe_int(record.get('First Time Visitors', 0))
-                                visitors = safe_int(record.get('Visitors', 0))
-                                new_people = first_time_visitors + visitors
-                                
-                                first_time_christians = safe_int(record.get('First Time Christians', 0))
-                                rededications = safe_int(record.get('Rededications', 0))
-                                new_christians = first_time_christians + rededications
-                                
-                                # Calculate Total Attendance from service times
-                                service_times = ['9:00 AM', '10:00 AM', '11:00 AM', '5:00 PM', '5:30 PM']
-                                total_attendance = sum(safe_int(record.get(service, 0)) for service in service_times)
-                                
-                                # If no service time data, try the stored Total Attendance field
-                                if total_attendance == 0:
-                                    total_attendance = safe_int(record.get('Total Attendance', 0))
-                                
-                                # Calculate Kids Attendance from kids service times
-                                kids_service_times = ['Kids 9:00 AM', 'Kids 10:00 AM', 'Kids 11:00 AM', 'Kids 5:00 PM', 'Kids 5:30 PM']
-                                kids_attendance = sum(safe_int(record.get(service, 0)) for service in kids_service_times)
-                                
-                                # If no kids service time data, try the stored Kids Attendance field
-                                if kids_attendance == 0:
-                                    kids_attendance = safe_int(record.get('Kids Attendance', 0))
-                                
-                                # Ensure we have the required stats fields
-                                stats = {
-                                    'Total Attendance': total_attendance,
-                                    'Kids Attendance': kids_attendance,
-                                    'Youth Attendance': safe_int(record.get('Youth Attendance', 0)),
-                                    'New People': new_people,
-                                    'New Christians': new_christians,
-                                    # Include all other fields from the record
-                                    **record
-                                }
-                                
-                                entries.append({
-                                    'date': record_date_str,
-                                    'campus': record_campus_str,  # Always show actual campus name from data
-                                    'stats': stats
-                                })
-                                print(f"[RECENT_ENTRIES] Added entry: {record_date_str} for campus '{record_campus_str}'")
-                                logger.debug(f"[RECENT_ENTRIES] Added entry: {record_date_str} for {record_campus_str}")
-                        except Exception as e:
-                            logger.debug(f"[RECENT_ENTRIES] Error parsing date '{record_date_str}': {e}")
-                            continue
-                    
-                    # Sort by date descending (most recent first), then by campus
-                    entries.sort(key=lambda x: (x['date'], x['campus']), reverse=True)
-                    logger.info(f"[RECENT_ENTRIES] Found {len(entries)} matching entries")
-                except Exception as e:
-                    logger.error(f"Error fetching recent entries: {e}", exc_info=True)
-                    return jsonify({"entries": []}), 200
-        
-        return jsonify({"entries": entries}), 200
-        
+            logger.error(f"[RECENT_ENTRIES] Traceback: {traceback.format_exc()}")
+            # Return empty entries - Google Sheets has duplicate headers and can't be used as fallback
+            return jsonify({"entries": []}), 200
     except Exception as e:
-        logger.error(f"Recent entries error: {e}")
-        return jsonify({"entries": []}), 200
+        logger.error(f"[RECENT_ENTRIES] Unexpected error: {e}")
+        logger.error(f"[RECENT_ENTRIES] Traceback: {traceback.format_exc()}")
+        return jsonify({"error": str(e), "entries": []}), 500
 
 @app.route('/api/admin/attendance/all', methods=['GET'])
 @admin_required
