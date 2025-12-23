@@ -13566,6 +13566,7 @@ def get_regional_dashboard_data():
         return jsonify({"error": f"Failed to load regional dashboard data: {str(e)}"}), 500
 
 @app.route('/api/dashboard/global')
+@login_required
 def get_global_dashboard_data():
     """
     Global dashboard - aggregates stats across ALL regions
@@ -13574,19 +13575,25 @@ def get_global_dashboard_data():
     try:
         from models import Region, CampusV2, AttendanceRecord
         from sqlalchemy import func
-        from utils.rbac import rbac_manager
         
         # Get request parameters
         date_filter = request.args.get('date_filter', 'last_12_months')
         custom_start_date = request.args.get('custom_start_date', '')
         custom_end_date = request.args.get('custom_end_date', '')
         
-        # Get user context
-        user_role = getattr(g, 'user_role', 'member')
+        # Get user context from current_user (Flask-Login)
+        user_role = getattr(current_user, 'role', 'member') if current_user.is_authenticated else 'member'
         
-        # Check global access permissions
-        if not rbac_manager.can_cross_region(user_role):
-            return jsonify({"error": "Access denied - global access required"}), 403
+        print(f"[GLOBAL_DASHBOARD] User: {current_user.username if current_user.is_authenticated else 'anonymous'}, Role: {user_role}")
+        
+        # Check global access permissions - allow same roles as regional
+        allowed_roles = ['superadmin', 'admin', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'senior_leadership']
+        
+        if user_role not in allowed_roles:
+            print(f"[GLOBAL_DASHBOARD] Access denied for role: {user_role}")
+            return jsonify({"error": f"Access denied - global access required. Your role '{user_role}' does not have permission."}), 403
+        
+        print(f"[GLOBAL_DASHBOARD] ✅ Access granted for role: {user_role}")
         
         # Calculate date range
         end_date = datetime.now().date()
