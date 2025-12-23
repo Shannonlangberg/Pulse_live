@@ -438,8 +438,13 @@ const Resources = () => {
                         ? 'text-yellow-100 group-hover:text-yellow-50' 
                         : 'text-white group-hover:text-blue-200'
                     }`}>
-                      {file.name}
+                      {file.displayName || file.name}
                     </h4>
+                    {file.displayName && (
+                      <p className="text-white/40 text-xs mt-1">
+                        Original: {file.name}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="text-white/40 text-xs">

@@ -2030,6 +2030,31 @@ class ResourceCategory(db.Model):
         }
 
 
+class DriveItemOverride(db.Model):
+    """Custom display names for Google Drive items in resource categories"""
+    __tablename__ = 'drive_item_overrides'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('resource_categories.id'), nullable=False)
+    drive_item_id = db.Column(db.String(200), nullable=False)
+    custom_name = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    category = db.relationship('ResourceCategory', backref='drive_overrides')
+    
+    def to_dict(self):
+        """Convert override to dictionary"""
+        return {
+            'id': self.id,
+            'categoryId': self.category_id,
+            'driveItemId': self.drive_item_id,
+            'customName': self.custom_name,
+            'createdAt': self.created_at.isoformat() if self.created_at else None,
+            'updatedAt': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
 # ============================================================================
 # HEARTBEAT MODULE MODELS
 # ============================================================================

@@ -3,7 +3,7 @@
 from flask import Flask, request, jsonify, send_from_directory, render_template, redirect, url_for, flash, session, Response, make_response, g
 from flask_cors import CORS
 from flask_compress import Compress
-from models import db, init_db, Person, EngagementProfile, BeaconZone, Event, EventCategory, EventRegistration, EventTeamAssignment, EventResourceBooking, create_person_with_engagement, ConnectGroup, ConnectGroupMeeting, ConnectGroupAttendance, ConnectGroupMessage, ResourceCategory, PersonPathwayProgress, PersonPathwayStepCompletion, PathwayStep, PushNotificationToken, ScheduledNotification, PastoralCareCase, HeartbeatSnapshot, AttendanceEvent, ServingAssignment, GivingTransaction, CareCase, Region, CampusV2, AttendanceRecord
+from models import db, init_db, Person, EngagementProfile, BeaconZone, Event, EventCategory, EventRegistration, EventTeamAssignment, EventResourceBooking, create_person_with_engagement, ConnectGroup, ConnectGroupMeeting, ConnectGroupAttendance, ConnectGroupMessage, ResourceCategory, DriveItemOverride, PersonPathwayProgress, PersonPathwayStepCompletion, PathwayStep, PushNotificationToken, ScheduledNotification, PastoralCareCase, HeartbeatSnapshot, AttendanceEvent, ServingAssignment, GivingTransaction, CareCase, Region, CampusV2, AttendanceRecord
 from datetime import datetime, timezone, timedelta, date
 import os
 import re
@@ -21645,6 +21645,13 @@ def get_resource_category_files(category_id):
         # Get links from category
         links = json.loads(category.links) if category.links else []
         
+        # Get display name overrides for this category
+        overrides = {}
+        if category.id:
+            override_records = DriveItemOverride.query.filter_by(category_id=category.id).all()
+            overrides = {override.drive_item_id: override.custom_name for override in override_records}
+            logger.info(f"Loaded {len(overrides)} display name overrides for category {category.slug}")
+        
         # Try to fetch files from Google Drive if folder_id is set
         files = []
         drive_auth_needed = False
@@ -21664,6 +21671,13 @@ def get_resource_category_files(category_id):
                     # Fetch files from Drive
                     logger.info(f"Fetching files from Google Drive folder: {category.folder_id}")
                     files = fetch_drive_folder_files(category.folder_id, access_token)
+                    
+                    # Apply custom display names from overrides
+                    for file in files:
+                        if file['id'] in overrides:
+                            file['displayName'] = overrides[file['id']]
+                            file['originalName'] = file['name']  # Keep original for reference
+                            logger.debug(f"Applied override: {file['name']} → {file['displayName']}")
                     
                     # Log result but don't treat empty as error - folder might just be empty or only have subfolders
                     if len(files) == 0:
@@ -21697,6 +21711,95 @@ def get_resource_category_files(category_id):
     except Exception as e:
         logger.error(f"Error fetching resource category files: {e}", exc_info=True)
         return jsonify({'error': 'Failed to fetch resource files'}), 500
+
+@app.route('/api/admin/resource-categories/<category_id>/drive-overrides', methods=['GET'])
+@admin_required_json
+def get_drive_overrides(category_id):
+    """Get all display name overrides for a category"""
+    try:
+        category = ResourceCategory.query.filter(
+            (ResourceCategory.slug == category_id) | (ResourceCategory.id == category_id)
+        ).first()
+        
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+        
+        overrides = DriveItemOverride.query.filter_by(category_id=category.id).all()
+        return jsonify({'overrides': [o.to_dict() for o in overrides]})
+    except Exception as e:
+        logger.error(f"Error fetching drive overrides: {e}")
+        return jsonify({'error': 'Failed to fetch overrides'}), 500
+
+@app.route('/api/admin/resource-categories/<category_id>/drive-overrides', methods=['POST'])
+@admin_required_json
+def create_drive_override(category_id):
+    """Create or update a display name override for a Drive item"""
+    try:
+        category = ResourceCategory.query.filter(
+            (ResourceCategory.slug == category_id) | (ResourceCategory.id == category_id)
+        ).first()
+        
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+        
+        data = request.get_json()
+        
+        if not data.get('driveItemId') or not data.get('customName'):
+            return jsonify({'error': 'driveItemId and customName are required'}), 400
+        
+        # Check if override already exists
+        existing = DriveItemOverride.query.filter_by(
+            category_id=category.id,
+            drive_item_id=data['driveItemId']
+        ).first()
+        
+        if existing:
+            # Update existing
+            existing.custom_name = data['customName']
+            existing.updated_at = datetime.utcnow()
+        else:
+            # Create new
+            override = DriveItemOverride(
+                category_id=category.id,
+                drive_item_id=data['driveItemId'],
+                custom_name=data['customName']
+            )
+            db.session.add(override)
+        
+        db.session.commit()
+        
+        override = DriveItemOverride.query.filter_by(
+            category_id=category.id,
+            drive_item_id=data['driveItemId']
+        ).first()
+        
+        return jsonify({
+            'message': 'Override saved successfully',
+            'override': override.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating drive override: {e}")
+        return jsonify({'error': 'Failed to create override'}), 500
+
+@app.route('/api/admin/resource-categories/<category_id>/drive-overrides/<override_id>', methods=['DELETE'])
+@admin_required_json
+def delete_drive_override(category_id, override_id):
+    """Delete a display name override"""
+    try:
+        override = DriveItemOverride.query.get(override_id)
+        
+        if not override:
+            return jsonify({'error': 'Override not found'}), 404
+        
+        db.session.delete(override)
+        db.session.commit()
+        
+        return jsonify({'message': 'Override deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting drive override: {e}")
+        return jsonify({'error': 'Failed to delete override'}), 500
 
 @app.route('/api/events/categories', methods=['GET'])
 def get_event_categories():
