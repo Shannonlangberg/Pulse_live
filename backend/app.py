@@ -13663,6 +13663,8 @@ def get_global_dashboard_data():
         # This ensures we get average per service across all campuses
         record_count = max(1, len(all_records))
         avg_attendance = total_attendance / record_count if record_count > 0 else 0
+        avg_kids = total_kids / record_count if record_count > 0 else 0
+        avg_youth = total_youth / record_count if record_count > 0 else 0
         avg_giving = total_giving / record_count if record_count > 0 else 0
         
         # Calculate week_count for display purposes (unique dates)
