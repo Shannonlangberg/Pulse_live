@@ -11640,6 +11640,118 @@ def greeting_audio():
         logger.error(f"Error in greeting_audio route: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/database_viewer', methods=['GET'])
+@login_required
+def get_database_viewer():
+    """
+    Database viewer - shows all attendance records in database
+    For admins to see exactly what's stored
+    """
+    try:
+        from models import AttendanceRecord, CampusV2, Region
+        
+        # Check user role - only admins can view full database
+        user_role = getattr(current_user, 'role', 'member')
+        if user_role not in ['superadmin', 'admin']:
+            return jsonify({"error": "Access denied - admin only"}), 403
+        
+        # Get filters from query params
+        campus_filter = request.args.get('campus', '')
+        start_date_str = request.args.get('start_date', '')
+        end_date_str = request.args.get('end_date', '')
+        limit = int(request.args.get('limit', 100))  # Default to last 100 records
+        
+        print(f"[DATABASE_VIEWER] Fetching records with filters: campus={campus_filter}, start={start_date_str}, end={end_date_str}, limit={limit}")
+        
+        # Build query
+        query = AttendanceRecord.query
+        
+        # Apply filters
+        if campus_filter:
+            campus_obj = CampusV2.query.filter_by(campus_id=campus_filter).first()
+            if campus_obj:
+                query = query.filter(AttendanceRecord.campus_id == campus_obj.id)
+        
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            query = query.filter(AttendanceRecord.date >= start_date)
+        
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            query = query.filter(AttendanceRecord.date <= end_date)
+        
+        # Get records (most recent first)
+        records = query.order_by(AttendanceRecord.date.desc(), AttendanceRecord.created_at.desc()).limit(limit).all()
+        
+        print(f"[DATABASE_VIEWER] Found {len(records)} records")
+        
+        # Convert to list of dicts
+        records_data = []
+        for record in records:
+            campus = CampusV2.query.get(record.campus_id)
+            region = Region.query.get(record.region_id) if record.region_id else None
+            
+            # Parse service breakdowns
+            adult_breakdown = {}
+            kids_breakdown = {}
+            if record.adult_service_breakdown:
+                try:
+                    adult_breakdown = json.loads(record.adult_service_breakdown)
+                except:
+                    pass
+            if record.kids_service_breakdown:
+                try:
+                    kids_breakdown = json.loads(record.kids_service_breakdown)
+                except:
+                    pass
+            
+            records_data.append({
+                'id': record.id,
+                'date': record.date.strftime('%Y-%m-%d'),
+                'campus': campus.display_name if campus else f"Unknown (ID: {record.campus_id})",
+                'campus_id': campus.campus_id if campus else None,
+                'region': region.display_name if region else f"Unknown (ID: {record.region_id})",
+                'total_attendance': record.total_attendance,
+                'total_people_in_campus': record.total_people_in_campus,
+                'adult_service_breakdown': adult_breakdown,
+                'kids_attendance': record.kids_attendance,
+                'kids_leaders': record.kids_leaders,
+                'kids_service_breakdown': kids_breakdown,
+                'new_kids': record.new_kids,
+                'new_kids_salvations': record.new_kids_salvations,
+                'youth_attendance': record.youth_attendance,
+                'youth_salvations': record.youth_salvations,
+                'youth_new_people': record.youth_new_people,
+                'youth_leaders': record.youth_leaders,
+                'first_time_visitors': record.first_time_visitors,
+                'visitors': record.visitors,
+                'hands_up': record.hands_up,
+                'first_time_christians': record.first_time_christians,
+                'rededications': record.rededications,
+                'salvation_cards_returned': record.salvation_cards_returned,
+                'baptisms': record.baptisms,
+                'child_dedications': record.child_dedications,
+                'connect_groups': record.connect_groups,
+                'dream_team': record.dream_team,
+                'packs_out': record.packs_out,
+                'tithe': float(record.tithe) if record.tithe else 0.0,
+                'synced_to_sheets': record.synced_to_sheets,
+                'created_at': record.created_at.isoformat() if record.created_at else None,
+                'updated_at': record.updated_at.isoformat() if record.updated_at else None
+            })
+        
+        return jsonify({
+            'records': records_data,
+            'total': len(records_data),
+            'limit': limit
+        })
+        
+    except Exception as e:
+        print(f"[DATABASE_VIEWER] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/recent_entries', methods=['GET'])
 @login_required
 def get_recent_entries():

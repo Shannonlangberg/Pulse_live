@@ -4,6 +4,7 @@ import MainLayout from './components/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import LogStats from './pages/LogStats';
+import DatabaseViewer from './pages/DatabaseViewer';
 import Finance from './pages/Finance';
 import GivingAnalytics from './pages/GivingAnalytics';
 import CampusManagement from './pages/CampusManagement';
@@ -310,7 +311,8 @@ function App() {
       const allowedOrigins = [
         window.location.origin,
         'https://futures-pulse-production.up.railway.app',
-        'https://futures.pulse.com'
+        'https://futures.pulse.com',
+        'https://pulse.futures.church'
       ];
       
       if (!allowedOrigins.some(origin => event.origin === origin || event.origin.startsWith(origin))) {
@@ -382,6 +384,7 @@ function App() {
                   <Route path="/" element={<Landing />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/stats" element={<LogStats />} />
+                  <Route path="/database-viewer" element={<DatabaseViewer />} />
                   <Route path="/finance" element={<Finance />} />
                   <Route path="/giving-analytics" element={<GivingAnalytics />} />
                   <Route path="/passport" element={<Passport />} />
