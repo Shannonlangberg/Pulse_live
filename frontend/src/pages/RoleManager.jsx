@@ -73,18 +73,20 @@ const RoleManager = () => {
   // Flatten for backward compatibility
   const allPageFeatures = Object.values(pageFeatures).flatMap(group => group.items);
 
+  // Settings/Admin pages (not part of main navigation)
   const settingsFeatures = [
-    { key: 'data_export', label: 'Data Export', icon: '📥' },
-    { key: 'user_management', label: 'User Management', icon: '👤' },
-    { key: 'campus_management', label: 'Campus Management', icon: '🏢' },
-    { key: 'region_access', label: 'Region Access Control', icon: '🌍' },
-    { key: 'homepage_manager', label: 'Homepage Manager', icon: '📢' },
-    { key: 'beacon_management', label: 'Beacon Management', icon: '📡' },
-    { key: 'pathway_manager', label: 'Journey Manager', icon: '🛤️' },
-    { key: 'resource_manager', label: 'Resource Manager', icon: '📦' },
-    { key: 'tv_manager', label: 'TV Manager', icon: '🎬' },
-    { key: 'events_manager', label: 'Events Manager', icon: '🎪' },
-    { key: 'notifications', label: 'Push Notifications', icon: '🔔' }
+    { key: 'user_management', label: 'Users', icon: '👤', description: 'User management page' },
+    { key: 'user_management', label: 'Role Manager', icon: '🛡️', description: 'Role & permissions matrix' },
+    { key: 'homepage_manager', label: 'Homepage Manager', icon: '📢', description: 'Homepage announcements' },
+    { key: 'campus_management', label: 'Campuses', icon: '🏢', description: 'Campus management' },
+    { key: 'beacon_management', label: 'Beacons', icon: '📡', description: 'Bluetooth beacons' },
+    { key: 'resource_manager', label: 'Resource Manager', icon: '📦', description: 'Team resources' },
+    { key: 'tv_manager', label: 'TV Manager', icon: '🎬', description: 'Pulse TV content' },
+    { key: 'events_manager', label: 'Events Manager', icon: '🎪', description: 'Events admin' },
+    { key: 'notifications', label: 'Notifications', icon: '🔔', description: 'Push notifications' },
+    { key: 'data_export', label: 'Data Export', icon: '📥', description: 'Export data' },
+    { key: 'region_access', label: 'Region Access', icon: '🌍', description: 'Regional settings' },
+    { key: 'pathway_manager', label: 'Journey Manager', icon: '🛤️', description: 'Discipleship pathways' }
   ];
 
   const allFeatures = [...allPageFeatures, ...settingsFeatures];
@@ -92,111 +94,155 @@ const RoleManager = () => {
   // Role default permissions mapping (based on MainLayout navigation roles)
   const roleDefaults = {
     'superadmin': {
+      // All pages accessible
       home: true, dashboard: true, input: true, finance: true, giving: true,
       people: true, heartbeat: true, connect_groups: true, prayer: true,
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
+      // All settings accessible
       data_export: true, user_management: true, campus_management: true,
-      region_access: true, homepage_manager: true, beacon_management: true, pathway_manager: true, resource_manager: true,
+      region_access: true, homepage_manager: true, beacon_management: true, 
+      pathway_manager: true, resource_manager: true,
       tv_manager: true, events_manager: true, notifications: true
     },
     'admin': {
+      // All pages accessible
       home: true, dashboard: true, input: true, finance: true, giving: true,
       people: true, heartbeat: true, connect_groups: true, prayer: true,
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
+      // All settings accessible
       data_export: true, user_management: true, campus_management: true,
-      region_access: true, homepage_manager: true, beacon_management: true, pathway_manager: true, resource_manager: true,
+      region_access: true, homepage_manager: true, beacon_management: true, 
+      pathway_manager: true, resource_manager: true,
       tv_manager: true, events_manager: true, notifications: true
     },
     'senior_leadership': {
+      // All pages accessible
       home: true, dashboard: true, input: true, finance: true, giving: true,
       people: true, heartbeat: true, connect_groups: true, prayer: true,
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
+      // Most settings accessible (not homepage_manager)
       data_export: true, user_management: true, campus_management: true,
-      beacon_management: true, pathway_manager: true, resource_manager: true,
+      region_access: true, beacon_management: true, pathway_manager: true, 
+      resource_manager: true, homepage_manager: false,
       tv_manager: true, events_manager: true, notifications: true
     },
     'senior_leader': {
+      // All pages accessible
       home: true, dashboard: true, input: true, finance: true, giving: true,
       people: true, heartbeat: true, connect_groups: true, prayer: true,
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
+      // Most settings accessible (not homepage_manager)
       data_export: true, user_management: true, campus_management: true,
-      homepage_manager: false, beacon_management: true, pathway_manager: true, resource_manager: true,
+      region_access: true, beacon_management: true, pathway_manager: true, 
+      resource_manager: true, homepage_manager: false,
       tv_manager: true, events_manager: true, notifications: true
     },
     'senior_pastor': {
+      // All pages accessible
       home: true, dashboard: true, input: true, finance: true, giving: true,
       people: true, heartbeat: true, connect_groups: true, prayer: true,
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
+      // All settings accessible
       data_export: true, user_management: true, campus_management: true,
-      beacon_management: true, pathway_manager: true, resource_manager: true,
+      region_access: true, beacon_management: true, pathway_manager: true, 
+      resource_manager: true, homepage_manager: true,
       tv_manager: true, events_manager: true, notifications: true
     },
     'lead_pastor': {
+      // All pages accessible
       home: true, dashboard: true, input: true, finance: true, giving: true,
       people: true, heartbeat: true, connect_groups: true, prayer: true,
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
+      // All settings accessible
       data_export: true, user_management: true, campus_management: true,
-      beacon_management: true, pathway_manager: true, resource_manager: true,
+      region_access: true, beacon_management: true, pathway_manager: true, 
+      resource_manager: true, homepage_manager: true,
       tv_manager: true, events_manager: true, notifications: true
     },
     'campus_pastor': {
-      home: true, dashboard: true, input: true, finance: false, giving: false,
+      // Pages they CAN see
+      home: true, dashboard: true, input: true, 
       people: true, heartbeat: true, connect_groups: true, prayer: true,
       resources: true, pulse_tv: true, events: true, serving: true,
       communication: true, devotions: true,
+      // Pages they CANNOT see
+      finance: false, giving: false,
+      // Settings pages they CANNOT see (only My Profile)
       data_export: false, user_management: false, campus_management: false,
-      homepage_manager: false, beacon_management: false, pathway_manager: false, resource_manager: false,
+      region_access: false, homepage_manager: false, beacon_management: false, 
+      pathway_manager: false, resource_manager: false,
       tv_manager: false, events_manager: false, notifications: false
     },
     'pastor': {
-      home: true, dashboard: true, input: true, finance: false, giving: false,
+      // Limited page access
+      home: true, dashboard: true, input: true,
       people: false, heartbeat: false, connect_groups: false, prayer: true,
       resources: false, pulse_tv: true, events: true, serving: true,
       communication: false, devotions: true,
+      finance: false, giving: false,
+      // No settings access (only My Profile)
       data_export: false, user_management: false, campus_management: false,
-      beacon_management: false, pathway_manager: false, resource_manager: false,
+      region_access: false, beacon_management: false, pathway_manager: false, 
+      resource_manager: false, homepage_manager: false,
       tv_manager: false, events_manager: false, notifications: false
     },
     'finance': {
-      home: true, dashboard: false, input: false, finance: true, giving: true,
+      // Finance-specific access
+      home: true, finance: true, giving: true, resources: true,
+      // Limited other access
+      dashboard: false, input: false,
       people: false, heartbeat: false, connect_groups: false, prayer: false,
-      resources: true, pulse_tv: false, events: false, serving: false,
+      pulse_tv: false, events: false, serving: false,
       communication: false, devotions: false,
+      // No settings access (only My Profile)
       data_export: false, user_management: false, campus_management: false,
-      beacon_management: false, pathway_manager: false, resource_manager: false,
+      region_access: false, beacon_management: false, pathway_manager: false, 
+      resource_manager: false, homepage_manager: false,
       tv_manager: false, events_manager: false, notifications: false
     },
     'staff': {
-      home: true, dashboard: false, input: false, finance: false, giving: false,
+      // Minimal access - Home and Resources only
+      home: true, resources: true,
+      dashboard: false, input: false, finance: false, giving: false,
       people: false, heartbeat: false, connect_groups: false, prayer: false,
-      resources: true, pulse_tv: false, events: false, serving: false,
+      pulse_tv: false, events: false, serving: false,
       communication: false, devotions: false,
+      // No settings access (only My Profile)
       data_export: false, user_management: false, campus_management: false,
-      homepage_manager: false, beacon_management: false, pathway_manager: false, resource_manager: false,
+      region_access: false, beacon_management: false, pathway_manager: false, 
+      resource_manager: false, homepage_manager: false,
       tv_manager: false, events_manager: false, notifications: false
     },
     'connect_group_leader': {
-      home: true, dashboard: false, input: false, finance: false, giving: false,
-      people: false, heartbeat: false, connect_groups: true, prayer: false,
-      resources: false, pulse_tv: true, events: true, serving: false,
+      // Limited access - home, groups, events
+      home: true, connect_groups: true, pulse_tv: true, events: true,
+      dashboard: false, input: false, finance: false, giving: false,
+      people: false, heartbeat: false, prayer: false,
+      resources: false, serving: false,
       communication: false, devotions: false,
+      // No settings access (only My Profile)
       data_export: false, user_management: false, campus_management: false,
-      beacon_management: false, pathway_manager: false, resource_manager: false,
+      region_access: false, beacon_management: false, pathway_manager: false, 
+      resource_manager: false, homepage_manager: false,
       tv_manager: false, events_manager: false, notifications: false
     },
     'member': {
-      home: true, dashboard: true, input: true, finance: false, giving: false,
+      // Basic member access
+      home: true, dashboard: true, input: true, pulse_tv: true, events: true, devotions: true,
+      finance: false, giving: false,
       people: false, heartbeat: false, connect_groups: false, prayer: false,
-      resources: false, pulse_tv: true, events: true, serving: false,
-      communication: false, devotions: true,
+      resources: false, serving: false,
+      communication: false,
+      // No settings access (only My Profile)
       data_export: false, user_management: false, campus_management: false,
-      beacon_management: false, pathway_manager: false, resource_manager: false,
+      region_access: false, beacon_management: false, pathway_manager: false, 
+      resource_manager: false, homepage_manager: false,
       tv_manager: false, events_manager: false, notifications: false
     }
   };
@@ -592,6 +638,27 @@ const RoleManager = () => {
           </div>
         )}
 
+        {/* Important Info Box */}
+        <div className="mb-6 p-5 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <ShieldCheckIcon className="w-7 h-7 text-blue-400" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-white mb-2">How the Role Manager Works</h3>
+              <div className="space-y-2 text-sm text-slate-300">
+                <p>• <strong>Main Pages</strong>: Core app navigation pages (Home, Dashboard, People, etc.)</p>
+                <p>• <strong>Settings Sub-Pages</strong>: Admin tools visible in Settings section (Users, Role Manager, Campuses, etc.)</p>
+                <p>• <strong>Toggle any cell</strong> to grant or revoke access for a specific user - overrides their role defaults</p>
+                <p>• <strong>Blue dot</strong> indicates a custom permission override</p>
+                <p className="pt-2 text-blue-300"><strong>Note:</strong> Campus Pastors should typically only see "My Profile" in Settings by default.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Permission Matrix */}
         <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
@@ -606,17 +673,17 @@ const RoleManager = () => {
                   <th 
                       key={groupKey}
                       colSpan={group.items.length} 
-                    className="px-4 py-3 text-center text-xs font-semibold text-slate-400 bg-slate-700/70 border-l border-r border-slate-600"
+                    className="px-4 py-3 text-center text-xs font-semibold text-slate-300 bg-gradient-to-r from-blue-600/20 to-blue-500/20 border-l border-r border-slate-600"
                   >
-                      {group.name}
+                      📱 {group.name}
                   </th>
                   ))}
                   {/* Settings Features Header */}
                   <th 
                     colSpan={settingsFeatures.length} 
-                    className="px-4 py-3 text-center text-xs font-semibold text-slate-400 bg-slate-700/70 border-r border-slate-600"
+                    className="px-4 py-3 text-center text-xs font-semibold text-slate-300 bg-gradient-to-r from-purple-600/20 to-purple-500/20 border-r border-slate-600"
                   >
-                    ⚙️ Settings
+                    ⚙️ Settings Sub-Pages
                   </th>
                 </tr>
                 <tr>

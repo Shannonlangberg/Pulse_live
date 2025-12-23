@@ -119,21 +119,22 @@ roles:
 
   campus_pastor:
     name: "Campus Pastor"
-    description: "Campus-specific leadership - Input, Dashboard (their campus), Resources"
+    description: "Campus-specific leadership - Can view/manage their campus data only. No admin settings access."
     permissions:
-      # Campus-scoped permissions - limited to their campus
-      users: ["view"]
-      campuses: ["view"]
-      system: []
-      settings: ["view"]
+      # IMPORTANT: Campus pastors should NOT see admin settings pages
+      # They should only see "My Profile" in Settings section
+      users: []  # NO access to user management
+      campuses: []  # NO access to campus management
+      system: []  # NO access to system settings
+      settings: []  # NO access to settings pages (only My Profile is always visible)
       
-      # New resources - campus-scoped
+      # New resources - campus-scoped (limited to their campus)
       devotions_admin: ["view"]
       groups: ["view", "edit", "create"]  # Access to connect groups for their campus
       beacons: []  # No access
       resources: ["view"]  # Can view team resources
       
-      # Existing resources - campus-scoped
+      # Existing resources - campus-scoped (limited to their campus)
       serving: ["view", "edit"]
       communications: ["view"]
       prayer_requests: ["view", "edit"]
