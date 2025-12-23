@@ -11691,11 +11691,18 @@ def get_database_viewer():
         print(f"[DATABASE_VIEWER] Found {len(records)} records")
         logger.info(f"[DATABASE_VIEWER] Found {len(records)} records")
         
+        # Get regions using raw SQL to avoid model-schema mismatch
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, code, display_name FROM regions WHERE active = 1")
+        region_rows = cursor.fetchall()
+        region_by_id = {row[0]: {'id': row[0], 'name': row[1], 'code': row[2], 'display_name': row[3]} for row in region_rows}
+        
         # Convert to list of dicts
         records_data = []
         for record in records:
             campus = CampusV2.query.get(record.campus_id)
-            region = Region.query.get(record.region_id) if record.region_id else None
+            region = region_by_id.get(record.region_id) if record.region_id else None
             
             # Parse service breakdowns
             adult_breakdown = {}
@@ -11716,7 +11723,7 @@ def get_database_viewer():
                 'date': record.date.strftime('%Y-%m-%d'),
                 'campus': campus.display_name if campus else f"Unknown (ID: {record.campus_id})",
                 'campus_id': campus.campus_id if campus else None,
-                'region': region.display_name if region else f"Unknown (ID: {record.region_id})",
+                'region': region['display_name'] if region else f"Unknown (ID: {record.region_id})",
                 'total_attendance': record.total_attendance,
                 'total_people_in_campus': record.total_people_in_campus,
                 'adult_service_breakdown': adult_breakdown,
