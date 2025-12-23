@@ -67,21 +67,38 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
         setLoading(true);
       }
 
-      const params = new URLSearchParams({
-        campus_id: campusId,
-        date_filter: dateFilter,
-        custom_start_date: customStartDate,
-        custom_end_date: customEndDate,
-        show_previous_year: showPreviousYear.toString(),
-        _t: Date.now()
-      });
-
       const cacheBuster = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const response = await fetch(`/api/dashboard_data_public?campus=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&show_previous_year=${showPreviousYear}&_t=${cacheBuster}`);
-      const result = await response.json();
-      setData(result);
-      setCampusData(result);
-      setLastRefresh(new Date());
+      
+      // If this is a rollup (regional) dashboard, use the regional API endpoint
+      if (isRollup) {
+        console.log(`[CampusDashboard] Fetching regional dashboard for region: ${campusId}`);
+        const response = await fetch(`/api/dashboard/regional?region=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&_t=${cacheBuster}`, {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Regional dashboard API error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log(`[CampusDashboard] Regional dashboard data:`, result);
+        setData(result);
+        setCampusData(result);
+        setLastRefresh(new Date());
+      } else {
+        // Regular campus dashboard
+        console.log(`[CampusDashboard] Fetching campus dashboard for campus: ${campusId}`);
+        const response = await fetch(`/api/dashboard_data_public?campus=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&show_previous_year=${showPreviousYear}&_t=${cacheBuster}`);
+        
+        if (!response.ok) {
+          throw new Error(`Campus dashboard API error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        setData(result);
+        setCampusData(result);
+        setLastRefresh(new Date());
+      }
     } catch (error) {
       console.error('Error fetching campus data:', error);
     } finally {
@@ -106,7 +123,10 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
     try {
       setAiLoading(true);
       setAiReportType('weekend');
-      const response = await fetch(`/api/dashboard_data_public?campus=${campusId}&date_filter=last_7_days&_t=${Date.now()}`);
+      const endpoint = isRollup 
+        ? `/api/dashboard/regional?region=${campusId}&date_filter=last_7_days&_t=${Date.now()}`
+        : `/api/dashboard_data_public?campus=${campusId}&date_filter=last_7_days&_t=${Date.now()}`;
+      const response = await fetch(endpoint, { credentials: 'include' });
       const fetchedData = await response.json();
       setAiReportData(fetchedData);
     } catch (error) {
@@ -120,7 +140,10 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
     try {
       setAiLoading(true);
       setAiReportType('monthly');
-      const response = await fetch(`/api/dashboard_data_public?campus=${campusId}&date_filter=last_30_days&_t=${Date.now()}`);
+      const endpoint = isRollup 
+        ? `/api/dashboard/regional?region=${campusId}&date_filter=last_30_days&_t=${Date.now()}`
+        : `/api/dashboard_data_public?campus=${campusId}&date_filter=last_30_days&_t=${Date.now()}`;
+      const response = await fetch(endpoint, { credentials: 'include' });
       const fetchedData = await response.json();
       setAiReportData(fetchedData);
     } catch (error) {
@@ -134,7 +157,10 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
     try {
       setAiLoading(true);
       setAiReportType('annual');
-      const response = await fetch(`/api/dashboard_data_public?campus=${campusId}&date_filter=year_to_date&_t=${Date.now()}`);
+      const endpoint = isRollup 
+        ? `/api/dashboard/regional?region=${campusId}&date_filter=year_to_date&_t=${Date.now()}`
+        : `/api/dashboard_data_public?campus=${campusId}&date_filter=year_to_date&_t=${Date.now()}`;
+      const response = await fetch(endpoint, { credentials: 'include' });
       const fetchedData = await response.json();
       setAiReportData(fetchedData);
     } catch (error) {
@@ -148,7 +174,10 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
     try {
       setAiLoading(true);
       setAiReportType('growth');
-      const response = await fetch(`/api/dashboard_data_public?campus=${campusId}&date_filter=last_12_months&_t=${Date.now()}`);
+      const endpoint = isRollup 
+        ? `/api/dashboard/regional?region=${campusId}&date_filter=last_12_months&_t=${Date.now()}`
+        : `/api/dashboard_data_public?campus=${campusId}&date_filter=last_12_months&_t=${Date.now()}`;
+      const response = await fetch(endpoint, { credentials: 'include' });
       const fetchedData = await response.json();
       setAiReportData(fetchedData);
     } catch (error) {
