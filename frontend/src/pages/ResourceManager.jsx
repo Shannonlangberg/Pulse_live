@@ -7,6 +7,12 @@ import {
   PlusIcon,
   TrashIcon,
   XMarkIcon,
+  DocumentTextIcon,
+  FolderIcon,
+  LinkIcon,
+  DocumentIcon,
+  PhotoIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 
 const buildEmptyForm = (sortOrder = 0) => ({
@@ -18,20 +24,90 @@ const buildEmptyForm = (sortOrder = 0) => ({
   links: [],
 });
 
+// Detect link type from URL
+const detectLinkType = (url) => {
+  if (!url) return 'website';
+  const lowerUrl = url.toLowerCase();
+  
+  if (lowerUrl.includes('drive.google.com/drive/folders/') || lowerUrl.includes('drive.google.com/drive/u/') && lowerUrl.includes('/folders/')) {
+    return 'drive_folder';
+  }
+  if (lowerUrl.includes('drive.google.com/file/') || lowerUrl.includes('drive.google.com/u/') && lowerUrl.includes('/file/')) {
+    return 'drive_file';
+  }
+  if (lowerUrl.includes('docs.google.com/forms/') || lowerUrl.includes('forms.gle/')) {
+    return 'google_form';
+  }
+  if (lowerUrl.includes('docs.google.com/document/') || lowerUrl.includes('docs.google.com/spreadsheets/')) {
+    return 'google_doc';
+  }
+  if (lowerUrl.endsWith('.pdf') || lowerUrl.includes('.pdf')) {
+    return 'pdf';
+  }
+  if (lowerUrl.includes('dropbox.com')) {
+    return 'dropbox';
+  }
+  return 'website';
+};
+
+// Get icon for link type
+const getLinkTypeIcon = (type) => {
+  switch (type) {
+    case 'drive_folder':
+      return FolderIcon;
+    case 'drive_file':
+    case 'google_doc':
+      return DocumentTextIcon;
+    case 'google_form':
+      return DocumentIcon;
+    case 'pdf':
+      return DocumentIcon;
+    case 'dropbox':
+      return FolderIcon;
+    default:
+      return LinkIcon;
+  }
+};
+
+// Get badge color for link type
+const getLinkTypeBadge = (type) => {
+  switch (type) {
+    case 'drive_folder':
+      return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
+    case 'drive_file':
+      return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+    case 'google_form':
+      return 'bg-green-500/20 text-green-300 border-green-500/30';
+    case 'google_doc':
+      return 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+    case 'pdf':
+      return 'bg-red-500/20 text-red-300 border-red-500/30';
+    case 'dropbox':
+      return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
+    default:
+      return 'bg-slate-500/20 text-slate-300 border-slate-500/30';
+  }
+};
+
 const normalizeCategoryLinks = (links) => {
   if (!Array.isArray(links)) {
     return [];
   }
 
   return links
-    .map((link, index) => ({
-      id: link.id ?? null,
-      _key: `existing-${link.id ?? index}`,
-      label: link.label || '',
-      url: link.url || '',
-      description: link.description || '',
-      sortOrder: link.sortOrder ?? link.sort_order ?? index,
-    }))
+    .map((link, index) => {
+      const url = link.url || '';
+      const linkType = detectLinkType(url);
+      return {
+        id: link.id ?? null,
+        _key: `existing-${link.id ?? index}`,
+        label: link.label || '',
+        url: url,
+        description: link.description || '',
+        sortOrder: link.sortOrder ?? link.sort_order ?? index,
+        type: link.type || linkType,
+      };
+    })
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 };
 
@@ -43,6 +119,15 @@ const ResourceManager = () => {
   const [editingCategory, setEditingCategory] = useState(null);
   const [formData, setFormData] = useState(buildEmptyForm());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Display names management state
+  const [showDisplayNamesModal, setShowDisplayNamesModal] = useState(false);
+  const [managingCategory, setManagingCategory] = useState(null);
+  const [driveItems, setDriveItems] = useState([]);
+  const [driveOverrides, setDriveOverrides] = useState({});
+  const [loadingDriveItems, setLoadingDriveItems] = useState(false);
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [customNameInput, setCustomNameInput] = useState('');
 
   const loadCategories = async () => {
     setLoading(true);
@@ -301,6 +386,114 @@ const ResourceManager = () => {
     }
   };
 
+  const handleManageDisplayNames = async (category) => {
+    setManagingCategory(category);
+    setShowDisplayNamesModal(true);
+    setLoadingDriveItems(true);
+    setDriveItems([]);
+    setDriveOverrides({});
+    
+    try {
+      // Fetch Drive items for this category
+      const filesResponse = await fetch(`/api/resources/${encodeURIComponent(category.slug || category.id)}`, {
+        credentials: 'include',
+      });
+      
+      if (filesResponse.ok) {
+        const data = await filesResponse.json();
+        setDriveItems(data.files || []);
+      }
+      
+      // Fetch existing overrides
+      const overridesResponse = await fetch(`/api/admin/resource-categories/${encodeURIComponent(category.slug || category.id)}/drive-overrides`, {
+        credentials: 'include',
+      });
+      
+      if (overridesResponse.ok) {
+        const data = await overridesResponse.json();
+        const overridesMap = {};
+        (data.overrides || []).forEach(o => {
+          overridesMap[o.driveItemId] = o;
+        });
+        setDriveOverrides(overridesMap);
+      }
+    } catch (err) {
+      console.error('Failed to load drive items', err);
+    } finally {
+      setLoadingDriveItems(false);
+    }
+  };
+
+  const handleSaveCustomName = async (driveItemId) => {
+    if (!customNameInput.trim() || !managingCategory) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/resource-categories/${encodeURIComponent(managingCategory.slug || managingCategory.id)}/drive-overrides`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          driveItemId: driveItemId,
+          customName: customNameInput.trim()
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save custom name');
+      }
+      
+      const data = await response.json();
+      setDriveOverrides(prev => ({
+        ...prev,
+        [driveItemId]: data.override
+      }));
+      setEditingItemId(null);
+      setCustomNameInput('');
+      alert('Custom name saved!');
+    } catch (err) {
+      console.error('Failed to save custom name', err);
+      alert(err.message || 'Failed to save custom name');
+    }
+  };
+
+  const handleDeleteOverride = async (overrideId, driveItemId) => {
+    if (!confirm('Remove this custom name?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/resource-categories/${encodeURIComponent(managingCategory.slug || managingCategory.id)}/drive-overrides/${overrideId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete override');
+      }
+      
+      setDriveOverrides(prev => {
+        const updated = { ...prev };
+        delete updated[driveItemId];
+        return updated;
+      });
+      alert('Custom name removed!');
+    } catch (err) {
+      console.error('Failed to delete override', err);
+      alert(err.message || 'Failed to delete override');
+    }
+  };
+
+  const handleCloseDisplayNamesModal = () => {
+    setShowDisplayNamesModal(false);
+    setManagingCategory(null);
+    setDriveItems([]);
+    setDriveOverrides({});
+    setEditingItemId(null);
+    setCustomNameInput('');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
@@ -405,13 +598,23 @@ const ResourceManager = () => {
                             type="button"
                             onClick={() => handleOpenModal(category)}
                             className="p-2 rounded-lg text-blue-300 hover:text-blue-200 hover:bg-blue-500/10 transition-colors"
+                            title="Edit Category"
                           >
                             <PencilIcon className="w-5 h-5" />
                           </button>
                           <button
                             type="button"
+                            onClick={() => handleManageDisplayNames(category)}
+                            className="p-2 rounded-lg text-purple-300 hover:text-purple-200 hover:bg-purple-500/10 transition-colors"
+                            title="Manage Display Names"
+                          >
+                            <DocumentTextIcon className="w-5 h-5" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleDelete(category)}
                             className="p-2 rounded-lg text-red-300 hover:text-red-200 hover:bg-red-500/10 transition-colors"
+                            title="Delete Category"
                           >
                             <TrashIcon className="w-5 h-5" />
                           </button>
@@ -656,6 +859,144 @@ const ResourceManager = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showDisplayNamesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+              <div>
+                <h2 className="text-2xl font-semibold text-white">
+                  Manage Display Names
+                </h2>
+                <p className="text-white/50 text-sm">
+                  {managingCategory?.displayName} - Set custom names for Drive items
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseDisplayNamesModal}
+                className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-slate-700/50 transition-colors"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="px-6 py-6">
+              {loadingDriveItems ? (
+                <div className="text-center py-12 text-white/60">
+                  Loading Drive items...
+                </div>
+              ) : driveItems.length === 0 ? (
+                <div className="text-center py-12 text-white/60">
+                  No Drive items found. Make sure the folder has files/folders and you're authenticated with Google Drive.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {driveItems.map((item) => {
+                    const override = driveOverrides[item.id];
+                    const isEditing = editingItemId === item.id;
+                    const isFolder = item.mimeType && item.mimeType.includes('folder');
+                    
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-4"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${
+                            isFolder ? 'bg-yellow-500/20' : 'bg-blue-500/20'
+                          }`}>
+                            {isFolder ? '📁' : '📄'}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white/40 text-xs mb-1">
+                              Original: {item.name}
+                            </div>
+                            
+                            {override ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-white font-semibold">
+                                    {override.customName}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded bg-green-500/20 text-green-300 text-xs">
+                                    Custom
+                                  </span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingItemId(item.id);
+                                      setCustomNameInput(override.customName);
+                                    }}
+                                    className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteOverride(override.id, item.id)}
+                                    className="text-xs px-3 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ) : isEditing ? (
+                              <div className="space-y-2">
+                                <input
+                                  type="text"
+                                  value={customNameInput}
+                                  onChange={(e) => setCustomNameInput(e.target.value)}
+                                  placeholder="Enter custom display name"
+                                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder:text-white/40 focus:outline-none focus:border-purple-500"
+                                  autoFocus
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveCustomName(item.id)}
+                                    className="text-xs px-3 py-1 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingItemId(null);
+                                      setCustomNameInput('');
+                                    }}
+                                    className="text-xs px-3 py-1 rounded-lg bg-slate-600 text-white hover:bg-slate-700 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingItemId(item.id);
+                                  setCustomNameInput('');
+                                }}
+                                className="text-xs px-3 py-1 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+                              >
+                                Set Custom Name
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
