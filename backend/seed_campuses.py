@@ -65,7 +65,7 @@ def seed_campuses(db_path=None):
         print(f"[SEED] Using region_id={australia_region_id} for Australia")
         
         # Check how many campuses already exist
-        cursor.execute("SELECT COUNT(*) FROM campuses_new")
+        cursor.execute("SELECT COUNT(*) FROM campuses_v2")
         existing_count = cursor.fetchone()[0]
         print(f"[SEED] Currently {existing_count} campuses in database")
         
@@ -87,7 +87,7 @@ def seed_campuses(db_path=None):
             
             # Insert campus
             cursor.execute('''
-                INSERT INTO campuses_new 
+                INSERT INTO campuses_v2 
                 (campus_id, name, display_name, region_id, active, service_times, detection_patterns)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (
