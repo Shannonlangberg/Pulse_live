@@ -28,6 +28,7 @@ const UserManagement = () => {
     { value: 'admin', label: 'Admin' },
     { value: 'senior_leader', label: 'Senior Leader' },
     { value: 'campus_pastor', label: 'Campus Pastor' },
+    { value: 'finance', label: 'Finance' },
     { value: 'staff', label: 'Staff' }
   ];
 

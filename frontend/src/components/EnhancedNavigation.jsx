@@ -67,7 +67,7 @@ const PORTAL_ITEMS = [
     name: 'Finance Input', 
     href: '/finance', 
     icon: ClipboardIcon, 
-    roles: ['superadmin', 'admin', 'finance'],
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'finance'],
     featureKey: 'finance'
   },
   { 

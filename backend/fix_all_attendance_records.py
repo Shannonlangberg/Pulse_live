@@ -8,6 +8,7 @@ This handles the issue where records were imported using the wrong column.
 
 import os
 import sys
+import json
 
 # Add backend directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -171,6 +172,23 @@ def fix_all_attendance_records():
                 record.new_kids = safe_int(sheets_row.get('New Kids', 0))
                 record.new_kids_salvations = safe_int(sheets_row.get('New Kids Salvations', 0))
                 record.packs_out = safe_int(sheets_row.get('Packs Out', 0))
+                
+                # Build adult service breakdown (JSON)
+                adult_breakdown = {}
+                for time in ['9:00 AM', '10:00 AM', '11:00 AM', '5:00 PM', '5:30 PM']:
+                    value = safe_int(sheets_row.get(time, 0))
+                    if value > 0:
+                        adult_breakdown[time] = value
+                record.adult_service_breakdown = json.dumps(adult_breakdown) if adult_breakdown else None
+                
+                # Build kids service breakdown (JSON)
+                kids_breakdown = {}
+                for time in ['Kids 9:00 AM', 'Kids 10:00 AM', 'Kids 11:00 AM', 'Kids 5:00 PM', 'Kids 5:30 PM']:
+                    value = safe_int(sheets_row.get(time, 0))
+                    if value > 0:
+                        kids_breakdown[time] = value
+                record.kids_service_breakdown = json.dumps(kids_breakdown) if kids_breakdown else None
+                
                 record.youth_attendance = safe_int(sheets_row.get('Youth Attendance', 0))
                 record.youth_salvations = safe_int(sheets_row.get('Youth Salvations', 0))
                 record.youth_new_people = safe_int(sheets_row.get('Youth New People', 0))
