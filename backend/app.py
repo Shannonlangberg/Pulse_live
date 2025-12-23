@@ -11868,6 +11868,7 @@ def save_attendance_record(data, user_id=None):
             campus = db.session.query(CampusV2).filter(CampusV2.name == campus_value).first()
             if campus:
                 logger.info(f"[SAVE_ATTENDANCE] Found campus by name: {campus.campus_id}")
+        if not campus:
         
             try:
                 db.session.expire_all()
@@ -11885,8 +11886,6 @@ def save_attendance_record(data, user_id=None):
             except Exception as e:
                 logger.error(f"[SAVE_ATTENDANCE] Error querying campuses: {e}")
                 import traceback
-                available_ids = []
-                available_ids = []
             return False, None, f"Campus not found: {campus_value or campus_id_value}"
         
         # Parse date
