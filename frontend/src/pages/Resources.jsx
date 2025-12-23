@@ -370,11 +370,15 @@ const Resources = () => {
     const hasDriveFiles = files.length > 0;
 
     const renderQuickLinks = () => (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-white text-lg font-semibold">
-            Quick Links
-          </h4>
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+            <span className="text-2xl">🔗</span>
+          </div>
+          <div>
+            <h4 className="text-white text-lg font-semibold">Quick Links</h4>
+            <p className="text-white/40 text-xs">Helpful shortcuts and forms</p>
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {links.map((link) => (
@@ -383,21 +387,24 @@ const Resources = () => {
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 border border-white/5 hover:border-purple-400/40 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] flex flex-col gap-3"
+              className="group relative bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-purple-500/10 border border-purple-500/20 hover:border-purple-400/50 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-500/10"
             >
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-2xl">
-                  🔗
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-white font-semibold leading-tight group-hover:text-purple-200 transition-colors duration-300">
-                    {link.label}
-                  </h4>
-                  {link.description && (
-                    <p className="text-white/60 text-xs mt-2 leading-snug line-clamp-3">
-                      {link.description}
-                    </p>
-                  )}
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-400/0 via-purple-400/0 to-purple-400/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative flex flex-col gap-3">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center text-2xl shadow-lg">
+                    🔗
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-purple-50 font-semibold leading-tight group-hover:text-purple-100 transition-colors duration-300">
+                      {link.label}
+                    </h4>
+                    {link.description && (
+                      <p className="text-purple-200/40 text-xs mt-2 leading-snug line-clamp-2">
+                        {link.description}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </a>
@@ -406,56 +413,109 @@ const Resources = () => {
       </div>
     );
 
-    const renderDriveFiles = () => (
-      <div className="space-y-3">
-        <h4 className="text-white text-lg font-semibold">
-          Google Drive Contents
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {files.map((file) => {
-            const isFolder = file.mimeType && file.mimeType.includes('folder');
-            return (
-              <a
-                key={file.id}
-                href={file.webViewLink || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`group bg-gradient-to-br ${
-                  isFolder 
-                    ? 'from-yellow-500/10 via-orange-500/10 to-yellow-500/10 border-yellow-500/20 hover:border-yellow-400/40' 
-                    : 'from-slate-800/70 to-slate-900/70 border-white/5 hover:border-blue-400/40'
-                } border rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] flex flex-col gap-4`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-                    isFolder ? 'bg-yellow-500/20' : 'bg-blue-500/10'
-                  }`}>
-                    {isFolder ? '📁' : '📄'}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className={`font-semibold leading-tight transition-colors duration-300 ${
-                      isFolder 
-                        ? 'text-yellow-100 group-hover:text-yellow-50' 
-                        : 'text-white group-hover:text-blue-200'
-                    }`}>
-                      {file.displayName || file.name}
-                    </h4>
-                    {file.displayName && (
-                      <p className="text-white/40 text-xs mt-1">
-                        Original: {file.name}
-                      </p>
-                    )}
-                  </div>
+    const renderDriveFiles = () => {
+      // Separate folders and files
+      const folders = files.filter(f => f.mimeType && f.mimeType.includes('folder'));
+      const documents = files.filter(f => !f.mimeType || !f.mimeType.includes('folder'));
+      
+      return (
+        <div className="space-y-8">
+          {folders.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                  <span className="text-2xl">📁</span>
                 </div>
-                <div className="text-white/40 text-xs">
-                  {formatModifiedTime(file.modifiedTime)}
+                <div>
+                  <h4 className="text-white text-lg font-semibold">Folders</h4>
+                  <p className="text-white/40 text-xs">{folders.length} folder{folders.length !== 1 ? 's' : ''}</p>
                 </div>
-              </a>
-            );
-          })}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {folders.map((file) => (
+                  <a
+                    key={file.id}
+                    href={file.webViewLink || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative bg-gradient-to-br from-yellow-500/10 via-orange-500/5 to-yellow-500/10 border border-yellow-500/20 hover:border-yellow-400/50 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-yellow-500/10"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/0 via-yellow-400/0 to-yellow-400/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative flex flex-col gap-3">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500/30 to-orange-500/30 flex items-center justify-center text-2xl shadow-lg">
+                          📁
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-yellow-50 font-semibold leading-tight group-hover:text-yellow-100 transition-colors duration-300 mb-1">
+                            {file.displayName || file.name}
+                          </h4>
+                          {file.displayName && (
+                            <p className="text-yellow-200/30 text-xs italic truncate">
+                              {file.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-white/30 text-xs border-t border-yellow-500/10 pt-2">
+                        {formatModifiedTime(file.modifiedTime)}
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {documents.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                  <span className="text-2xl">📄</span>
+                </div>
+                <div>
+                  <h4 className="text-white text-lg font-semibold">Documents</h4>
+                  <p className="text-white/40 text-xs">{documents.length} document{documents.length !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {documents.map((file) => (
+                  <a
+                    key={file.id}
+                    href={file.webViewLink || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative bg-gradient-to-br from-slate-800/90 via-slate-800/70 to-slate-900/90 border border-white/5 hover:border-blue-400/50 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/10"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-400/0 via-blue-400/0 to-blue-400/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative flex flex-col gap-3">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center text-2xl shadow-lg">
+                          📄
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-white font-semibold leading-tight group-hover:text-blue-200 transition-colors duration-300 mb-1">
+                            {file.displayName || file.name}
+                          </h4>
+                          {file.displayName && (
+                            <p className="text-white/20 text-xs italic truncate">
+                              {file.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-white/30 text-xs border-t border-white/5 pt-2">
+                        {formatModifiedTime(file.modifiedTime)}
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-    );
+      );
+    };
 
     // Show Google Drive auth prompt if needed and no files available
     if (authRequired && files.length === 0) {
@@ -517,20 +577,20 @@ const Resources = () => {
     }
 
     return (
-      <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8 space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-6 md:p-8 space-y-8 shadow-2xl">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-white/10">
           <div>
-            <h3 className="text-white text-2xl font-semibold">
+            <h3 className="text-white text-2xl font-bold">
               {selectedCategory.displayName || selectedCategory.name} Resources
             </h3>
-            <p className="text-white/60 text-sm mt-1">
-              Files are read directly from the configured Google Drive folder.
+            <p className="text-white/50 text-sm mt-1">
+              Files and folders from Google Drive
             </p>
           </div>
           <button
             type="button"
             onClick={() => fetchFiles(selectedCategory.id)}
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl transition-all duration-300"
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 rounded-xl transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
           >
             <span className="text-lg">⟳</span>
             Refresh
