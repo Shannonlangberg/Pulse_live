@@ -1971,6 +1971,17 @@ class User(UserMixin):
         
         # Define permissions for each role (legacy system)
         role_permissions = {
+            'superadmin': {
+                'log_stats': True,
+                'recall_stats': True,
+                'dashboard_access': True,
+                'query_access': True,
+                'edit_access': True,
+                'finance_access': True,
+                'manage_users': True,
+                'manage_campuses': True,
+                'view_all_campuses': True
+            },
             'admin': {
                 'log_stats': True,
                 'recall_stats': True,
