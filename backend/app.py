@@ -11890,21 +11890,23 @@ def get_recent_entries():
                     except:
                         pass
                 
-                # Build stats dict manually
+                # Build stats dict manually with TITLE CASE field names (frontend expects these)
                 stats_dict = {
                     'id': record.id,
                     'date': record.date.strftime('%Y-%m-%d'),
                     'campus': campus.display_name if campus else 'Unknown',
                     'campusId': campus.campus_id if campus else None,
-                    'total_attendance': record.total_attendance or 0,
-                    'kids_attendance': record.kids_attendance or 0,
-                    'kids_leaders': record.kids_leaders or 0,
-                    'youth_attendance': record.youth_attendance or 0,
-                    'first_time_visitors': record.first_time_visitors or 0,
-                    'visitors': record.visitors or 0,
-                    'first_time_christians': record.first_time_christians or 0,
-                    'rededications': record.rededications or 0,
-                    'tithe': float(record.tithe) if record.tithe else 0.0,
+                    'Total Attendance': record.total_attendance or 0,
+                    'Kids Attendance': record.kids_attendance or 0,
+                    'Kids Leaders': record.kids_leaders or 0,
+                    'Youth Attendance': record.youth_attendance or 0,
+                    'New People': (record.first_time_visitors or 0) + (record.visitors or 0),
+                    'New Christians': (record.first_time_christians or 0) + (record.rededications or 0),
+                    'First Time Visitors': record.first_time_visitors or 0,
+                    'Visitors': record.visitors or 0,
+                    'First Time Christians': record.first_time_christians or 0,
+                    'Rededications': record.rededications or 0,
+                    'Tithe': float(record.tithe) if record.tithe else 0.0,
                     **adult_breakdown,
                     **kids_breakdown
                 }
