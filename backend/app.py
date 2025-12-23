@@ -13533,6 +13533,7 @@ def get_regional_dashboard_data():
             },
             'stats': {
                 'total_attendance': total_attendance,
+                'total_people_in_campus': total_people_in_campus,
                 'avg_weekly_attendance': round(avg_attendance, 1),
                 'total_kids': total_kids,
                 'avg_kids': round(avg_kids, 1),

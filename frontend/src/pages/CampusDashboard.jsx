@@ -145,8 +145,8 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             total_attendance: result.stats?.total_attendance || 0,
             avg_attendance: result.stats?.avg_weekly_attendance || 0,
             total_people: result.stats?.total_attendance || 0,
-            avg_kids_attendance: (result.stats?.total_kids || 0) / weekCount,
-            avg_youth_attendance: (result.stats?.total_youth || 0) / weekCount,
+            avg_kids_attendance: result.stats?.avg_kids || 0,
+            avg_youth_attendance: result.stats?.avg_youth || 0,
             avg_kids_leaders: 0,
             avg_connect_groups: 0,
             avg_dream_team: 0,
@@ -220,10 +220,11 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
     return {
       stats: {
         total_attendance: result.stats?.total_attendance || 0,
+        total_people_in_campus: result.stats?.total_people_in_campus || 0,
+        total_people: result.stats?.total_people_in_campus || result.stats?.total_attendance || 0,
         avg_attendance: result.stats?.avg_weekly_attendance || 0,
-        total_people: result.stats?.total_attendance || 0,
-        avg_kids_attendance: (result.stats?.total_kids || 0) / weekCount,
-        avg_youth_attendance: (result.stats?.total_youth || 0) / weekCount,
+        avg_kids_attendance: result.stats?.avg_kids || 0,
+        avg_youth_attendance: result.stats?.avg_youth || 0,
         first_time_christians: result.stats?.total_salvations || 0,
         baptisms: result.stats?.total_baptisms || 0,
         new_people: result.stats?.total_visitors || 0,
@@ -384,7 +385,10 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
   }, 0);
   
   // Calculate percentages and metrics
-  const totalPeople = data.stats?.total_people || 0;
+  // For Campus Overview card: use total_people_in_campus (manually entered) for rollups
+  const totalPeople = isRollup 
+    ? (data.stats?.total_people_in_campus || data.stats?.total_people || 0)
+    : (data.stats?.total_people || 0);
   
   // SIMPLIFIED APPROACH: Use the pre-calculated attendance from database
   // For individual campuses: avg_attendance = average per service
