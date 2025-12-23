@@ -12906,6 +12906,7 @@ def get_dashboard_api_data():
         return jsonify({"error": "Failed to load dashboard data"}), 500
 
 @app.route('/api/dashboard/regional')
+@login_required
 def get_regional_dashboard_data():
     """
     Regional dashboard - aggregates stats for all campuses in a region
@@ -12924,9 +12925,12 @@ def get_regional_dashboard_data():
         print(f"[REGIONAL_DASHBOARD] Request for region: {region_code}, filter: {date_filter}")
         logger.info(f"[REGIONAL_DASHBOARD] Request for region: {region_code}, filter: {date_filter}")
         
-        # Get user context (with safe defaults)
-        user_role = getattr(g, 'user_role', 'member')
-        user_region_id = getattr(g, 'user_region_id', None)
+        # Get user context from current_user (Flask-Login)
+        user_role = getattr(current_user, 'role', 'member') if current_user.is_authenticated else 'member'
+        user_region_id = getattr(current_user, 'region_id', None) if current_user.is_authenticated else None
+        
+        print(f"[REGIONAL_DASHBOARD] User: {current_user.username if current_user.is_authenticated else 'anonymous'}, Role: {user_role}")
+        logger.info(f"[REGIONAL_DASHBOARD] User role: {user_role}, region_id: {user_region_id}")
         
         # Find the region using raw SQL to avoid model column issues
         conn = get_db()
@@ -12951,17 +12955,15 @@ def get_regional_dashboard_data():
         print(f"[REGIONAL_DASHBOARD] Found region: {region_dict['display_name']} (ID: {region_id})")
         logger.info(f"[REGIONAL_DASHBOARD] Found region: {region_dict['display_name']} (ID: {region_id})")
         
-        # Check access permissions (relaxed for testing)
-        try:
-            from utils.rbac import rbac_manager, validate_region_access
-            if not rbac_manager.can_cross_region(user_role):
-                if not validate_region_access(region_id, user_role, user_region_id):
-                    logger.warning(f"[REGIONAL_DASHBOARD] Access denied for user role: {user_role}")
-                    return jsonify({"error": "Access denied to this region"}), 403
-        except Exception as rbac_error:
-            # If RBAC check fails, log but continue (for backward compatibility)
-            logger.warning(f"[REGIONAL_DASHBOARD] RBAC check failed, continuing anyway: {rbac_error}")
-            print(f"[REGIONAL_DASHBOARD] RBAC check failed: {rbac_error}")
+        # For now, allow all authenticated users access to regional dashboards
+        # Superadmin, admin, senior leadership roles should have access
+        allowed_roles = ['superadmin', 'admin', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor']
+        if user_role not in allowed_roles:
+            logger.warning(f"[REGIONAL_DASHBOARD] Access denied for user role: {user_role}")
+            print(f"[REGIONAL_DASHBOARD] Access denied - user role '{user_role}' not in allowed roles")
+            return jsonify({"error": "Access denied to regional dashboard"}), 403
+        
+        print(f"[REGIONAL_DASHBOARD] Access granted for role: {user_role}")
         
         # Calculate date range
         end_date = datetime.now().date()
