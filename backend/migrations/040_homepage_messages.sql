@@ -24,3 +24,4 @@ CREATE INDEX IF NOT EXISTS idx_homepage_messages_order
 ON homepage_messages(display_order);
 
 
+

@@ -127,18 +127,26 @@ def migrate_sheets_to_database():
                             except:
                                 pass
                     
-                    # Calculate total attendance
-                    total_attendance = sum(service_breakdown.values())
+                    # Use "Total People in Campus" as primary attendance field
+                    # This is the actual number entered by users in the Google Sheet (Column D)
+                    # Fall back to calculated total only if not present
+                    total_people = int(row.get('Total People in Campus', 0) or 0)
+                    if not total_people:
+                        # Fallback: calculate from service breakdowns
+                        total_people = sum(service_breakdown.values())
+                        kids_attendance = int(row.get('Kids Attendance', 0) or 0)
+                        youth_attendance = int(row.get('Youth Attendance', 0) or 0)
+                        total_people += kids_attendance + youth_attendance
+                    
                     kids_attendance = int(row.get('Kids Attendance', 0) or 0)
-                    youth_attendance = int(row.get('Youth Attendance', 0) or 0)
-                    total_attendance += kids_attendance + youth_attendance
                     
                     # Create attendance record
                     record = AttendanceRecord(
                         campus_id=campus.id,
                         region_id=campus.region_id,
                         date=date_val,
-                        total_attendance=total_attendance,
+                        total_attendance=total_people,
+                        total_people_in_campus=total_people,
                         adult_service_breakdown=json.dumps(service_breakdown) if service_breakdown else None,
                         
                         # Kids

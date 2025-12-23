@@ -108,8 +108,11 @@ def fix_zero_attendance_records():
                         return 0.0
                 
                 # Update all fields from Google Sheets
-                record.total_attendance = safe_int(sheets_row.get('Total Attendance', 0))
-                record.total_people_in_campus = safe_int(sheets_row.get('Total People in Campus', 0))
+                # Use "Total People in Campus" as the primary attendance field (this is what users enter)
+                # Fall back to "Total Attendance" (calculated field) if not present
+                total_people = safe_int(sheets_row.get('Total People in Campus', 0)) or safe_int(sheets_row.get('Total Attendance', 0))
+                record.total_attendance = total_people
+                record.total_people_in_campus = total_people
                 record.kids_attendance = safe_int(sheets_row.get('Kids Attendance', 0))
                 record.kids_leaders = safe_int(sheets_row.get('Kids Leaders', 0))
                 record.new_kids = safe_int(sheets_row.get('New Kids', 0))
