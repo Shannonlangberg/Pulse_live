@@ -21491,28 +21491,76 @@ def google_oauth_callback():
         logger.error(f"Error in Google OAuth callback: {e}", exc_info=True)
         return jsonify({'error': f'OAuth callback failed: {str(e)}'}), 500
 
+def fetch_drive_folder_files(folder_id, access_token):
+    """Fetch files from a Google Drive folder using the Drive API"""
+    from googleapiclient.discovery import build
+    from google.oauth2.credentials import Credentials
+    
+    try:
+        # Create credentials from access token
+        credentials = Credentials(token=access_token)
+        
+        # Build Drive API service
+        service = build('drive', 'v3', credentials=credentials)
+        
+        # Fetch files from folder (first 100 files, ordered by name)
+        results = service.files().list(
+            q=f"'{folder_id}' in parents and trashed=false",
+            pageSize=100,
+            fields="files(id, name, mimeType, modifiedTime, webViewLink, iconLink)",
+            orderBy="folder,name"
+        ).execute()
+        
+        files = results.get('files', [])
+        logger.info(f"Fetched {len(files)} files from Google Drive folder {folder_id}")
+        return files
+    except Exception as e:
+        logger.error(f"Error fetching Drive folder files: {e}", exc_info=True)
+        return []
+
 @app.route('/api/resources/<category_id>', methods=['GET'])
 @login_required_json
 def get_resource_category_files(category_id):
     """Get files for a specific resource category"""
     try:
         
-        # Get category to retrieve links
+        # Get category to retrieve links and folder ID
         category = ResourceCategory.query.filter(
             (ResourceCategory.slug == category_id) | (ResourceCategory.id == category_id)
         ).filter_by(is_active=True).first()
         
-        if category:
-            links = json.loads(category.links) if category.links else []
-            # For now, return links from category - Google Drive files not yet implemented
-            return jsonify({
-                'files': [],  # Google Drive files not yet implemented
-                'links': links
-            })
-        else:
+        if not category:
             return jsonify({'files': [], 'links': []})
+        
+        # Get links from category
+        links = json.loads(category.links) if category.links else []
+        
+        # Try to fetch files from Google Drive if folder_id is set
+        files = []
+        if category.folder_id:
+            # Check if user has Google Drive access token
+            access_token = session.get('google_drive_access_token')
+            if access_token:
+                # Check if token is expired
+                token_expiry = session.get('google_drive_token_expiry', 0)
+                current_time = datetime.now(timezone.utc).timestamp()
+                if current_time < token_expiry:
+                    # Fetch files from Drive
+                    logger.info(f"Fetching files from Google Drive folder: {category.folder_id}")
+                    files = fetch_drive_folder_files(category.folder_id, access_token)
+                else:
+                    logger.info(f"Google Drive token expired for user, needs re-authentication")
+            else:
+                logger.info("No Google Drive access token found in session")
+        else:
+            logger.info(f"Category {category.slug} has no folder_id configured")
+        
+        return jsonify({
+            'files': files,
+            'links': links
+        })
     except Exception as e:
-        logger.error(f"Error fetching resource category files: {e}")
+        logger.error(f"Error fetching resource category files: {e}", exc_info=True)
         return jsonify({'error': 'Failed to fetch resource files'}), 500
 
 @app.route('/api/events/categories', methods=['GET'])
