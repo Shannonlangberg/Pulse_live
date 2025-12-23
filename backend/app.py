@@ -21548,6 +21548,7 @@ def get_resource_category_files(category_id):
         
         # Try to fetch files from Google Drive if folder_id is set
         files = []
+        drive_auth_needed = False
         if category.folder_id:
             # Check if user has Google Drive access token
             access_token = session.get('google_drive_access_token')
@@ -21561,15 +21562,25 @@ def get_resource_category_files(category_id):
                     files = fetch_drive_folder_files(category.folder_id, access_token)
                 else:
                     logger.info(f"Google Drive token expired for user, needs re-authentication")
+                    drive_auth_needed = True
             else:
                 logger.info("No Google Drive access token found in session")
+                drive_auth_needed = True
         else:
             logger.info(f"Category {category.slug} has no folder_id configured")
         
-        return jsonify({
+        response_data = {
             'files': files,
             'links': links
-        })
+        }
+        
+        # Add auth needed flag if relevant
+        if drive_auth_needed and category.folder_id:
+            response_data['drive_auth_needed'] = True
+        
+        logger.info(f"Returning {len(files)} files and {len(links)} links for category {category.slug}")
+        
+        return jsonify(response_data)
     except Exception as e:
         logger.error(f"Error fetching resource category files: {e}", exc_info=True)
         return jsonify({'error': 'Failed to fetch resource files'}), 500

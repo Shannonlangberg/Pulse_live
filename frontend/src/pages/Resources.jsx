@@ -154,6 +154,17 @@ const Resources = () => {
         });
 
         const payload = await response.json().catch(() => ({}));
+        
+        // Debug logging
+        console.log('Resources API Response:', {
+          status: response.status,
+          categoryId,
+          filesCount: payload.files?.length || 0,
+          linksCount: payload.links?.length || 0,
+          driveAuthNeeded: payload.drive_auth_needed,
+          files: payload.files,
+          links: payload.links
+        });
 
         if (response.status === 401) {
           setFiles([]);
@@ -162,9 +173,11 @@ const Resources = () => {
           return;
         }
         
-        // 401 is for login, not Google Drive auth
-        // Google Drive auth is only needed if we're trying to fetch Drive files
-        // For now, we just show links, so no Drive auth needed
+        // Check if we need Google Drive authentication
+        if (payload.drive_auth_needed) {
+          console.warn('Google Drive authentication needed');
+          setAuthRequired(true);
+        }
 
         if (!response.ok) {
           const message = payload.error || 'Unable to fetch files for this category.';
@@ -173,10 +186,14 @@ const Resources = () => {
 
         const items = Array.isArray(payload.files) ? payload.files : [];
         items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        console.log('Setting files:', items.length, 'files');
         setFiles(items);
         setLinks(normalizeLinks(payload.links));
-        // Clear auth required flag - we successfully loaded data
-        setAuthRequired(false);
+        
+        // Only clear auth required if we got files or if no folder is configured
+        if (!payload.drive_auth_needed) {
+          setAuthRequired(false);
+        }
       } catch (error) {
         setFilesError(error.message || 'Something went wrong while loading files.');
         setFiles([]);
