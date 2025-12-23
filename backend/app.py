@@ -11754,9 +11754,12 @@ def get_database_viewer():
         
     except Exception as e:
         print(f"[DATABASE_VIEWER] Error: {e}")
+        logger.error(f"[DATABASE_VIEWER] Error: {e}", exc_info=True)
         import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        error_trace = traceback.format_exc()
+        print(f"[DATABASE_VIEWER] Full traceback: {error_trace}")
+        logger.error(f"[DATABASE_VIEWER] Full traceback: {error_trace}")
+        return jsonify({"error": f"Failed to load database records: {str(e)}"}), 500
 
 @app.route('/api/recent_entries', methods=['GET'])
 @login_required
