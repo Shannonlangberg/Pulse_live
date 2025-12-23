@@ -1,6 +1,6 @@
 # app.py
 
-from flask import Flask, request, jsonify, send_from_directory, render_template, redirect, url_for, flash, session, Response, make_response
+from flask import Flask, request, jsonify, send_from_directory, render_template, redirect, url_for, flash, session, Response, make_response, g
 from flask_cors import CORS
 from flask_compress import Compress
 from models import db, init_db, Person, EngagementProfile, BeaconZone, Event, EventCategory, EventRegistration, EventTeamAssignment, EventResourceBooking, create_person_with_engagement, ConnectGroup, ConnectGroupMeeting, ConnectGroupAttendance, ConnectGroupMessage, ResourceCategory, PersonPathwayProgress, PersonPathwayStepCompletion, PathwayStep, PushNotificationToken, ScheduledNotification, PastoralCareCase, HeartbeatSnapshot, AttendanceEvent, ServingAssignment, GivingTransaction, CareCase, Region, CampusV2, AttendanceRecord
@@ -10857,10 +10857,24 @@ def get_weekly_submission_status():
         region_code = request.args.get('region', 'AU').upper()
         print(f"[WEEKLY_SUBMISSION] Looking for region: {region_code}")
         
-        # Find the region
-        region = Region.query.filter_by(code=region_code).first()
-        if not region:
+        # Find the region using raw SQL to avoid model column issues
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, code, display_name FROM regions WHERE code = ?", (region_code,))
+        region_row = cursor.fetchone()
+        
+        if not region_row:
+            print(f"[WEEKLY_SUBMISSION] Region {region_code} not found")
             return jsonify({'error': f'Region {region_code} not found'}), 404
+        
+        region_id = region_row[0]
+        region_dict = {
+            'id': region_row[0],
+            'name': region_row[1],
+            'code': region_row[2],
+            'display_name': region_row[3]
+        }
+        print(f"[WEEKLY_SUBMISSION] Found region: {region_dict['display_name']} (ID: {region_id})")
         
         # Get the most recent Sunday (or today if it's Sunday)
         today = datetime.now()
@@ -10872,13 +10886,13 @@ def get_weekly_submission_status():
         most_recent_saturday = most_recent_sunday - timedelta(days=1)
         
         # Get all campuses for this region
-        campuses = CampusV2.query.filter_by(region_id=region.id, active=True).all()
+        campuses = CampusV2.query.filter_by(region_id=region_id, active=True).all()
         
         if not campuses:
             return jsonify({
                 'week_start': most_recent_saturday.strftime('%B %d, %Y'),
                 'campuses': [],
-                'region': region.to_dict()
+                'region': region_dict
             })
         
         # Check submission status for each campus using DATABASE (attendance_records)
@@ -12914,20 +12928,34 @@ def get_regional_dashboard_data():
         user_role = getattr(g, 'user_role', 'member')
         user_region_id = getattr(g, 'user_region_id', None)
         
-        # Find the region
-        region = Region.query.filter_by(code=region_code.upper()).first()
-        if not region:
+        # Find the region using raw SQL to avoid model column issues
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, code, display_name, timezone, currency FROM regions WHERE code = ?", (region_code.upper(),))
+        region_row = cursor.fetchone()
+        
+        if not region_row:
             logger.error(f"[REGIONAL_DASHBOARD] Region not found: {region_code}")
             return jsonify({"error": f"Region not found: {region_code}"}), 404
         
-        print(f"[REGIONAL_DASHBOARD] Found region: {region.display_name} (ID: {region.id})")
-        logger.info(f"[REGIONAL_DASHBOARD] Found region: {region.display_name} (ID: {region.id})")
+        region_id = region_row[0]
+        region_dict = {
+            'id': region_row[0],
+            'name': region_row[1],
+            'code': region_row[2],
+            'display_name': region_row[3],
+            'timezone': region_row[4],
+            'currency': region_row[5]
+        }
+        
+        print(f"[REGIONAL_DASHBOARD] Found region: {region_dict['display_name']} (ID: {region_id})")
+        logger.info(f"[REGIONAL_DASHBOARD] Found region: {region_dict['display_name']} (ID: {region_id})")
         
         # Check access permissions (relaxed for testing)
         try:
             from utils.rbac import rbac_manager, validate_region_access
             if not rbac_manager.can_cross_region(user_role):
-                if not validate_region_access(region.id, user_role, user_region_id):
+                if not validate_region_access(region_id, user_role, user_region_id):
                     logger.warning(f"[REGIONAL_DASHBOARD] Access denied for user role: {user_role}")
                     return jsonify({"error": "Access denied to this region"}), 403
         except Exception as rbac_error:
@@ -12955,13 +12983,17 @@ def get_regional_dashboard_data():
         
         # Query attendance records for this region
         records = AttendanceRecord.query.filter(
-            AttendanceRecord.region_id == region.id,
+            AttendanceRecord.region_id == region_id,
             AttendanceRecord.date >= start_date,
             AttendanceRecord.date <= end_date
         ).all()
         
+        print(f"[REGIONAL_DASHBOARD] Found {len(records)} attendance records")
+        
         # Get campuses in this region
-        campuses = CampusV2.query.filter_by(region_id=region.id, active=True).all()
+        campuses = CampusV2.query.filter_by(region_id=region_id, active=True).all()
+        
+        print(f"[REGIONAL_DASHBOARD] Found {len(campuses)} active campuses")
         
         # Aggregate statistics
         total_attendance = sum(r.total_attendance or 0 for r in records)
@@ -12998,10 +13030,10 @@ def get_regional_dashboard_data():
         # Build response
         response = {
             'region': {
-                'code': region.code,
-                'name': region.display_name,
-                'timezone': region.timezone,
-                'currency': region.currency
+                'code': region_dict['code'],
+                'name': region_dict['display_name'],
+                'timezone': region_dict['timezone'],
+                'currency': region_dict['currency']
             },
             'date_range': {
                 'start': start_date.isoformat(),
