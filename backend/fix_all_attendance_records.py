@@ -127,11 +127,32 @@ def fix_all_attendance_records():
                 
                 # Update with correct field mapping - prioritize "Total People in Campus"
                 total_people = safe_int(sheets_row.get('Total People in Campus', 0)) or safe_int(sheets_row.get('Total Attendance', 0))
+                
+                # FALLBACK: If both are 0/empty, calculate from service time breakdowns
+                if not total_people:
+                    adult_total = 0
+                    for time in ['9:00 AM', '10:00 AM', '11:00 AM', '5:00 PM', '5:30 PM']:
+                        adult_total += safe_int(sheets_row.get(time, 0))
+                    
+                    kids_total = 0
+                    for time in ['Kids 9:00 AM', 'Kids 10:00 AM', 'Kids 11:00 AM', 'Kids 5:00 PM', 'Kids 5:30 PM']:
+                        kids_total += safe_int(sheets_row.get(time, 0))
+                    
+                    youth_total = safe_int(sheets_row.get('Youth Attendance', 0))
+                    
+                    total_people = adult_total + kids_total + youth_total
+                
                 record.total_attendance = total_people
                 record.total_people_in_campus = total_people
                 
                 # Update all other fields too
-                record.kids_attendance = safe_int(sheets_row.get('Kids Attendance', 0))
+                kids_attendance = safe_int(sheets_row.get('Kids Attendance', 0))
+                # FALLBACK: Calculate kids attendance from service time breakdown if empty
+                if not kids_attendance:
+                    kids_attendance = 0
+                    for time in ['Kids 9:00 AM', 'Kids 10:00 AM', 'Kids 11:00 AM', 'Kids 5:00 PM', 'Kids 5:30 PM']:
+                        kids_attendance += safe_int(sheets_row.get(time, 0))
+                record.kids_attendance = kids_attendance
                 record.kids_leaders = safe_int(sheets_row.get('Kids Leaders', 0))
                 record.new_kids = safe_int(sheets_row.get('New Kids', 0))
                 record.new_kids_salvations = safe_int(sheets_row.get('New Kids Salvations', 0))
