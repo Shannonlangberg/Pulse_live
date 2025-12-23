@@ -1,5 +1,5 @@
 #!/bin/bash
-# Trigger redeploy to run fix_all_attendance_records.py - 2025-12-23 (second run)
+# Trigger redeploy to run fix_all_attendance_records.py - 2025-12-23 (third run)
 
 echo "=== Starting Futures Link ==="
 echo "Working directory: $(pwd)"
