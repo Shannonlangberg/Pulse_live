@@ -11851,12 +11851,16 @@ def get_recent_entries():
             if campus and campus != 'all_campuses':
                 logger.info(f"[RECENT_ENTRIES] Looking for entries from {start_date} to {end_date} for campus '{campus}'")
                 
-                # Find campus by campus_id (e.g., 'adelaide_city', 'paradise')
-                campus_obj = CampusV2.query.filter_by(campus_id=campus).first()
+                # Try to find campus by UUID first (campus.id), then by campus_id string
+                campus_obj = CampusV2.query.filter(
+                    (CampusV2.id == campus) | (CampusV2.campus_id == campus)
+                ).first()
                 
                 if not campus_obj:
                     logger.warning(f"[RECENT_ENTRIES] Campus '{campus}' not found in database")
                     return jsonify({"entries": []}), 200
+                
+                logger.info(f"[RECENT_ENTRIES] Found campus: {campus_obj.display_name} (ID: {campus_obj.id}, campus_id: {campus_obj.campus_id})")
                 
                 # Query attendance records from database
                 records = AttendanceRecord.query.filter(
