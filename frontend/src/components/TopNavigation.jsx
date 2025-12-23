@@ -66,14 +66,14 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       name: 'Users', 
       href: '/users', 
       icon: UserGroupIcon, 
-      roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      roles: ['superadmin', 'admin'],
       featureKey: 'user_management'
     },
     { 
       name: 'Role Manager', 
       href: '/role-manager', 
       icon: ShieldCheckIcon, 
-      roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      roles: ['superadmin', 'admin'],
       featureKey: 'user_management'
     },
     { 
@@ -94,7 +94,7 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       name: 'Campuses', 
       href: '/campuses', 
       icon: BuildingOfficeIcon, 
-      roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      roles: ['superadmin', 'admin'],
       featureKey: 'campus_management'
     },
     { 
@@ -108,7 +108,7 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       name: 'Resource Manager', 
       href: '/resources/manage', 
       icon: BookOpenIcon, 
-      roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+      roles: ['superadmin', 'admin'],
       featureKey: 'resource_manager'
     },
     { 
