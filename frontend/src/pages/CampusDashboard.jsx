@@ -84,14 +84,15 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
         console.log(`[CampusDashboard] Regional dashboard data:`, result);
         
         // Normalize regional data structure to match campus dashboard format
+        const weekCount = result.stats?.week_count || 1; // Avoid division by zero
         const normalizedData = {
           stats: {
             // Map regional fields to campus dashboard fields
             total_attendance: result.stats?.total_attendance || 0,
             avg_attendance: result.stats?.avg_weekly_attendance || 0,
             total_people: result.stats?.total_attendance || 0,
-            avg_kids_attendance: result.stats?.total_kids / result.stats?.week_count || 0,
-            avg_youth_attendance: result.stats?.total_youth / result.stats?.week_count || 0,
+            avg_kids_attendance: (result.stats?.total_kids || 0) / weekCount,
+            avg_youth_attendance: (result.stats?.total_youth || 0) / weekCount,
             avg_kids_leaders: 0,
             avg_connect_groups: 0,
             avg_dream_team: 0,
@@ -117,7 +118,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
           region: result.region,
           campuses: result.campuses || [],
           date_range: result.date_range || {},
-          week_count: result.stats?.week_count || 0
+          week_count: weekCount
         };
         
         setData(normalizedData);
@@ -160,13 +161,15 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, onBackToSelec
   const normalizeRegionalData = (result) => {
     if (!result.stats) return result;
     
+    const weekCount = result.stats?.week_count || 1; // Avoid division by zero
+    
     return {
       stats: {
         total_attendance: result.stats?.total_attendance || 0,
         avg_attendance: result.stats?.avg_weekly_attendance || 0,
         total_people: result.stats?.total_attendance || 0,
-        avg_kids_attendance: result.stats?.total_kids / result.stats?.week_count || 0,
-        avg_youth_attendance: result.stats?.total_youth / result.stats?.week_count || 0,
+        avg_kids_attendance: (result.stats?.total_kids || 0) / weekCount,
+        avg_youth_attendance: (result.stats?.total_youth || 0) / weekCount,
         first_time_christians: result.stats?.total_salvations || 0,
         baptisms: result.stats?.total_baptisms || 0,
         new_people: result.stats?.total_visitors || 0,
