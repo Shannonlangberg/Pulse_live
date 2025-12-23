@@ -1738,6 +1738,8 @@ except Exception as e:
     print(f"[ERROR] ❌ Migration error: {e}")
     logger.error(f"❌ Migration error: {e}", exc_info=True)
     import traceback
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
+                available_ids = []
     traceback.print_exc()
     # Don't fail startup - app should still work with graceful error handling
 
@@ -11869,7 +11871,6 @@ def save_attendance_record(data, user_id=None):
             if campus:
                 logger.info(f"[SAVE_ATTENDANCE] Found campus by name: {campus.campus_id}")
         if not campus:
-        
             try:
                 db.session.expire_all()
                 all_campuses = db.session.query(CampusV2).all()
@@ -11886,6 +11887,8 @@ def save_attendance_record(data, user_id=None):
             except Exception as e:
                 logger.error(f"[SAVE_ATTENDANCE] Error querying campuses: {e}")
                 import traceback
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
+                available_ids = []
             return False, None, f"Campus not found: {campus_value or campus_id_value}"
         
         # Parse date
@@ -12119,6 +12122,8 @@ def quick_input():
     except Exception as e:
         logger.error(f"Quick input error: {e}")
         import traceback
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
+                available_ids = []
         traceback.print_exc()
         return jsonify({"error": "Internal server error"}), 500
 
@@ -15474,6 +15479,8 @@ def get_persons():
         
     except Exception as e:
         import traceback
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
+                available_ids = []
         error_traceback = traceback.format_exc()
         logger.error(f"Error fetching persons: {e}\n{error_traceback}")
         return jsonify({'error': f'Failed to fetch persons: {str(e)}'}), 500
@@ -16715,6 +16722,8 @@ def update_person(person_id):
     except Exception as e:
         db.session.rollback()
         import traceback
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
+                available_ids = []
         error_traceback = traceback.format_exc()
         logger.error(f"Error updating person {person_id}: {e}\n{error_traceback}")
         return jsonify({'error': f'Failed to update person: {str(e)}'}), 500
@@ -19324,6 +19333,8 @@ def mark_leader_attendance(group_id):
             db.session.rollback()
             logger.error(f"Error committing attendance: {commit_error}", exc_info=True)
             import traceback
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
+                available_ids = []
             logger.error(f"Commit traceback: {traceback.format_exc()}")
             return jsonify({'error': f'Failed to save attendance: {str(commit_error)}'}), 500
         
@@ -19371,6 +19382,8 @@ def mark_leader_attendance(group_id):
         db.session.rollback()
         logger.error(f"Error marking attendance: {e}", exc_info=True)
         import traceback
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
+                available_ids = []
         logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Failed to mark attendance: {str(e)}'}), 500
 
@@ -19987,6 +20000,8 @@ def submit_meeting_attendance(meeting_id):
     except Exception as e:
         db.session.rollback()
         import traceback
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
+                available_ids = []
         error_traceback = traceback.format_exc()
         error_type = type(e).__name__
         error_message = str(e)
@@ -23780,6 +23795,8 @@ def get_families():
     except Exception as e:
         logger.error(f"Error fetching families: {e}", exc_info=True)
         import traceback
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
+                available_ids = []
         error_details = traceback.format_exc()
         logger.error(f"Full traceback: {error_details}")
         return jsonify({'error': 'Failed to fetch families', 'details': str(e)}), 500
@@ -23840,6 +23857,8 @@ def get_person_family(person_id):
     except Exception as e:
         logger.error(f"Error fetching person family: {e}", exc_info=True)
         import traceback
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
+                available_ids = []
         error_details = traceback.format_exc()
         logger.error(f"Full traceback: {error_details}")
         return jsonify({'error': 'Failed to fetch family', 'details': str(e)}), 500
@@ -24056,6 +24075,8 @@ def create_family_for_person(person_id):
         logger.error(f"Error creating family: {e}", exc_info=True)
         db.session.rollback()
         import traceback
+                logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
+                available_ids = []
         error_details = traceback.format_exc()
         logger.error(f"Full traceback: {error_details}")
         return jsonify({
