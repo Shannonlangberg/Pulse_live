@@ -10846,12 +10846,16 @@ def get_weekly_submission_status():
     try:
         from models import Region, CampusV2, AttendanceRecord
         
+        print(f"[WEEKLY_SUBMISSION] Request received. User: {current_user.username}, Role: {current_user.role}")
+        
         # Only admins and lead pastors can see this
         if current_user.role not in ['superadmin', 'admin', 'lead_pastor', 'senior_pastor', 'senior_leader']:
+            print(f"[WEEKLY_SUBMISSION] Unauthorized - user role: {current_user.role}")
             return jsonify({'error': 'Unauthorized'}), 403
         
         # Get region parameter (optional - defaults to user's region or AU)
         region_code = request.args.get('region', 'AU').upper()
+        print(f"[WEEKLY_SUBMISSION] Looking for region: {region_code}")
         
         # Find the region
         region = Region.query.filter_by(code=region_code).first()
@@ -10905,7 +10909,11 @@ def get_weekly_submission_status():
         })
         
     except Exception as e:
-        logger.error(f"Error getting weekly submission status: {e}")
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[WEEKLY_SUBMISSION] ERROR: {e}")
+        print(f"[WEEKLY_SUBMISSION] Traceback: {error_trace}")
+        logger.error(f"[WEEKLY_SUBMISSION] Error getting weekly submission status: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/v2/regions', methods=['GET'])
