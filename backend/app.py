@@ -6747,6 +6747,10 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 stats['avg_dream_team'] = stats['dream_team'] / entry_count
                 stats['avg_saints'] = stats['saints'] / entry_count
                 
+                # FIX: total_people should be average, not sum across dates
+                # Convert the summed total_people to an average
+                stats['total_people'] = stats['total_people'] / entry_count
+                
                 # Calculate monthly averages for trends
                 for month_key, month_data in monthly_trends.items():
                     count = month_data['count'] or 1
@@ -9899,6 +9903,8 @@ def session_info():
             'user_management': True,  # Always enabled for Pulse v1
             'campus_management': True,  # Always enabled for Pulse v1
             'resource_manager': True,  # Always enabled for Pulse v1
+            'finance': True,  # Finance input - always enabled for Pulse v1
+            'giving': True,  # Giving analytics - always enabled for Pulse v1
             # Optional features - controlled by environment variables
             'pulse_tv': os.getenv('PULSE_TV_ENABLED', 'false').lower() == 'true',
             'tv_manager': os.getenv('PULSE_TV_ENABLED', 'false').lower() == 'true',
@@ -9910,8 +9916,6 @@ def session_info():
             'prayer': os.getenv('PRAYER_ENABLED', 'false').lower() == 'true',
             'people': os.getenv('PEOPLE_ENABLED', 'false').lower() == 'true',
             'connect_groups': os.getenv('GROUPS_FOR_STAFF_ENABLED', 'false').lower() == 'true',
-            'giving': os.getenv('GIVING_ENABLED', 'false').lower() == 'true',
-            'finance': os.getenv('FINANCE_ENABLED', 'false').lower() == 'true',
             'communication': os.getenv('COMMUNICATION_ENABLED', 'false').lower() == 'true',
             'notifications': os.getenv('NOTIFICATIONS_ENABLED', 'false').lower() == 'true',
             'data_export': os.getenv('DATA_EXPORT_ENABLED', 'false').lower() == 'true',
@@ -13476,6 +13480,7 @@ def get_regional_dashboard_data():
         
         # Aggregate statistics
         total_attendance = sum(r.total_attendance or 0 for r in records)
+        total_people_in_campus = sum(r.total_people_in_campus or 0 for r in records)
         total_kids = sum(r.kids_attendance or 0 for r in records)
         total_youth = sum(r.youth_attendance or 0 for r in records)
         total_salvations = sum((r.first_time_christians or 0) + (r.rededications or 0) for r in records)
@@ -13483,10 +13488,16 @@ def get_regional_dashboard_data():
         total_visitors = sum(r.first_time_visitors or 0 for r in records)
         total_giving = sum(float(r.tithe or 0) for r in records)
         
-        # Calculate averages
+        # Calculate averages - use number of records (services) not unique dates
+        # This ensures we get average per service across all campuses
+        record_count = max(1, len(records))
+        avg_attendance = total_attendance / record_count if record_count > 0 else 0
+        avg_kids = total_kids / record_count if record_count > 0 else 0
+        avg_youth = total_youth / record_count if record_count > 0 else 0
+        avg_giving = total_giving / record_count if record_count > 0 else 0
+        
+        # Calculate week_count for display purposes (unique dates)
         week_count = max(1, len(set(r.date for r in records)))
-        avg_attendance = total_attendance / week_count if week_count > 0 else 0
-        avg_giving = total_giving / week_count if week_count > 0 else 0
         
         # Get campus breakdown
         campus_stats = []
@@ -13494,6 +13505,7 @@ def get_regional_dashboard_data():
             campus_records = [r for r in records if r.campus_id == campus.id]
             if campus_records:
                 campus_total = sum(r.total_attendance or 0 for r in campus_records)
+                # Average per service (record), not per unique date
                 campus_avg = campus_total / len(campus_records) if campus_records else 0
                 campus_stats.append({
                     'campus_id': campus.campus_id,
@@ -13523,7 +13535,9 @@ def get_regional_dashboard_data():
                 'total_attendance': total_attendance,
                 'avg_weekly_attendance': round(avg_attendance, 1),
                 'total_kids': total_kids,
+                'avg_kids': round(avg_kids, 1),
                 'total_youth': total_youth,
+                'avg_youth': round(avg_youth, 1),
                 'total_salvations': total_salvations,
                 'total_baptisms': total_baptisms,
                 'total_visitors': total_visitors,
@@ -13610,10 +13624,14 @@ def get_global_dashboard_data():
         total_visitors = sum(r.first_time_visitors or 0 for r in all_records)
         total_giving = sum(float(r.tithe or 0) for r in all_records)
         
-        # Calculate global averages
+        # Calculate global averages - use number of records (services) not unique dates
+        # This ensures we get average per service across all campuses
+        record_count = max(1, len(all_records))
+        avg_attendance = total_attendance / record_count if record_count > 0 else 0
+        avg_giving = total_giving / record_count if record_count > 0 else 0
+        
+        # Calculate week_count for display purposes (unique dates)
         week_count = max(1, len(set(r.date for r in all_records)))
-        avg_attendance = total_attendance / week_count if week_count > 0 else 0
-        avg_giving = total_giving / week_count if week_count > 0 else 0
         
         # Get region breakdown
         region_stats = []
@@ -13623,8 +13641,8 @@ def get_global_dashboard_data():
                 region_total = sum(r.total_attendance or 0 for r in region_records)
                 region_giving = sum(float(r.tithe or 0) for r in region_records)
                 region_salvations = sum((r.first_time_christians or 0) + (r.rededications or 0) for r in region_records)
-                region_weeks = len(set(r.date for r in region_records))
-                region_avg = region_total / region_weeks if region_weeks > 0 else 0
+                # Average per service (record), not per unique date
+                region_avg = region_total / len(region_records) if region_records else 0
                 
                 region_campuses = [c for c in all_campuses if c.region_id == region.id]
                 
@@ -13653,7 +13671,9 @@ def get_global_dashboard_data():
                 'total_attendance': total_attendance,
                 'avg_weekly_attendance': round(avg_attendance, 1),
                 'total_kids': total_kids,
+                'avg_kids': round(avg_kids, 1),
                 'total_youth': total_youth,
+                'avg_youth': round(avg_youth, 1),
                 'total_salvations': total_salvations,
                 'total_baptisms': total_baptisms,
                 'total_visitors': total_visitors,

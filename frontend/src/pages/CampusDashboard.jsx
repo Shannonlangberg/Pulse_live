@@ -90,8 +90,8 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             total_attendance: result.global_stats?.total_attendance || 0,
             avg_attendance: result.global_stats?.avg_weekly_attendance || 0,
             total_people: result.global_stats?.total_attendance || 0,
-            avg_kids_attendance: (result.global_stats?.total_kids || 0) / weekCount,
-            avg_youth_attendance: (result.global_stats?.total_youth || 0) / weekCount,
+            avg_kids_attendance: result.global_stats?.avg_kids || 0,
+            avg_youth_attendance: result.global_stats?.avg_youth || 0,
             avg_kids_leaders: 0,
             avg_connect_groups: 0,
             avg_dream_team: 0,
@@ -542,10 +542,10 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 </div>
                 <h3 className="text-white/80 text-sm font-medium mb-2">Campus Overview</h3>
                 <div className="text-4xl font-bold text-white mb-2">
-                  {totalPeople.toLocaleString()}
+                  {Math.round(totalPeople).toLocaleString()}
                 </div>
                 <p className="text-[#62B4FF]/80 text-sm">
-                  Total registered people
+                  Average registered people
                 </p>
               </div>
             </div>
