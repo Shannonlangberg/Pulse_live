@@ -11839,23 +11839,41 @@ def save_attendance_record(data, user_id=None):
         # Use direct session query to avoid session issues
         # First, try campus_id from data
         if campus_id_value:
-            campus = db.session.query(CampusV2).filter(CampusV2.campus_id == campus_id_value).first()
-            if campus:
-                logger.info(f"[SAVE_ATTENDANCE] Found campus by campus_id: {campus.campus_id}")
+            try:
+                logger.info(f"[SAVE_ATTENDANCE] Querying by campus_id: {campus_id_value}")
+                campus = db.session.query(CampusV2).filter(CampusV2.campus_id == campus_id_value).first()
+                if campus:
+                    logger.info(f"[SAVE_ATTENDANCE] Found campus by campus_id: {campus.campus_id}")
+                else:
+                    logger.info(f"[SAVE_ATTENDANCE] No campus found with campus_id: {campus_id_value}")
+            except Exception as e:
+                logger.error(f"[SAVE_ATTENDANCE] Error querying by campus_id: {e}", exc_info=True)
         
         # If not found, try using campus field as campus_id (common case)
         if not campus and campus_value:
             # Try exact match first
-            campus = db.session.query(CampusV2).filter(CampusV2.campus_id == campus_value).first()
-            if campus:
-                logger.info(f"[SAVE_ATTENDANCE] Found campus by campus field as campus_id: {campus.campus_id}")
+            try:
+                logger.info(f"[SAVE_ATTENDANCE] Querying by campus value (exact): {campus_value}")
+                campus = db.session.query(CampusV2).filter(CampusV2.campus_id == campus_value).first()
+                if campus:
+                    logger.info(f"[SAVE_ATTENDANCE] Found campus by campus field as campus_id: {campus.campus_id}")
+                else:
+                    logger.info(f"[SAVE_ATTENDANCE] No campus found with exact campus value: {campus_value}")
+            except Exception as e:
+                logger.error(f"[SAVE_ATTENDANCE] Error querying by campus value: {e}", exc_info=True)
             
             # Try lowercase version
             if not campus:
-                campus_lower = campus_value.lower().replace(' ', '_')
-                campus = db.session.query(CampusV2).filter(CampusV2.campus_id == campus_lower).first()
-                if campus:
-                    logger.info(f"[SAVE_ATTENDANCE] Found campus by lowercase campus_id: {campus.campus_id}")
+                try:
+                    campus_lower = campus_value.lower().replace(' ', '_')
+                    logger.info(f"[SAVE_ATTENDANCE] Querying by lowercase: {campus_lower}")
+                    campus = db.session.query(CampusV2).filter(CampusV2.campus_id == campus_lower).first()
+                    if campus:
+                        logger.info(f"[SAVE_ATTENDANCE] Found campus by lowercase campus_id: {campus.campus_id}")
+                    else:
+                        logger.info(f"[SAVE_ATTENDANCE] No campus found with lowercase: {campus_lower}")
+                except Exception as e:
+                    logger.error(f"[SAVE_ATTENDANCE] Error querying by lowercase: {e}", exc_info=True)
         
         # If still not found, try display_name match
         if not campus and campus_value:
