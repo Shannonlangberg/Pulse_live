@@ -3,7 +3,7 @@
 from flask import Flask, request, jsonify, send_from_directory, render_template, redirect, url_for, flash, session, Response, make_response, g
 from flask_cors import CORS
 from flask_compress import Compress
-from models import db, init_db, Person, EngagementProfile, BeaconZone, Event, EventCategory, EventRegistration, EventTeamAssignment, EventResourceBooking, create_person_with_engagement, ConnectGroup, ConnectGroupMeeting, ConnectGroupAttendance, ConnectGroupMessage, ResourceCategory, DriveItemOverride, PersonPathwayProgress, PersonPathwayStepCompletion, PathwayStep, PushNotificationToken, ScheduledNotification, PastoralCareCase, HeartbeatSnapshot, AttendanceEvent, ServingAssignment, GivingTransaction, CareCase, Region, CampusV2, AttendanceRecord
+from models import db, init_db, Person, EngagementProfile, BeaconZone, Event, EventCategory, EventRegistration, EventTeamAssignment, EventResourceBooking, create_person_with_engagement, ConnectGroup, ConnectGroupMeeting, ConnectGroupAttendance, ConnectGroupMessage, ResourceCategory, DriveItemOverride, PersonPathwayProgress, PersonPathwayStepCompletion, PathwayStep, PushNotificationToken, ScheduledNotification, PastoralCareCase, HeartbeatSnapshot, AttendanceEvent, ServingAssignment, GivingTransaction, CareCase, Region, CampusV2, AttendanceRecord, FinanceRecord
 from datetime import datetime, timezone, timedelta, date
 import os
 import re
@@ -1328,7 +1328,7 @@ def get_db_path():
 CHURCH_VOICE_DB_PATH = os.path.join(os.path.dirname(__file__), 'instance', 'church_voice.db')
 
 def get_db():
-    """Get a direct sqlite3 connection to church_voice.db for new tables"""
+    """Get a direct sqlite3 connection - prefers futures_link.db for users table, church_voice.db for regions/campuses"""
     import sqlite3
     
     # On Railway, check if DATABASE_URL points to a database with users table
@@ -1349,7 +1349,21 @@ def get_db():
             except:
                 pass  # Fall back to default
     
-    # Default to CHURCH_VOICE_DB_PATH
+    # For local development, prefer futures_link.db if users table exists there
+    futures_link_path = get_db_path()
+    try:
+        test_conn = sqlite3.connect(futures_link_path)
+        test_cursor = test_conn.cursor()
+        test_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        if test_cursor.fetchone():
+            test_conn.close()
+            # Users table exists in futures_link.db, use that
+            return sqlite3.connect(futures_link_path)
+        test_conn.close()
+    except:
+        pass  # Fall back to church_voice.db
+    
+    # Default to CHURCH_VOICE_DB_PATH for regions/campuses tables
     return sqlite3.connect(CHURCH_VOICE_DB_PATH)
 
 def run_migrations():
@@ -8547,8 +8561,35 @@ def get_weekly_campus_comparison_data():
 #     pass
 
 def get_existing_tithe_data(selected_date):
-    """Get existing tithe data for the selected date from the Tithe tab"""
+    """Get existing tithe data for the selected date from DATABASE (primary) or Sheets (fallback)"""
     try:
+        from datetime import datetime as dt_module
+        
+        # Parse the selected date
+        target_date = dt_module.strptime(selected_date, '%Y-%m-%d').date()
+        
+        # First, try to get from database
+        try:
+            db_records = FinanceRecord.query.filter_by(date=target_date).all()
+            if db_records:
+                existing_data = {}
+                for record in db_records:
+                    # Use campus_id as key (lowercase for consistency)
+                    key = record.campus_id.lower()
+                    existing_data[key] = {
+                        'general': float(record.general) if record.general else 0,
+                        'trust': float(record.trust) if record.trust else 0,
+                        'online': float(record.online) if record.online else 0,
+                        'text': float(record.text) if record.text else 0,
+                        'total': float(record.total) if record.total else 0,
+                        'source': 'database'
+                    }
+                logger.info(f"Loaded {len(existing_data)} finance records from database for {selected_date}")
+                return existing_data
+        except Exception as e:
+            logger.warning(f"Error loading from database, falling back to sheets: {str(e)}")
+        
+        # Fallback to Google Sheets if database fails or is empty
         if not finance_sheet:
             return {}
         
@@ -8556,18 +8597,15 @@ def get_existing_tithe_data(selected_date):
         rows = safe_sheets_request(finance_sheet.get_all_records)
         existing_data = {}
         
-        # Parse the selected date
-        target_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
-        
         for row in rows:
             date_str = row.get("Date", "")
             if date_str:
                 try:
                     # Parse the date from the row
                     if "T" in date_str:
-                        row_date = datetime.fromisoformat(date_str.replace('Z', '+00:00')).date()
+                        row_date = dt_module.fromisoformat(date_str.replace('Z', '+00:00')).date()
                     else:
-                        row_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                        row_date = dt_module.strptime(date_str, "%Y-%m-%d").date()
                     
                     # If dates match, collect tithe data
                     if row_date == target_date:
@@ -8584,12 +8622,14 @@ def get_existing_tithe_data(selected_date):
                                 'online': safe_int(online) if online else 0,
                                 'text': safe_int(text) if text else 0,
                                 'total': safe_int(total) if total else 0,
-                                'row_index': rows.index(row) + 2  # +2 because sheets are 1-indexed and have header
+                                'row_index': rows.index(row) + 2,  # +2 because sheets are 1-indexed and have header
+                                'source': 'sheets'
                             }
                 except Exception as e:
                     logger.warning(f"Error parsing date {date_str}: {e}")
                     continue
         
+        logger.info(f"Loaded {len(existing_data)} finance records from sheets for {selected_date}")
         return existing_data
         
     except Exception as e:
@@ -8721,7 +8761,8 @@ def submit_finance_data():
                         'text': text,
                         'total': total
                     }
-                    result = update_tithe_for_campus(campus_id, selected_date, breakdown)
+                    # Pass current user's email for audit trail
+                    result = update_tithe_for_campus(campus_id, selected_date, breakdown, current_user.email)
                     results.append({
                         'campus': campus_id,
                         'total': total,
@@ -8749,11 +8790,248 @@ def submit_finance_data():
         logger.error(f"Error submitting finance data: {str(e)}")
         return jsonify({'success': False, 'error': f'An error occurred: {str(e)}'}), 500
 
-def update_tithe_for_campus(campus_id, date_str, tithe_amount):
-    """Update or add tithe data for a specific campus and date to the Tithe tab"""
+
+@app.route('/api/finance/records', methods=['GET'])
+@login_required
+def get_finance_records():
+    """
+    Get finance records from database
+    Accessible by finance team and super admin only
+    """
     try:
+        # Check permissions - only finance and superadmin can view
+        if not current_user.has_permission('finance_access'):
+            return jsonify({'success': False, 'error': 'Access denied. Finance access required.'}), 403
+        
+        # Get filters from query params
+        campus_filter = request.args.get('campus', '')
+        start_date_str = request.args.get('start_date', '')
+        end_date_str = request.args.get('end_date', '')
+        limit = int(request.args.get('limit', 100))
+        
+        logger.info(f"Fetching finance records with filters: campus={campus_filter}, start={start_date_str}, end={end_date_str}")
+        
+        # Build query
+        query = FinanceRecord.query
+        
+        # Apply filters
+        if campus_filter:
+            query = query.filter(FinanceRecord.campus_id == campus_filter)
+        
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            query = query.filter(FinanceRecord.date >= start_date)
+        
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            query = query.filter(FinanceRecord.date <= end_date)
+        
+        # Get records (most recent first)
+        records = query.order_by(FinanceRecord.date.desc()).limit(limit).all()
+        
+        logger.info(f"Found {len(records)} finance records")
+        
+        # Convert to dict
+        records_data = [record.to_dict() for record in records]
+        
+        return jsonify({
+            'success': True,
+            'records': records_data,
+            'count': len(records_data)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching finance records: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/finance/records/<int:record_id>', methods=['PUT'])
+@login_required
+def update_finance_record(record_id):
+    """
+    Update a finance record
+    Accessible by finance team and super admin only
+    """
+    try:
+        # Check permissions
+        if not current_user.has_permission('finance_access'):
+            return jsonify({'success': False, 'error': 'Access denied. Finance access required.'}), 403
+        
+        # Get the record
+        record = FinanceRecord.query.get(record_id)
+        if not record:
+            return jsonify({'success': False, 'error': 'Record not found'}), 404
+        
+        # Get update data
+        data = request.get_json()
+        
+        # Update fields
+        if 'general' in data:
+            record.general = float(data['general'])
+        if 'trust' in data:
+            record.trust = float(data['trust'])
+        if 'online' in data:
+            record.online = float(data['online'])
+        if 'text' in data:
+            record.text = float(data['text'])
+        
+        # Recalculate total
+        record.total = float(record.general or 0) + float(record.trust or 0) + float(record.online or 0) + float(record.text or 0)
+        record.updated_at = datetime.utcnow()
+        record.updated_by = current_user.email
+        
+        db.session.commit()
+        
+        logger.info(f"Updated finance record {record_id} by {current_user.email}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Finance record updated successfully',
+            'record': record.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating finance record: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/finance/records/<int:record_id>', methods=['DELETE'])
+@login_required
+def delete_finance_record(record_id):
+    """
+    Delete a finance record
+    Accessible by super admin only
+    """
+    try:
+        # Check permissions - only superadmin can delete
+        user_role = getattr(current_user, 'role', 'member')
+        if user_role != 'superadmin':
+            return jsonify({'success': False, 'error': 'Access denied. Super admin only.'}), 403
+        
+        # Get the record
+        record = FinanceRecord.query.get(record_id)
+        if not record:
+            return jsonify({'success': False, 'error': 'Record not found'}), 404
+        
+        # Delete it
+        db.session.delete(record)
+        db.session.commit()
+        
+        logger.info(f"Deleted finance record {record_id} by {current_user.email}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Finance record deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting finance record: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def save_finance_to_database(campus_id, date_str, tithe_breakdown, user_email=None):
+    """Save finance data to the database"""
+    try:
+        from datetime import datetime as dt_module
+        from sqlalchemy.exc import IntegrityError
+        
+        # Parse date
+        date_obj = dt_module.strptime(date_str, '%Y-%m-%d').date()
+        
+        # Get campus info
+        campus = CampusV2.query.filter_by(campus_id=campus_id).first()
+        if not campus:
+            # Try normalized lookup
+            normalized_campus_id = normalize_campus(campus_id)
+            campus = CampusV2.query.filter(
+                db.func.lower(CampusV2.campus_id) == normalized_campus_id.lower()
+            ).first()
+        
+        if not campus:
+            logger.warning(f"Campus not found for ID: {campus_id}")
+            campus_name = campus_id.replace('_', ' ').title()
+            region = 'AU'  # Default
+        else:
+            campus_name = campus.display_name or campus.name
+            region = campus.region.code if campus.region else 'AU'
+        
+        # Extract breakdown
+        general = float(tithe_breakdown.get('general', 0))
+        trust = float(tithe_breakdown.get('trust', 0))
+        online = float(tithe_breakdown.get('online', 0))
+        text = float(tithe_breakdown.get('text', 0))
+        total = float(tithe_breakdown.get('total', 0))
+        
+        # Check if record exists
+        existing_record = FinanceRecord.query.filter_by(
+            date=date_obj,
+            campus_id=campus_id,
+            region=region
+        ).first()
+        
+        if existing_record:
+            # Update existing record
+            existing_record.general = general
+            existing_record.trust = trust
+            existing_record.online = online
+            existing_record.text = text
+            existing_record.total = total
+            existing_record.campus_name = campus_name
+            existing_record.updated_at = dt_module.utcnow()
+            existing_record.updated_by = user_email
+            existing_record.synced_to_sheets = True  # Mark as synced since we're also saving to sheets
+            
+            db.session.commit()
+            logger.info(f"Updated finance record in database for {campus_id} on {date_str}: ${total}")
+            return {'success': True, 'message': 'Updated', 'record_id': existing_record.id}
+        else:
+            # Create new record
+            new_record = FinanceRecord(
+                date=date_obj,
+                campus_id=campus_id,
+                campus_name=campus_name,
+                region=region,
+                general=general,
+                trust=trust,
+                online=online,
+                text=text,
+                total=total,
+                synced_to_sheets=True,
+                created_by=user_email,
+                updated_by=user_email
+            )
+            
+            db.session.add(new_record)
+            db.session.commit()
+            logger.info(f"Created finance record in database for {campus_id} on {date_str}: ${total}")
+            return {'success': True, 'message': 'Created', 'record_id': new_record.id}
+            
+    except IntegrityError as e:
+        db.session.rollback()
+        logger.error(f"Integrity error saving finance to database: {str(e)}")
+        return {'success': False, 'message': 'Duplicate entry or constraint violation'}
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error saving finance to database: {str(e)}")
+        return {'success': False, 'message': f'Database error: {str(e)}'}
+
+
+def update_tithe_for_campus(campus_id, date_str, tithe_amount, user_email=None):
+    """Update or add tithe data for a specific campus and date to BOTH database AND Google Sheets"""
+    try:
+        # First, save to database
+        db_result = save_finance_to_database(campus_id, date_str, tithe_amount, user_email)
+        if not db_result['success']:
+            logger.warning(f"Failed to save to database: {db_result['message']}")
+            # Continue to sheets anyway
+        
         if not finance_sheet:
             logger.error("Finance sheet is None when trying to update tithe")
+            # If database save succeeded but sheets failed, still return success
+            if db_result['success']:
+                return {'success': True, 'message': f'Saved to database only (sheets unavailable) - {db_result["message"]}'}
             return {'success': False, 'message': 'Finance sheet (Tithe tab) not available'}
         
         # Get all rows from the Tithe tab
