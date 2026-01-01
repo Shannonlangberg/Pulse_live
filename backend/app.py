@@ -14069,6 +14069,14 @@ def edit_user_api(user_id):
             conn.close()
             return jsonify({"error": "User not found"}), 404
         
+        # Check if username is being changed and if it's already taken
+        if data.get('username') and data.get('username').strip() != existing_user[1]:
+            cursor.execute('SELECT id FROM users WHERE TRIM(username) = ? AND id != ?', 
+                         (data['username'].strip(), user_id))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({"error": f"Username '{data['username']}' is already taken"}), 400
+        
         # Build update query
         update_fields = []
         params = []
