@@ -3,14 +3,28 @@
 
 echo "=== Starting Futures Link ==="
 echo "Working directory: $(pwd)"
+
+# Ensure we're in the backend directory
+if [ -d "backend" ]; then
+  cd backend
+  echo "Changed to backend directory"
+elif [ -f "app.py" ]; then
+  echo "Already in backend directory"
+else
+  echo "ERROR: Cannot find backend directory or app.py"
+  exit 1
+fi
+
+echo "Current directory: $(pwd)"
 echo "Listing files:"
-ls -la backend/ | head -20
+ls -la | head -20
 
 echo ""
 echo "Checking critical files:"
-[ -f "backend/app.py" ] && echo "✓ app.py exists" || echo "✗ app.py MISSING"
-[ -f "backend/users.json" ] && echo "✓ users.json exists" || echo "✗ users.json MISSING"
-[ -f "backend/campuses.json" ] && echo "✓ campuses.json exists" || echo "✗ campuses.json MISSING"
+[ -f "app.py" ] && echo "✓ app.py exists" || echo "✗ app.py MISSING"
+[ -f "users.json" ] && echo "✓ users.json exists" || echo "✗ users.json MISSING"
+[ -f "campuses.json" ] && echo "✓ campuses.json exists" || echo "✗ campuses.json MISSING"
+[ -f "models.py" ] && echo "✓ models.py exists" || echo "✗ models.py MISSING"
 
 echo ""
 echo "Environment variables:"
@@ -19,7 +33,6 @@ echo "PYTHONUNBUFFERED=$PYTHONUNBUFFERED"
 
 echo ""
 echo "=== Running Database Migration ==="
-cd backend
 
 # Run migration script first
 echo "📊 Migrating Google Sheets data to database..."
