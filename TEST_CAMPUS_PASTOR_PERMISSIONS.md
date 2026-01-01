@@ -114,3 +114,4 @@ VALUES ('campus.pastor.test', '<hashed_password>', 'Test Campus Pastor', 'campus
 ✅ Changes persist after logout/login
 
 
+

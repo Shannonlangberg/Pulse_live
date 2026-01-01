@@ -999,10 +999,52 @@ def save_attendance_record(data, user_id=None):
 
 def sync_to_google_sheets(record, campus):
     """
-    Sync an AttendanceRecord to Google Sheets
+    Sync an AttendanceRecord to Google Sheets (MULTI-REGION SUPPORT)
     Used during dual-write phase for backup
+    
+    Now supports per-region Google Sheets:
+    - Checks if the campus's region has a sheets_spreadsheet_id configured
+    - If yes, syncs to that region's specific sheet
+    - If no, falls back to global sheet (for backward compatibility)
     """
-    if not sheet:
+    from models import Region
+    
+    # Get the region-specific sheet or fall back to global sheet
+    target_sheet = None
+    target_spreadsheet_id = None
+    target_tab_name = 'Stats'
+    
+    try:
+        # Get the region for this campus
+        region = Region.query.filter_by(id=campus.region_id).first()
+        
+        if region and region.sheets_spreadsheet_id:
+            # Region has a specific sheet configured - use it!
+            target_spreadsheet_id = region.sheets_spreadsheet_id
+            target_tab_name = region.sheets_stats_tab or 'Stats'
+            
+            logger.info(f"[SHEETS_SYNC] Using region-specific sheet for {region.name}: {target_spreadsheet_id[:20]}...")
+            
+            # Open the region-specific sheet
+            if client:  # Use the global gspread client
+                region_spreadsheet = client.open_by_key(target_spreadsheet_id)
+                target_sheet = region_spreadsheet.worksheet(target_tab_name)
+                logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
+            else:
+                logger.warning(f"[SHEETS_SYNC] Google Sheets client not available")
+                return False
+        else:
+            # No region-specific sheet - fall back to global sheet
+            logger.info(f"[SHEETS_SYNC] No region-specific sheet configured, using global sheet")
+            target_sheet = sheet  # Use global sheet variable
+            
+    except Exception as e:
+        logger.warning(f"[SHEETS_SYNC] Error getting region-specific sheet: {e}, falling back to global sheet")
+        target_sheet = sheet  # Fall back to global sheet
+    
+    # If no sheet available (neither region-specific nor global), return False
+    if not target_sheet:
+        logger.warning(f"[SHEETS_SYNC] No Google Sheet available for sync")
         return False
     
     # Build row data in Sheets format
@@ -1047,22 +1089,29 @@ def sync_to_google_sheets(record, campus):
         pass
     
     # Get existing headers
-    all_records = safe_sheets_request(sheet.get_all_records)
+    all_records = safe_sheets_request(target_sheet.get_all_records)
     headers = list(all_records[0].keys()) if all_records else []
     
-    # Ensure all columns exist
-    ensure_google_sheets_columns(list(row_data.keys()))
+    # Ensure all columns exist (need to update ensure_google_sheets_columns to accept sheet parameter)
+    # For now, skip column creation for region-specific sheets (they should already have columns from template)
+    if target_sheet == sheet:
+        ensure_google_sheets_columns(list(row_data.keys()))
     
     # Re-fetch headers after adding columns
-    all_records = safe_sheets_request(sheet.get_all_records)
+    all_records = safe_sheets_request(target_sheet.get_all_records)
     headers = list(all_records[0].keys()) if all_records else []
     
     # Build row values
     row_values = [row_data.get(header, '') for header in headers]
     
     # Append row (for updates, we'd need to find and update the existing row)
-    sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
-    clear_sheets_cache('Stats')
+    target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
+    
+    # Clear cache (only for global sheet)
+    if target_sheet == sheet:
+        clear_sheets_cache('Stats')
+    
+    logger.info(f"[SHEETS_SYNC] Successfully synced record to Google Sheets: {campus.display_name} - {record.date}")
     
     return True
 
@@ -12535,76 +12584,14 @@ def save_attendance_record(data, user_id=None):
         return False, None, str(e)
 
 
-def sync_to_google_sheets(record, campus):
+def sync_to_google_sheets_DUPLICATE_FUNCTION_TO_REMOVE(record, campus):
     """
-    Sync an AttendanceRecord to Google Sheets
-    Used during dual-write phase
+    DUPLICATE FUNCTION - SHOULD BE REMOVED
+    This is a duplicate of the sync_to_google_sheets function above
+    Keeping temporarily to avoid breaking anything, but should consolidate
     """
-    if not sheet:
-        return False
-    
-    # Build row data in Sheets format
-    row_data = {
-        'Date': record.date.strftime('%Y-%m-%d'),
-        'Campus': campus.display_name,
-        'Total Attendance': record.total_attendance or '',
-        'Total People in Campus': record.total_people_in_campus or '',
-        'Kids Attendance': record.kids_attendance or '',
-        'Kids Leaders': record.kids_leaders or '',
-        'New Kids': record.new_kids or '',
-        'New Kids Salvations': record.new_kids_salvations or '',
-        'Packs Out': record.packs_out or '',
-        'First Time Visitors': record.first_time_visitors or '',
-        'Visitors': record.visitors or '',
-        'Hands up': record.hands_up or '',
-        'Cards Back': record.cards_back or '',
-        'First Time Christians': record.first_time_christians or '',
-        'Rededications': record.rededications or '',
-        'Salvation Cards Returned': record.salvation_cards_returned or '',
-        'Youth Attendance': record.youth_attendance or '',
-        'Youth Salvations': record.youth_salvations or '',
-        'Youth New People': record.youth_new_people or '',
-        'Youth Leaders': record.youth_leaders or '',
-        'Connect Groups': record.connect_groups or '',
-        'Dream Team': record.dream_team or '',
-        'Tithe': record.tithe or '',
-        'Baptisms': record.baptisms or '',
-        'Child Dedications': record.child_dedications or '',
-    }
-    
-    # Add service breakdowns
-    try:
-        if record.adult_service_breakdown:
-            adult_breakdown = json.loads(record.adult_service_breakdown)
-            row_data.update(adult_breakdown)
-        
-        if record.kids_service_breakdown:
-            kids_breakdown = json.loads(record.kids_service_breakdown)
-            row_data.update(kids_breakdown)
-    except:
-        pass
-    
-    # Get existing headers
-    all_records = safe_sheets_request(sheet.get_all_records)
-    headers = list(all_records[0].keys()) if all_records else []
-    
-    # Ensure all columns exist
-    ensure_google_sheets_columns(list(row_data.keys()))
-    
-    # Re-fetch headers after adding columns
-    all_records = safe_sheets_request(sheet.get_all_records)
-    headers = list(all_records[0].keys()) if all_records else []
-    
-    # Build row values
-    row_values = [row_data.get(header, '') for header in headers]
-    
-    # Append or update
-    # For updates, we'd need to find and update the existing row
-    # For now, we'll just append (can enhance later)
-    sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
-    clear_sheets_cache('Stats')
-    
-    return True
+    # Call the main function
+    return sync_to_google_sheets(record, campus)
 
 
 @app.route('/api/quick_input', methods=['POST'])

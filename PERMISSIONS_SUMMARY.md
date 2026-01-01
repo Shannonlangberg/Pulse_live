@@ -228,3 +228,4 @@ As of last check:
 **Campus pastors now have a clean, restricted view with only their profile settings visible. The Role Manager provides a comprehensive matrix for fine-grained control when needed.**
 
 
+

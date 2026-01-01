@@ -103,3 +103,4 @@ The Role Manager now provides a comprehensive matrix where you can:
 - Frontend checks both role arrays AND custom permissions
 
 
+
