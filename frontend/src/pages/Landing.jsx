@@ -125,21 +125,6 @@ const Landing = () => {
   const isAdmin = actualRole === 'superadmin' || actualRole === 'admin';
   const quickActions = getQuickActions(actualRole);
 
-  const announcements = [
-    {
-      title: 'New volunteer onboarding kit',
-      description: 'Download the refreshed onboarding guide for campus teams.',
-      href: '/resources',
-      type: 'update'
-    },
-    {
-      title: 'Weekend pulse refresher',
-      description: 'Watch the 5-minute walkthrough on capturing post-service highlights.',
-      href: '/resources',
-      type: 'training'
-    }
-  ];
-
   const supportItems = [
     {
       title: 'Need help?',
@@ -211,31 +196,6 @@ const Landing = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
-              
-              {/* Announcements */}
-              <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 w-full lg:w-auto lg:min-w-[320px]">
-                <div className="flex items-center gap-2 sm:gap-3 text-white/80 text-xs sm:text-sm mb-3 sm:mb-4">
-                  <MegaphoneIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-300 flex-shrink-0" />
-                  <span className="font-medium">Platform Updates</span>
-                </div>
-                <div className="space-y-2 sm:space-y-3">
-                  {announcements.map((item) => (
-                    <a
-                      key={item.title}
-                      href={item.href}
-                      className="block bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 transition-all duration-200 group touch-manipulation"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs sm:text-sm font-semibold text-white group-hover:text-blue-200 truncate">{item.title}</p>
-                          <p className="text-[10px] sm:text-xs text-white/50 leading-snug mt-0.5 sm:mt-1 line-clamp-2">{item.description}</p>
-                        </div>
-                        <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white/40 group-hover:text-blue-200 flex-shrink-0 ml-2" />
-                      </div>
-                    </a>
-                  ))}
                 </div>
               </div>
             </div>
