@@ -1109,23 +1109,47 @@ def sync_to_google_sheets(record, campus):
     except:
         pass
     
-    # Get existing headers
-    all_records = safe_sheets_request(target_sheet.get_all_records)
-    headers = list(all_records[0].keys()) if all_records else []
+    # Get existing headers using sanitized function (handles duplicates and empty headers)
+    headers = get_sanitized_headers(target_sheet)
     
     # Ensure all columns exist (need to update ensure_google_sheets_columns to accept sheet parameter)
     # For now, skip column creation for region-specific sheets (they should already have columns from template)
     if target_sheet == sheet:
         ensure_google_sheets_columns(list(row_data.keys()))
+        
+        # Re-fetch headers after adding columns (only for global sheet)
+        headers = get_sanitized_headers(target_sheet)
     
-    # Re-fetch headers after adding columns
-    all_records = safe_sheets_request(target_sheet.get_all_records)
-    headers = list(all_records[0].keys()) if all_records else []
-    
-    # Build row values
-    row_values = [row_data.get(header, '') for header in headers]
+    # Build row values - match headers exactly (including empty ones)
+    row_values = []
+    for header in headers:
+        if not header or not header.strip():
+            # Empty header column - use empty value
+            row_values.append('')
+        else:
+            # Try exact match first
+            value = row_data.get(header)
+            
+            # If no exact match and header has " (1)" or similar suffix (duplicate), try base name
+            # For duplicates, we'll use empty value (duplicates at end are usually unwanted)
+            if value is None and ' (' in header and header.strip()[-1] == ')':
+                # This is a duplicate header - check if base header exists
+                base_header = header.rsplit(' (', 1)[0]
+                base_value = row_data.get(base_header)
+                # Only use base value if it exists and is not empty
+                # For finance duplicates at end, leave empty
+                if base_value is not None and base_value != '':
+                    value = base_value
+                    logger.debug(f"[SHEETS_SYNC] Duplicate header '{header}' -> using value from '{base_header}': {value}")
+                else:
+                    value = ''  # Leave duplicate empty
+            elif value is None:
+                value = ''  # Default to empty if not found
+            
+            row_values.append(value)
     
     logger.info(f"[SHEETS_SYNC] Appending row with {len(row_values)} values to sheet with {len(headers)} headers")
+    logger.debug(f"[SHEETS_SYNC] Headers: {headers[:10]}... (showing first 10)")
     
     # Append row (for updates, we'd need to find and update the existing row)
     try:
@@ -12655,26 +12679,71 @@ def get_all_attendance_records():
         logger.error(f"Error fetching all attendance records: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
+def get_sanitized_headers(worksheet):
+    """
+    Get headers from Google Sheet row 1, handling duplicates and empty headers.
+    Returns a list of sanitized (unique) headers.
+    
+    This bypasses get_all_records() which fails when headers have duplicates.
+    """
+    try:
+        # Read headers directly from row 1
+        header_row = worksheet.row_values(1)
+        
+        if not header_row:
+            logger.warning("[HEADERS] No headers found in row 1")
+            return []
+        
+        # Clean and sanitize headers
+        sanitized_headers = []
+        header_counts = {}  # Track how many times we've seen each header
+        
+        for header in header_row:
+            # Skip empty headers
+            if not header or not str(header).strip():
+                sanitized_headers.append('')  # Keep position, but mark as empty
+                continue
+            
+            header_str = str(header).strip()
+            
+            # Make duplicates unique by appending a number
+            if header_str in header_counts:
+                # This is a duplicate - increment count and append number
+                header_counts[header_str] += 1
+                unique_header = f"{header_str} ({header_counts[header_str]})"
+                sanitized_headers.append(unique_header)
+                logger.warning(f"[HEADERS] Duplicate header found: '{header_str}' -> renamed to '{unique_header}'")
+            else:
+                # First occurrence - keep original name, initialize count
+                header_counts[header_str] = 0
+                sanitized_headers.append(header_str)
+        
+        # Filter out empty headers at the end
+        while sanitized_headers and (not sanitized_headers[-1] or not sanitized_headers[-1].strip()):
+            sanitized_headers.pop()
+        
+        logger.info(f"[HEADERS] Sanitized {len(header_row)} headers to {len(sanitized_headers)} unique headers")
+        return sanitized_headers
+        
+    except Exception as e:
+        logger.error(f"[HEADERS] Error getting sanitized headers: {e}", exc_info=True)
+        return []
+
+
 def ensure_google_sheets_columns(required_headers):
     """Ensure Google Sheets has all required columns, adding missing ones"""
     try:
         if not sheet:
             return False
         
-        # Get current headers
-        all_records = safe_sheets_request(sheet.get_all_records)
-        current_headers = list(all_records[0].keys()) if all_records else []
+        # Get current headers using sanitized function (handles duplicates)
+        current_headers = get_sanitized_headers(sheet)
         
-        # If no records exist, get headers from row 1 directly
-        if not current_headers:
-            try:
-                header_row = sheet.row_values(1)
-                current_headers = header_row if header_row else []
-            except:
-                current_headers = []
+        # Filter out empty headers for comparison
+        current_headers_clean = [h for h in current_headers if h and h.strip()]
         
         # Find missing headers
-        missing_headers = [h for h in required_headers if h not in current_headers]
+        missing_headers = [h for h in required_headers if h not in current_headers_clean]
         
         if not missing_headers:
             return True  # All headers exist
@@ -12684,6 +12753,10 @@ def ensure_google_sheets_columns(required_headers):
             header_row = sheet.row_values(1)
         except:
             header_row = []
+        
+        # Remove empty headers at the end before adding new ones
+        while header_row and (not header_row[-1] or not str(header_row[-1]).strip()):
+            header_row.pop()
         
         # Add missing headers at the end
         for header in missing_headers:
