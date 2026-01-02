@@ -16047,7 +16047,9 @@ def serve_react_app(path):
     elif path.startswith('api/'):
         # API routes should be handled by blueprints, not this catch-all
         # If we reach here, no blueprint matched, so return 404
-        return jsonify({"error": "API endpoint not found"}), 404
+        # Log which API route wasn't found for debugging
+        logger.warning(f"[CATCH-ALL] API route not found: {path} (method: {request.method})")
+        return jsonify({"error": "API endpoint not found", "path": path, "method": request.method}), 404
     
     # If path has an extension (like .json, .png, .js, etc), try to serve as static file
     try:
