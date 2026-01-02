@@ -26475,31 +26475,52 @@ def upload_training_video():
     try:
         # Check if user is admin or superadmin
         if current_user.role not in ['admin', 'superadmin']:
+            logger.warning(f"Unauthorized upload attempt by {current_user.username}")
             return jsonify({'error': 'Insufficient permissions'}), 403
+        
+        logger.info(f"Video upload initiated by {current_user.username}")
         
         # Check if file was uploaded
         if 'video' not in request.files:
+            logger.error("No video file in request")
             return jsonify({'error': 'No video file provided'}), 400
         
         video_file = request.files['video']
         
         # Check if filename is empty
         if video_file.filename == '':
+            logger.error("Empty filename")
             return jsonify({'error': 'No video file selected'}), 400
+        
+        logger.info(f"Received file: {video_file.filename}")
         
         # Validate file type
         allowed_extensions = {'.mp4', '.mov', '.webm'}
         file_ext = os.path.splitext(video_file.filename)[1].lower()
         
         if file_ext not in allowed_extensions:
+            logger.error(f"Invalid file type: {file_ext}")
             return jsonify({'error': 'Invalid file type. Please upload MP4, MOV, or WebM'}), 400
+        
+        # Ensure static folder exists
+        if not app.static_folder:
+            logger.error("Static folder not configured")
+            return jsonify({'error': 'Server configuration error'}), 500
         
         # Create videos directory if it doesn't exist
         videos_dir = os.path.join(app.static_folder, 'videos')
-        os.makedirs(videos_dir, exist_ok=True)
+        logger.info(f"Videos directory path: {videos_dir}")
+        
+        try:
+            os.makedirs(videos_dir, exist_ok=True)
+            logger.info(f"Videos directory created/verified: {videos_dir}")
+        except Exception as e:
+            logger.error(f"Failed to create videos directory: {e}")
+            return jsonify({'error': f'Failed to create storage directory: {str(e)}'}), 500
         
         # Save file as pulse-training.mp4 (always use .mp4 extension)
         save_path = os.path.join(videos_dir, 'pulse-training.mp4')
+        logger.info(f"Save path: {save_path}")
         
         # If file already exists, delete it first
         if os.path.exists(save_path):
@@ -26510,19 +26531,26 @@ def upload_training_video():
                 logger.warning(f"Could not remove existing video: {e}")
         
         # Save the new video
-        video_file.save(save_path)
+        try:
+            logger.info("Starting file save...")
+            video_file.save(save_path)
+            file_size = os.path.getsize(save_path)
+            logger.info(f"Training video saved successfully: {file_size} bytes")
+        except Exception as e:
+            logger.error(f"Failed to save video file: {e}", exc_info=True)
+            return jsonify({'error': f'Failed to save video: {str(e)}'}), 500
         
         logger.info(f"Training video uploaded successfully by {current_user.username}")
         
         return jsonify({
             'success': True,
             'message': 'Training video uploaded successfully',
-            'file_size': os.path.getsize(save_path)
+            'file_size': file_size
         })
         
     except Exception as e:
         logger.error(f"Error uploading training video: {e}", exc_info=True)
-        return jsonify({'error': 'Failed to upload video'}), 500
+        return jsonify({'error': f'Failed to upload video: {str(e)}'}), 500
 
 
 @app.route('/api/homepage-messages/<int:message_id>', methods=['DELETE'])
