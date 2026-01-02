@@ -6675,6 +6675,8 @@ def get_tithe_breakdown(campus, start_date, end_date):
         rows = safe_sheets_request(finance_sheet.get_all_records)
         breakdown = {'general': 0, 'trust': 0, 'online': 0, 'text': 0, 'total': 0, 'count': 0}
         
+        logger.info(f"[TITHE_BREAKDOWN] Querying sheets for campus='{campus}', date_range={start_date} to {end_date}, total_rows={len(rows) if rows else 0}")
+        
         for row in rows:
             try:
                 date_str = row.get('Date', '')
@@ -6701,9 +6703,20 @@ def get_tithe_breakdown(campus, start_date, end_date):
                 
                 # Check campus match (skip filtering for roll-up views)
                 if campus not in ['all_campuses', 'australia']:
-                    row_campus = str(row.get('Campus', '')).strip().lower().replace(' ', '_')
-                    campus_normalized = campus.lower().replace(' ', '_')
-                    if row_campus != campus_normalized:
+                    row_campus = str(row.get('Campus', '')).strip()
+                    # Normalize both for comparison - handle multiple formats
+                    row_campus_normalized = row_campus.lower().replace(' ', '_').replace('-', '_')
+                    campus_normalized = campus.lower().replace(' ', '_').replace('-', '_')
+                    
+                    # Try multiple matching strategies
+                    campus_match = (
+                        row_campus_normalized == campus_normalized or
+                        row_campus.lower() == campus.lower() or
+                        row_campus_normalized == campus.lower() or
+                        row_campus.lower() == campus_normalized
+                    )
+                    
+                    if not campus_match:
                         continue
                 
                 # Accumulate breakdown (column names match Google Sheets exactly)
@@ -6713,7 +6726,9 @@ def get_tithe_breakdown(campus, start_date, end_date):
                 breakdown['text'] += float(row.get('Text', 0) or 0)
                 breakdown['total'] += float(row.get('Total', 0) or 0)
                 breakdown['count'] += 1
+                logger.debug(f"[TITHE_BREAKDOWN] Matched row: Campus='{row.get('Campus')}', Date='{row.get('Date')}', Total='{row.get('Total')}'")
             except Exception as e:
+                logger.debug(f"[TITHE_BREAKDOWN] Error processing row: {str(e)}")
                 continue
         
         # Calculate averages
@@ -6721,7 +6736,7 @@ def get_tithe_breakdown(campus, start_date, end_date):
             for key in ['general', 'trust', 'online', 'text', 'total']:
                 breakdown[key] = round(breakdown[key] / breakdown['count'], 2)
         
-        logger.info(f"Loaded tithe breakdown from sheets: {breakdown['count']} records for {campus}")
+        logger.info(f"[TITHE_BREAKDOWN] Loaded from sheets: {breakdown['count']} records for '{campus}', total=${breakdown['total']:.2f}")
         return breakdown
         
     except Exception as e:
