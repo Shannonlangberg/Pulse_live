@@ -981,12 +981,21 @@ def save_attendance_record(data, user_id=None):
         
         # DUAL-WRITE: Also save to Google Sheets (for backward compatibility)
         try:
-            if sheet:  # Only if Google Sheets is available
-                sync_to_google_sheets(record, campus)
-                record.synced_to_sheets = True
-                db.session.commit()
+            if sheet or client:  # Only if Google Sheets is available
+                logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
+                sync_result = sync_to_google_sheets(record, campus)
+                if sync_result:
+                    record.synced_to_sheets = True
+                    db.session.commit()
+                    logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
+                else:
+                    logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
+            else:
+                logger.warning(f"[SAVE_ATTENDANCE] ✗ Skipping Google Sheets sync - sheet and client are both None")
         except Exception as e:
-            logger.warning(f"Failed to sync to Google Sheets (non-fatal): {e}")
+            logger.error(f"[SAVE_ATTENDANCE] ✗ Failed to sync to Google Sheets (non-fatal): {e}")
+            import traceback
+            logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
             # Don't fail the whole operation if Sheets fails
         
         return True, record, None
@@ -1009,6 +1018,9 @@ def sync_to_google_sheets(record, campus):
     """
     from models import Region
     
+    logger.info(f"[SHEETS_SYNC] Starting sync for {campus.display_name} on {record.date}")
+    logger.info(f"[SHEETS_SYNC] Global variables - sheet: {sheet is not None}, client: {client is not None}")
+    
     # Get the region-specific sheet or fall back to global sheet
     target_sheet = None
     target_spreadsheet_id = None
@@ -1027,24 +1039,33 @@ def sync_to_google_sheets(record, campus):
             
             # Open the region-specific sheet
             if client:  # Use the global gspread client
-                region_spreadsheet = client.open_by_key(target_spreadsheet_id)
-                target_sheet = region_spreadsheet.worksheet(target_tab_name)
-                logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
+                try:
+                    region_spreadsheet = client.open_by_key(target_spreadsheet_id)
+                    target_sheet = region_spreadsheet.worksheet(target_tab_name)
+                    logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
+                except Exception as open_error:
+                    logger.error(f"[SHEETS_SYNC] Failed to open region sheet: {open_error}")
+                    import traceback
+                    logger.error(f"[SHEETS_SYNC] Traceback: {traceback.format_exc()}")
+                    return False
             else:
-                logger.warning(f"[SHEETS_SYNC] Google Sheets client not available")
+                logger.warning(f"[SHEETS_SYNC] Google Sheets client not available (client is None)")
                 return False
         else:
             # No region-specific sheet - fall back to global sheet
-            logger.info(f"[SHEETS_SYNC] No region-specific sheet configured, using global sheet")
+            region_info = f"region: {region.name if region else 'None'}, has sheets_spreadsheet_id: {bool(region and region.sheets_spreadsheet_id)}"
+            logger.info(f"[SHEETS_SYNC] No region-specific sheet configured ({region_info}), using global sheet")
             target_sheet = sheet  # Use global sheet variable
             
     except Exception as e:
-        logger.warning(f"[SHEETS_SYNC] Error getting region-specific sheet: {e}, falling back to global sheet")
+        logger.error(f"[SHEETS_SYNC] Error getting region-specific sheet: {e}, falling back to global sheet")
+        import traceback
+        logger.error(f"[SHEETS_SYNC] Traceback: {traceback.format_exc()}")
         target_sheet = sheet  # Fall back to global sheet
     
     # If no sheet available (neither region-specific nor global), return False
     if not target_sheet:
-        logger.warning(f"[SHEETS_SYNC] No Google Sheet available for sync")
+        logger.error(f"[SHEETS_SYNC] No Google Sheet available for sync - both target_sheet and global sheet are None")
         return False
     
     # Build row data in Sheets format
@@ -1104,8 +1125,17 @@ def sync_to_google_sheets(record, campus):
     # Build row values
     row_values = [row_data.get(header, '') for header in headers]
     
+    logger.info(f"[SHEETS_SYNC] Appending row with {len(row_values)} values to sheet with {len(headers)} headers")
+    
     # Append row (for updates, we'd need to find and update the existing row)
-    target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
+    try:
+        target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
+        logger.info(f"[SHEETS_SYNC] Successfully appended row to Google Sheets")
+    except Exception as append_error:
+        logger.error(f"[SHEETS_SYNC] Failed to append row to Google Sheets: {append_error}")
+        import traceback
+        logger.error(f"[SHEETS_SYNC] Traceback: {traceback.format_exc()}")
+        return False
     
     # Clear cache (only for global sheet)
     if target_sheet == sheet:
@@ -10051,6 +10081,29 @@ def debug_data():
             "error": str(e)
         })
 
+@app.route('/api/debug/sheets-sync-status')
+def debug_sheets_sync_status():
+    """Check the current status of Google Sheets sync variables"""
+    try:
+        return jsonify({
+            "status": "success",
+            "sheet_initialized": sheet is not None,
+            "client_initialized": client is not None,
+            "finance_sheet_initialized": finance_sheet is not None,
+            "env_vars": {
+                "GOOGLE_SHEETS_CREDENTIALS_BASE64": bool(os.getenv("GOOGLE_SHEETS_CREDENTIALS_BASE64")),
+                "GOOGLE_SHEETS_CREDENTIALS": bool(os.getenv("GOOGLE_SHEETS_CREDENTIALS")),
+                "GOOGLE_SHEET_NAME": os.getenv("GOOGLE_SHEET_NAME", "Not Set")
+            },
+            "will_sync_to_sheets": (sheet is not None) or (client is not None),
+            "message": "If will_sync_to_sheets is False, Google Sheets sync is disabled"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        })
+
 @app.route('/api/debug/connect-attendance/<person_id>', methods=['GET'])
 @login_required
 def debug_connect_attendance(person_id):
@@ -12864,12 +12917,21 @@ def save_attendance_record(data, user_id=None):
         
         # DUAL-WRITE: Also save to Google Sheets (for backward compatibility)
         try:
-            if sheet:  # Only if Google Sheets is available
-                sync_to_google_sheets(record, campus)
-                record.synced_to_sheets = True
-                db.session.commit()
+            if sheet or client:  # Only if Google Sheets is available
+                logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
+                sync_result = sync_to_google_sheets(record, campus)
+                if sync_result:
+                    record.synced_to_sheets = True
+                    db.session.commit()
+                    logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
+                else:
+                    logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
+            else:
+                logger.warning(f"[SAVE_ATTENDANCE] ✗ Skipping Google Sheets sync - sheet and client are both None")
         except Exception as e:
-            logger.warning(f"Failed to sync to Google Sheets (non-fatal): {e}")
+            logger.error(f"[SAVE_ATTENDANCE] ✗ Failed to sync to Google Sheets (non-fatal): {e}")
+            import traceback
+            logger.error(f"[SAVE_ATTENDANCE] Traceback: {traceback.format_exc()}")
             # Don't fail the whole operation if Sheets fails
         
         return True, record, None
