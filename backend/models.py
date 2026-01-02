@@ -3472,3 +3472,56 @@ class AttendanceRecord(db.Model):
             synced_to_sheets=True
         )
 
+
+class FinanceRecord(db.Model):
+    """
+    Finance/Tithe records - stores tithe data with breakdown
+    This table syncs with the Google Sheets "Tithe" tab
+    """
+    __tablename__ = 'finance_records'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    date = db.Column(db.Date, nullable=False)
+    campus_id = db.Column(db.String(100), nullable=False)
+    campus_name = db.Column(db.String(200), nullable=False)
+    region = db.Column(db.String(50), nullable=False, default='AU')
+    
+    # Tithe breakdown
+    general = db.Column(db.Numeric(10, 2), default=0)
+    trust = db.Column(db.Numeric(10, 2), default=0)
+    online = db.Column(db.Numeric(10, 2), default=0)
+    text = db.Column(db.Numeric(10, 2), default=0)
+    total = db.Column(db.Numeric(10, 2), default=0)
+    
+    # Metadata
+    synced_to_sheets = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.utcnow())
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
+    created_by = db.Column(db.String(200))
+    updated_by = db.Column(db.String(200))
+    
+    # Unique constraint: one record per campus per date
+    __table_args__ = (
+        db.UniqueConstraint('date', 'campus_id', 'region', name='uq_finance_date_campus_region'),
+    )
+    
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization"""
+        return {
+            'id': self.id,
+            'date': self.date.isoformat() if self.date else None,
+            'campus_id': self.campus_id,
+            'campus_name': self.campus_name,
+            'region': self.region,
+            'general': float(self.general) if self.general else 0,
+            'trust': float(self.trust) if self.trust else 0,
+            'online': float(self.online) if self.online else 0,
+            'text': float(self.text) if self.text else 0,
+            'total': float(self.total) if self.total else 0,
+            'synced_to_sheets': self.synced_to_sheets,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'created_by': self.created_by,
+            'updated_by': self.updated_by
+        }
+
