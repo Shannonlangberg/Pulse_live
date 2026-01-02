@@ -985,8 +985,8 @@ def save_attendance_record(data, user_id=None):
                 logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
                 sync_result = sync_to_google_sheets(record, campus)
                 if sync_result:
-                    record.synced_to_sheets = True
-                    db.session.commit()
+                record.synced_to_sheets = True
+                db.session.commit()
                     logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
                 else:
                     logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
@@ -1040,9 +1040,9 @@ def sync_to_google_sheets(record, campus):
             # Open the region-specific sheet
             if client:  # Use the global gspread client
                 try:
-                    region_spreadsheet = client.open_by_key(target_spreadsheet_id)
-                    target_sheet = region_spreadsheet.worksheet(target_tab_name)
-                    logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
+                region_spreadsheet = client.open_by_key(target_spreadsheet_id)
+                target_sheet = region_spreadsheet.worksheet(target_tab_name)
+                logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
                 except Exception as open_error:
                     logger.error(f"[SHEETS_SYNC] Failed to open region sheet: {open_error}")
                     import traceback
@@ -1116,7 +1116,7 @@ def sync_to_google_sheets(record, campus):
     # For now, skip column creation for region-specific sheets (they should already have columns from template)
     if target_sheet == sheet:
         ensure_google_sheets_columns(list(row_data.keys()))
-        
+    
         # Re-fetch headers after adding columns (only for global sheet)
         headers = get_sanitized_headers(target_sheet)
     
@@ -1153,7 +1153,7 @@ def sync_to_google_sheets(record, campus):
     
     # Append row (for updates, we'd need to find and update the existing row)
     try:
-        target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
+    target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
         logger.info(f"[SHEETS_SYNC] Successfully appended row to Google Sheets")
     except Exception as append_error:
         logger.error(f"[SHEETS_SYNC] Failed to append row to Google Sheets: {append_error}")
@@ -6609,11 +6609,15 @@ def get_tithe_breakdown(campus, start_date, end_date):
     try:
         from datetime import datetime as dt_module
         
+        logger.info(f"[TITHE_BREAKDOWN] Called with campus='{campus}', start_date={start_date}, end_date={end_date}")
+        
         # Convert datetime to date if necessary
         if isinstance(start_date, datetime):
             start_date = start_date.date()
         if isinstance(end_date, datetime):
             end_date = end_date.date()
+        
+        logger.info(f"[TITHE_BREAKDOWN] After conversion: start_date={start_date}, end_date={end_date}")
         
         breakdown = {'general': 0, 'trust': 0, 'online': 0, 'text': 0, 'total': 0, 'count': 0}
         
@@ -6621,6 +6625,8 @@ def get_tithe_breakdown(campus, start_date, end_date):
         # STEP 1: TRY DATABASE FIRST (PRIMARY SOURCE)
         # ============================================================
         try:
+            logger.info(f"[TITHE_BREAKDOWN] Step 1: Querying database for campus='{campus}'")
+            
             # Build query
             query = FinanceRecord.query.filter(
                 FinanceRecord.date >= start_date,
@@ -6631,6 +6637,8 @@ def get_tithe_breakdown(campus, start_date, end_date):
             if campus not in ['all_campuses', 'australia']:
                 # Normalize campus for matching - handle multiple formats
                 campus_normalized = campus.lower().replace(' ', '_').replace('-', '_')
+                logger.info(f"[TITHE_BREAKDOWN] Filtering by campus: normalized='{campus_normalized}', original='{campus}'")
+                
                 # Try exact match first
                 query = query.filter(
                     db.or_(
@@ -6640,9 +6648,12 @@ def get_tithe_breakdown(campus, start_date, end_date):
                         db.func.lower(FinanceRecord.campus_name) == campus.replace('_', ' ').lower()
                     )
                 )
+            else:
+                logger.info(f"[TITHE_BREAKDOWN] No campus filter (all_campuses or australia)")
             
             # Get records
             records = query.all()
+            logger.info(f"[TITHE_BREAKDOWN] Found {len(records)} finance records in database")
             
             if records:
                 # Aggregate from database
@@ -6653,17 +6664,22 @@ def get_tithe_breakdown(campus, start_date, end_date):
                     breakdown['text'] += float(record.text or 0)
                     breakdown['total'] += float(record.total or 0)
                     breakdown['count'] += 1
+                    logger.debug(f"[TITHE_BREAKDOWN] Record: {record.campus_name} on {record.date}, total=${record.total}")
                 
-                logger.info(f"Loaded tithe breakdown from database: {breakdown['count']} records for {campus}")
+                logger.info(f"[TITHE_BREAKDOWN] Aggregated from database: count={breakdown['count']}, total=${breakdown['total']:.2f} for campus '{campus}'")
                 
                 # Calculate averages
                 if breakdown['count'] > 0:
                     for key in ['general', 'trust', 'online', 'text', 'total']:
                         breakdown[key] = round(breakdown[key] / breakdown['count'], 2)
                 
+                logger.info(f"[TITHE_BREAKDOWN] ✅ Returning database data: {breakdown}")
                 return breakdown
+            else:
+                logger.info(f"[TITHE_BREAKDOWN] No database records found, falling back to sheets")
         except Exception as e:
-            logger.warning(f"Error loading tithe from database, falling back to sheets: {str(e)}")
+            logger.error(f"[TITHE_BREAKDOWN] ❌ Error loading tithe from database: {str(e)}", exc_info=True)
+            logger.warning(f"[TITHE_BREAKDOWN] Falling back to Google Sheets")
         
         # ============================================================
         # STEP 2: FALLBACK TO GOOGLE SHEETS
@@ -13322,8 +13338,8 @@ def save_attendance_record(data, user_id=None):
                 logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
                 sync_result = sync_to_google_sheets(record, campus)
                 if sync_result:
-                    record.synced_to_sheets = True
-                    db.session.commit()
+                record.synced_to_sheets = True
+                db.session.commit()
                     logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
                 else:
                     logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
@@ -14533,26 +14549,26 @@ def create_user_api():
                 logger.info(f"Reactivated user: {username} with role: {data.get('role')}")
                 return jsonify({"success": True, "message": "User reactivated and updated successfully"})
         else:
-            # Insert new user
-            cursor.execute('''
-                INSERT INTO users (username, password_hash, full_name, email, role, campus, region_id, active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                username,
-                generate_password_hash(password),
-                data.get('full_name', username).strip() if data.get('full_name') else username,
-                data.get('email', f"{username}@futures.church").strip() if data.get('email') else f"{username}@futures.church",
-                data.get('role', 'campus_pastor'),
-                data.get('campus', 'all_campuses'),
-                region_id,
-                1
-            ))
-            
-            conn.commit()
-            conn.close()
-            
-            logger.info(f"Created new user: {username} with role: {data.get('role')}")
-            return jsonify({"success": True, "message": "User created successfully"})
+        # Insert new user
+        cursor.execute('''
+            INSERT INTO users (username, password_hash, full_name, email, role, campus, region_id, active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            username,
+            generate_password_hash(password),
+            data.get('full_name', username).strip() if data.get('full_name') else username,
+            data.get('email', f"{username}@futures.church").strip() if data.get('email') else f"{username}@futures.church",
+            data.get('role', 'campus_pastor'),
+            data.get('campus', 'all_campuses'),
+            region_id,
+            1
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Created new user: {username} with role: {data.get('role')}")
+        return jsonify({"success": True, "message": "User created successfully"})
     except Exception as e:
         logger.error(f"Create user API error: {e}", exc_info=True)
         return jsonify({"error": "Failed to create user"}), 500
