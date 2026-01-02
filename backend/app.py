@@ -9922,18 +9922,21 @@ def serve_assets(filename):
 
 @app.route('/videos/<path:filename>')
 def serve_videos(filename):
-    """Serve training videos from static/videos directory"""
-    if app.static_folder:
-        # Ensure filename is a string
-        if not isinstance(filename, str):
-            filename = str(filename)
-        video_path = os.path.join(app.static_folder, 'videos', filename)
-        if os.path.exists(video_path):
-            return send_from_directory(os.path.join(app.static_folder, 'videos'), filename)
-        else:
-            logger.warning(f"Video not found: {filename}")
-            return jsonify({"error": "Video not found"}), 404
-    return jsonify({"error": "Static folder not configured"}), 404
+    """Serve training videos from /data/videos directory (persistent storage)"""
+    # Ensure filename is a string
+    if not isinstance(filename, str):
+        filename = str(filename)
+    
+    # Use /data/videos/ for persistent storage (Railway volume mount)
+    videos_dir = os.path.join('/data', 'videos')
+    video_path = os.path.join(videos_dir, filename)
+    
+    if os.path.exists(video_path):
+        logger.info(f"Serving video: {filename} from {videos_dir}")
+        return send_from_directory(videos_dir, filename)
+    else:
+        logger.warning(f"Video not found: {filename} (looking in {videos_dir})")
+        return jsonify({"error": "Video not found"}), 404
 
 @app.route('/temp_audio/<path:filename>')
 def serve_audio(filename):
@@ -26451,7 +26454,8 @@ def get_training_video_info():
         if current_user.role not in ['admin', 'superadmin']:
             return jsonify({'error': 'Insufficient permissions'}), 403
         
-        video_path = os.path.join(app.static_folder, 'videos', 'pulse-training.mp4')
+        # Use /data/videos/ for persistent storage (Railway volume mount)
+        video_path = os.path.join('/data', 'videos', 'pulse-training.mp4')
         
         if os.path.exists(video_path):
             file_stats = os.stat(video_path)
@@ -26502,13 +26506,9 @@ def upload_training_video():
             logger.error(f"Invalid file type: {file_ext}")
             return jsonify({'error': 'Invalid file type. Please upload MP4, MOV, or WebM'}), 400
         
-        # Ensure static folder exists
-        if not app.static_folder:
-            logger.error("Static folder not configured")
-            return jsonify({'error': 'Server configuration error'}), 500
-        
-        # Create videos directory if it doesn't exist
-        videos_dir = os.path.join(app.static_folder, 'videos')
+        # Use /data/videos/ for persistent storage (Railway volume mount)
+        # This ensures videos survive container restarts
+        videos_dir = os.path.join('/data', 'videos')
         logger.info(f"Videos directory path: {videos_dir}")
         
         try:
