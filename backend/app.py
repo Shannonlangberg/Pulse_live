@@ -59,6 +59,15 @@ except ImportError:
     def num2words(n):
         return str(n)
 
+# Load environment variables from .env file - MUST be early
+# Load from backend directory explicitly
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(env_path)
+
+# Configure logging - MUST be before any functions that use logger
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 # Default campus service time configuration
 DEFAULT_CAMPUS_SERVICE_TIMES = {
     'Paradise': ['9:00 AM', '11:00 AM', '5:30 PM'],
@@ -85,7 +94,12 @@ def load_campus_config():
                 return merged_config
         return DEFAULT_CAMPUS_SERVICE_TIMES.copy()
     except Exception as e:
-        logger.error(f"Failed to load campus config: {e}")
+        # Use print for early initialization errors before logger is available
+        print(f"[ERROR] Failed to load campus config: {e}")
+        try:
+            logger.error(f"Failed to load campus config: {e}")
+        except:
+            pass
         return DEFAULT_CAMPUS_SERVICE_TIMES.copy()
 
 def save_campus_config(config: dict) -> bool:
@@ -94,10 +108,16 @@ def save_campus_config(config: dict) -> bool:
     try:
         with open(config_file, 'w') as f:
             json.dump(config, f, indent=2)
-        logger.info(f"Campus configuration saved successfully")
+        try:
+            logger.info(f"Campus configuration saved successfully")
+        except:
+            print(f"[INFO] Campus configuration saved successfully")
         return True
     except Exception as e:
-        logger.error(f"Failed to save campus config: {e}")
+        try:
+            logger.error(f"Failed to save campus config: {e}")
+        except:
+            print(f"[ERROR] Failed to save campus config: {e}")
         return False
 
 # Load campus configuration at startup
@@ -286,14 +306,6 @@ def load_local_data():
         logger.error(f"Failed to load local data: {e}")
         return []
 
-# Load environment variables from .env file
-# Load from backend directory explicitly
-env_path = os.path.join(os.path.dirname(__file__), '.env')
-load_dotenv(env_path)
-
-# Configure logging
-logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/spreadsheets",
@@ -985,8 +997,8 @@ def save_attendance_record(data, user_id=None):
                 logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
                 sync_result = sync_to_google_sheets(record, campus)
                 if sync_result:
-                record.synced_to_sheets = True
-                db.session.commit()
+                    record.synced_to_sheets = True
+                    db.session.commit()
                     logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
                 else:
                     logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
@@ -1040,9 +1052,9 @@ def sync_to_google_sheets(record, campus):
             # Open the region-specific sheet
             if client:  # Use the global gspread client
                 try:
-                region_spreadsheet = client.open_by_key(target_spreadsheet_id)
-                target_sheet = region_spreadsheet.worksheet(target_tab_name)
-                logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
+                    region_spreadsheet = client.open_by_key(target_spreadsheet_id)
+                    target_sheet = region_spreadsheet.worksheet(target_tab_name)
+                    logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
                 except Exception as open_error:
                     logger.error(f"[SHEETS_SYNC] Failed to open region sheet: {open_error}")
                     import traceback
@@ -1153,7 +1165,7 @@ def sync_to_google_sheets(record, campus):
     
     # Append row (for updates, we'd need to find and update the existing row)
     try:
-    target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
+        target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
         logger.info(f"[SHEETS_SYNC] Successfully appended row to Google Sheets")
     except Exception as append_error:
         logger.error(f"[SHEETS_SYNC] Failed to append row to Google Sheets: {append_error}")
@@ -13338,8 +13350,8 @@ def save_attendance_record(data, user_id=None):
                 logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
                 sync_result = sync_to_google_sheets(record, campus)
                 if sync_result:
-                record.synced_to_sheets = True
-                db.session.commit()
+                    record.synced_to_sheets = True
+                    db.session.commit()
                     logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
                 else:
                     logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
@@ -14549,8 +14561,8 @@ def create_user_api():
                 logger.info(f"Reactivated user: {username} with role: {data.get('role')}")
                 return jsonify({"success": True, "message": "User reactivated and updated successfully"})
         else:
-        # Insert new user
-        cursor.execute('''
+            # Insert new user
+            cursor.execute('''
             INSERT INTO users (username, password_hash, full_name, email, role, campus, region_id, active)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
