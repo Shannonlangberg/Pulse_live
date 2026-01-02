@@ -10128,6 +10128,166 @@ def debug_sheets_sync_status():
             "error": str(e)
         })
 
+@app.route('/api/sync/pending', methods=['POST'])
+@login_required
+def sync_pending_records():
+    """Re-sync all attendance records that failed to sync to Google Sheets"""
+    try:
+        
+        # Check if Google Sheets is available
+        if not sheet and not client:
+            return jsonify({
+                "success": False,
+                "error": "Google Sheets is not initialized. Check environment variables."
+            }), 400
+        
+        # Find all records that haven't been synced
+        pending_records = AttendanceRecord.query.filter(
+            (AttendanceRecord.synced_to_sheets == False) | (AttendanceRecord.synced_to_sheets.is_(None))
+        ).all()
+        
+        if not pending_records:
+            return jsonify({
+                "success": True,
+                "message": "No pending records to sync",
+                "synced": 0,
+                "failed": 0
+            })
+        
+        logger.info(f"[SYNC_PENDING] Found {len(pending_records)} pending records to sync")
+        
+        synced_count = 0
+        failed_count = 0
+        errors = []
+        
+        for record in pending_records:
+            try:
+                # Get the campus for this record
+                campus = CampusV2.query.get(record.campus_id)
+                if not campus:
+                    logger.warning(f"[SYNC_PENDING] Campus not found for record {record.id}")
+                    failed_count += 1
+                    errors.append(f"Record {record.id}: Campus not found")
+                    continue
+                
+                # Attempt to sync
+                sync_result = sync_to_google_sheets(record, campus)
+                if sync_result:
+                    record.synced_to_sheets = True
+                    db.session.commit()
+                    synced_count += 1
+                    logger.info(f"[SYNC_PENDING] ✓ Synced record {record.id} ({campus.display_name} - {record.date})")
+                else:
+                    failed_count += 1
+                    errors.append(f"Record {record.id} ({campus.display_name} - {record.date}): Sync returned False")
+                    logger.warning(f"[SYNC_PENDING] ✗ Failed to sync record {record.id}")
+                    
+            except Exception as e:
+                failed_count += 1
+                error_msg = f"Record {record.id}: {str(e)}"
+                errors.append(error_msg)
+                logger.error(f"[SYNC_PENDING] Error syncing record {record.id}: {e}", exc_info=True)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Sync completed: {synced_count} synced, {failed_count} failed",
+            "total_pending": len(pending_records),
+            "synced": synced_count,
+            "failed": failed_count,
+            "errors": errors[:10] if errors else []  # Limit to first 10 errors
+        })
+        
+    except Exception as e:
+        logger.error(f"[SYNC_PENDING] Error in sync_pending_records: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/sync/all', methods=['POST'])
+@login_required
+def sync_all_records():
+    """Fresh sync: Re-sync all attendance records to Google Sheets (optionally force re-sync)"""
+    try:
+        
+        # Check if Google Sheets is available
+        if not sheet and not client:
+            return jsonify({
+                "success": False,
+                "error": "Google Sheets is not initialized. Check environment variables."
+            }), 400
+        
+        # Get force parameter (optional)
+        force = request.json.get('force', False) if request.is_json else False
+        
+        # Find all records
+        if force:
+            # Force re-sync all records
+            all_records = AttendanceRecord.query.all()
+            logger.info(f"[SYNC_ALL] Force syncing all {len(all_records)} records")
+        else:
+            # Only sync pending records
+            all_records = AttendanceRecord.query.filter(
+                (AttendanceRecord.synced_to_sheets == False) | (AttendanceRecord.synced_to_sheets.is_(None))
+            ).all()
+            logger.info(f"[SYNC_ALL] Syncing {len(all_records)} pending records")
+        
+        if not all_records:
+            return jsonify({
+                "success": True,
+                "message": "No records to sync",
+                "synced": 0,
+                "failed": 0
+            })
+        
+        synced_count = 0
+        failed_count = 0
+        errors = []
+        
+        for record in all_records:
+            try:
+                # Get the campus for this record
+                campus = CampusV2.query.get(record.campus_id)
+                if not campus:
+                    logger.warning(f"[SYNC_ALL] Campus not found for record {record.id}")
+                    failed_count += 1
+                    errors.append(f"Record {record.id}: Campus not found")
+                    continue
+                
+                # Attempt to sync
+                sync_result = sync_to_google_sheets(record, campus)
+                if sync_result:
+                    record.synced_to_sheets = True
+                    db.session.commit()
+                    synced_count += 1
+                    logger.info(f"[SYNC_ALL] ✓ Synced record {record.id} ({campus.display_name} - {record.date})")
+                else:
+                    failed_count += 1
+                    errors.append(f"Record {record.id} ({campus.display_name} - {record.date}): Sync returned False")
+                    logger.warning(f"[SYNC_ALL] ✗ Failed to sync record {record.id}")
+                    
+            except Exception as e:
+                failed_count += 1
+                error_msg = f"Record {record.id}: {str(e)}"
+                errors.append(error_msg)
+                logger.error(f"[SYNC_ALL] Error syncing record {record.id}: {e}", exc_info=True)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Sync completed: {synced_count} synced, {failed_count} failed",
+            "total_records": len(all_records),
+            "synced": synced_count,
+            "failed": failed_count,
+            "errors": errors[:10] if errors else []  # Limit to first 10 errors
+        })
+        
+    except Exception as e:
+        logger.error(f"[SYNC_ALL] Error in sync_all_records: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 @app.route('/api/debug/connect-attendance/<person_id>', methods=['GET'])
 @login_required
 def debug_connect_attendance(person_id):
