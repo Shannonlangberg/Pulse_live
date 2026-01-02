@@ -10128,6 +10128,33 @@ def debug_sheets_sync_status():
             "error": str(e)
         })
 
+@app.route('/api/debug/routes')
+def debug_routes():
+    """List all registered routes for debugging"""
+    try:
+        routes = []
+        for rule in app.url_map.iter_rules():
+            routes.append({
+                "endpoint": rule.endpoint,
+                "methods": list(rule.methods),
+                "path": rule.rule
+            })
+        
+        # Filter for profile routes
+        profile_routes = [r for r in routes if 'profile' in r['path'].lower()]
+        
+        return jsonify({
+            "status": "success",
+            "total_routes": len(routes),
+            "profile_routes": profile_routes,
+            "change_password_routes": [r for r in routes if 'change' in r['path'].lower() and 'password' in r['path'].lower()]
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        })
+
 @app.route('/api/sync/pending', methods=['POST'])
 @login_required
 def sync_pending_records():
