@@ -10157,7 +10157,7 @@ def debug_routes():
 
 # PROFILE MANAGEMENT ROUTES - Moved here to ensure registration
 @app.route('/api/profile/change-password', methods=['POST', 'OPTIONS'])
-@login_required
+@login_required_json
 def profile_change_password():
     """Allow users to change their own password"""
     logger.info(f"[PROFILE] Password change endpoint hit - method: {request.method}, user_id: {session.get('user_id')}")
@@ -10197,7 +10197,7 @@ def profile_change_password():
         return jsonify({"error": "Failed to change password"}), 500
 
 @app.route('/api/profile/update-email', methods=['POST'])
-@login_required
+@login_required_json
 def profile_update_email():
     """Allow users to update their email"""
     try:
