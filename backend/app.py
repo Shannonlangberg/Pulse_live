@@ -14699,6 +14699,7 @@ def update_user_permissions(user_id):
 @login_required
 def profile_change_password():
     """Allow users to change their own password"""
+    logger.info(f"[PROFILE] Password change endpoint hit - user_id: {session.get('user_id')}")
     try:
         data = request.get_json()
         current_password = data.get('current_password')
