@@ -11,6 +11,7 @@ import CampusManagement from './pages/CampusManagement';
 import UserManagement from './pages/UserManagement';
 import RoleManager from './pages/RoleManager';
 import DataExport from './pages/DataExport';
+import PlatformSettings from './pages/PlatformSettings';
 import MyProfile from './pages/MyProfile';
 import Passport from './pages/Passport';
 import Resources from './pages/Resources';
@@ -407,6 +408,7 @@ function App() {
                   <Route path="/prayer" element={<Prayer />} />
                   <Route path="/campuses" element={<CampusManagement />} />
                   <Route path="/users" element={<UserManagement />} />
+                  <Route path="/platform-settings" element={<PlatformSettings />} />
                   <Route path="/notifications" element={<NotificationManager />} />
                   <Route path="/role-manager" element={<RoleManager />} />
                   <Route path="/export" element={<DataExport />} />

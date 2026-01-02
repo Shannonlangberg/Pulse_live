@@ -26438,6 +26438,93 @@ def update_homepage_message(message_id):
         return jsonify({'error': 'Failed to update homepage message'}), 500
 
 
+# ===================================
+# PLATFORM SETTINGS API
+# ===================================
+
+@app.route('/api/platform-settings/training-video', methods=['GET'])
+@login_required_json
+def get_training_video_info():
+    """Check if training video exists and return info"""
+    try:
+        # Check if user is admin or superadmin
+        if current_user.role not in ['admin', 'superadmin']:
+            return jsonify({'error': 'Insufficient permissions'}), 403
+        
+        video_path = os.path.join(app.static_folder, 'videos', 'pulse-training.mp4')
+        
+        if os.path.exists(video_path):
+            file_stats = os.stat(video_path)
+            return jsonify({
+                'exists': True,
+                'file_size': file_stats.st_size,
+                'uploaded_at': datetime.fromtimestamp(file_stats.st_mtime).isoformat()
+            })
+        else:
+            return jsonify({'exists': False}), 404
+            
+    except Exception as e:
+        logger.error(f"Error checking training video: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to check video'}), 500
+
+
+@app.route('/api/platform-settings/training-video/upload', methods=['POST'])
+@login_required_json
+def upload_training_video():
+    """Upload training video"""
+    try:
+        # Check if user is admin or superadmin
+        if current_user.role not in ['admin', 'superadmin']:
+            return jsonify({'error': 'Insufficient permissions'}), 403
+        
+        # Check if file was uploaded
+        if 'video' not in request.files:
+            return jsonify({'error': 'No video file provided'}), 400
+        
+        video_file = request.files['video']
+        
+        # Check if filename is empty
+        if video_file.filename == '':
+            return jsonify({'error': 'No video file selected'}), 400
+        
+        # Validate file type
+        allowed_extensions = {'.mp4', '.mov', '.webm'}
+        file_ext = os.path.splitext(video_file.filename)[1].lower()
+        
+        if file_ext not in allowed_extensions:
+            return jsonify({'error': 'Invalid file type. Please upload MP4, MOV, or WebM'}), 400
+        
+        # Create videos directory if it doesn't exist
+        videos_dir = os.path.join(app.static_folder, 'videos')
+        os.makedirs(videos_dir, exist_ok=True)
+        
+        # Save file as pulse-training.mp4 (always use .mp4 extension)
+        save_path = os.path.join(videos_dir, 'pulse-training.mp4')
+        
+        # If file already exists, delete it first
+        if os.path.exists(save_path):
+            try:
+                os.remove(save_path)
+                logger.info("Removed existing training video")
+            except Exception as e:
+                logger.warning(f"Could not remove existing video: {e}")
+        
+        # Save the new video
+        video_file.save(save_path)
+        
+        logger.info(f"Training video uploaded successfully by {current_user.username}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Training video uploaded successfully',
+            'file_size': os.path.getsize(save_path)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error uploading training video: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to upload video'}), 500
+
+
 @app.route('/api/homepage-messages/<int:message_id>', methods=['DELETE'])
 @login_required_json
 def delete_homepage_message(message_id):

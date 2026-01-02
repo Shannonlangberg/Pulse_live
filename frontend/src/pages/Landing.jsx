@@ -14,7 +14,8 @@ import {
   BoltIcon,
   UserCircleIcon,
   PlayCircleIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 
 const gradientBackground = 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950';
@@ -377,7 +378,7 @@ const Landing = () => {
                   Key management tools and system overview
                 </p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                 <button
                   onClick={() => navigate('/users')}
                   className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
@@ -410,6 +411,17 @@ const Landing = () => {
                   </div>
                   <h3 className="text-base sm:text-lg font-semibold text-white mb-1">Resource Manager</h3>
                   <p className="text-xs sm:text-sm text-white/60">Organize and manage resources</p>
+                </button>
+                <button
+                  onClick={() => navigate('/platform-settings')}
+                  className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
+                >
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <Cog6ToothIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-emerald-300 group-active:scale-95 lg:group-hover:scale-110 transition-transform" />
+                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300/50 lg:group-hover:text-emerald-300 lg:group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-semibold text-white mb-1">Platform Settings</h3>
+                  <p className="text-xs sm:text-sm text-white/60">Upload training videos</p>
                 </button>
               </div>
             </section>
