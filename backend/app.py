@@ -10156,12 +10156,9 @@ def debug_routes():
         })
 
 # PROFILE MANAGEMENT ROUTES - Moved here to ensure registration
-@app.route('/api/profile/change-password', methods=['POST', 'GET'])
+@app.route('/api/profile/change-password', methods=['POST'])
 @login_required
 def profile_change_password():
-    # Handle GET for testing (remove after debugging)
-    if request.method == 'GET':
-        return jsonify({"status": "route_exists", "message": "This endpoint requires POST"}), 200
     """Allow users to change their own password"""
     logger.info(f"[PROFILE] Password change endpoint hit - user_id: {session.get('user_id')}")
     try:
