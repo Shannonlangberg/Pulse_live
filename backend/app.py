@@ -1242,7 +1242,7 @@ def save_conversation_memory(memory: Dict[str, Any]):
 print("[DEBUG] Creating Flask app instance")
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.environ.get('SECRET_KEY', 'futures-church-secret-key-2025')
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max file upload
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file upload (for training videos)
 
 # Configure session cookies
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
