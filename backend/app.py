@@ -10156,11 +10156,15 @@ def debug_routes():
         })
 
 # PROFILE MANAGEMENT ROUTES - Moved here to ensure registration
-@app.route('/api/profile/change-password', methods=['POST'])
+@app.route('/api/profile/change-password', methods=['POST', 'OPTIONS'])
 @login_required
 def profile_change_password():
     """Allow users to change their own password"""
-    logger.info(f"[PROFILE] Password change endpoint hit - user_id: {session.get('user_id')}")
+    logger.info(f"[PROFILE] Password change endpoint hit - method: {request.method}, user_id: {session.get('user_id')}")
+    
+    # Handle OPTIONS for CORS preflight
+    if request.method == 'OPTIONS':
+        return '', 200
     try:
         data = request.get_json()
         current_password = data.get('current_password')
