@@ -10155,6 +10155,70 @@ def debug_routes():
             "error": str(e)
         })
 
+# PROFILE MANAGEMENT ROUTES - Moved here to ensure registration
+@app.route('/api/profile/change-password', methods=['POST'])
+@login_required
+def profile_change_password():
+    """Allow users to change their own password"""
+    logger.info(f"[PROFILE] Password change endpoint hit - user_id: {session.get('user_id')}")
+    try:
+        data = request.get_json()
+        current_password = data.get('current_password')
+        new_password = data.get('new_password')
+        
+        if not current_password or not new_password:
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        if len(new_password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters"}), 400
+        
+        users_data = load_users_database()
+        user_id = str(session.get('user_id'))
+        user = users_data.get('users', {}).get(user_id)
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        
+        # Verify current password
+        if not check_password_hash(user.get('password_hash', ''), current_password):
+            return jsonify({"error": "Current password is incorrect"}), 401
+        
+        # Update password
+        user['password_hash'] = generate_password_hash(new_password)
+        save_users_database(users_data)
+        
+        return jsonify({"success": True, "message": "Password changed successfully"})
+    except Exception as e:
+        logger.error(f"Change password error: {e}")
+        return jsonify({"error": "Failed to change password"}), 500
+
+@app.route('/api/profile/update-email', methods=['POST'])
+@login_required
+def profile_update_email():
+    """Allow users to update their email"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip()
+        
+        if not email or '@' not in email:
+            return jsonify({"error": "Invalid email address"}), 400
+        
+        users_data = load_users_database()
+        user_id = str(session.get('user_id'))
+        user = users_data.get('users', {}).get(user_id)
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        
+        # Update email
+        user['email'] = email
+        save_users_database(users_data)
+        
+        return jsonify({"success": True, "message": "Email updated successfully"})
+    except Exception as e:
+        logger.error(f"Update email error: {e}")
+        return jsonify({"error": "Failed to update email"}), 500
+
 @app.route('/api/sync/pending', methods=['POST'])
 @login_required
 def sync_pending_records():
@@ -14694,69 +14758,7 @@ def update_user_permissions(user_id):
         logger.error(f"Error updating user permissions: {e}", exc_info=True)
         return jsonify({'error': 'Failed to update permissions'}), 500
 
-# PROFILE MANAGEMENT ROUTES
-@app.route('/api/profile/change-password', methods=['POST'])
-@login_required
-def profile_change_password():
-    """Allow users to change their own password"""
-    logger.info(f"[PROFILE] Password change endpoint hit - user_id: {session.get('user_id')}")
-    try:
-        data = request.get_json()
-        current_password = data.get('current_password')
-        new_password = data.get('new_password')
-        
-        if not current_password or not new_password:
-            return jsonify({"error": "Missing required fields"}), 400
-        
-        if len(new_password) < 6:
-            return jsonify({"error": "Password must be at least 6 characters"}), 400
-        
-        users_data = load_users_database()
-        user_id = str(session.get('user_id'))
-        user = users_data.get('users', {}).get(user_id)
-        
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-        
-        # Verify current password
-        if not check_password_hash(user.get('password_hash', ''), current_password):
-            return jsonify({"error": "Current password is incorrect"}), 401
-        
-        # Update password
-        user['password_hash'] = generate_password_hash(new_password)
-        save_users_database(users_data)
-        
-        return jsonify({"success": True, "message": "Password changed successfully"})
-    except Exception as e:
-        logger.error(f"Change password error: {e}")
-        return jsonify({"error": "Failed to change password"}), 500
-
-@app.route('/api/profile/update-email', methods=['POST'])
-@login_required
-def profile_update_email():
-    """Allow users to update their email"""
-    try:
-        data = request.get_json()
-        email = data.get('email', '').strip()
-        
-        if not email or '@' not in email:
-            return jsonify({"error": "Invalid email address"}), 400
-        
-        users_data = load_users_database()
-        user_id = str(session.get('user_id'))
-        user = users_data.get('users', {}).get(user_id)
-        
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-        
-        # Update email
-        user['email'] = email
-        save_users_database(users_data)
-        
-        return jsonify({"success": True, "message": "Email updated successfully"})
-    except Exception as e:
-        logger.error(f"Update email error: {e}")
-        return jsonify({"error": "Failed to update email"}), 500
+# PROFILE MANAGEMENT ROUTES - Duplicate removed (moved to earlier in file around line 10158)
 
 # DATA EXPORT ROUTES
 @app.route('/api/export/attendance', methods=['GET'])
