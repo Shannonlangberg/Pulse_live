@@ -14018,34 +14018,60 @@ def create_user_api():
         cursor = conn.cursor()
         
         # Check if username already exists (using TRIM for comparison)
-        cursor.execute('SELECT id FROM users WHERE TRIM(username) = ?', (username,))
-        if cursor.fetchone():
-            conn.close()
-            return jsonify({"error": "Username already exists"}), 400
+        cursor.execute('SELECT id, active FROM users WHERE TRIM(username) = ?', (username,))
+        existing_user = cursor.fetchone()
         
         # Get region_id from request (optional)
         region_id = data.get('region_id')
         
-        # Insert new user
-        cursor.execute('''
-            INSERT INTO users (username, password_hash, full_name, email, role, campus, region_id, active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            username,
-            generate_password_hash(password),
-            data.get('full_name', username).strip() if data.get('full_name') else username,
-            data.get('email', f"{username}@futures.church").strip() if data.get('email') else f"{username}@futures.church",
-            data.get('role', 'campus_pastor'),
-            data.get('campus', 'all_campuses'),
-            region_id,
-            1
-        ))
-        
-        conn.commit()
-        conn.close()
-        
-        logger.info(f"Created new user: {username} with role: {data.get('role')}")
-        return jsonify({"success": True, "message": "User created successfully"})
+        if existing_user:
+            user_id, is_active = existing_user
+            if is_active:
+                # Active user with this username already exists
+                conn.close()
+                return jsonify({"error": "Username already exists"}), 400
+            else:
+                # Inactive user exists - reactivate and update it
+                cursor.execute('''
+                    UPDATE users 
+                    SET password_hash = ?, full_name = ?, email = ?, role = ?, campus = ?, region_id = ?, active = 1, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (
+                    generate_password_hash(password),
+                    data.get('full_name', username).strip() if data.get('full_name') else username,
+                    data.get('email', f"{username}@futures.church").strip() if data.get('email') else f"{username}@futures.church",
+                    data.get('role', 'campus_pastor'),
+                    data.get('campus', 'all_campuses'),
+                    region_id,
+                    user_id
+                ))
+                
+                conn.commit()
+                conn.close()
+                
+                logger.info(f"Reactivated user: {username} with role: {data.get('role')}")
+                return jsonify({"success": True, "message": "User reactivated and updated successfully"})
+        else:
+            # Insert new user
+            cursor.execute('''
+                INSERT INTO users (username, password_hash, full_name, email, role, campus, region_id, active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                username,
+                generate_password_hash(password),
+                data.get('full_name', username).strip() if data.get('full_name') else username,
+                data.get('email', f"{username}@futures.church").strip() if data.get('email') else f"{username}@futures.church",
+                data.get('role', 'campus_pastor'),
+                data.get('campus', 'all_campuses'),
+                region_id,
+                1
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"Created new user: {username} with role: {data.get('role')}")
+            return jsonify({"success": True, "message": "User created successfully"})
     except Exception as e:
         logger.error(f"Create user API error: {e}", exc_info=True)
         return jsonify({"error": "Failed to create user"}), 500
