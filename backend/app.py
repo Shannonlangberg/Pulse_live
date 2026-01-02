@@ -6605,19 +6605,75 @@ def get_monthly_tithe_from_finance_tab(campus, start_date, end_date):
         return {}
 
 def get_tithe_breakdown(campus, start_date, end_date):
-    """Get tithe breakdown from the Tithe tab for a specific campus and date range"""
+    """Get tithe breakdown from DATABASE FIRST, then fallback to Google Sheets"""
     try:
-        if not finance_sheet:
-            return {'general': 0, 'trust': 0, 'online': 0, 'text': 0, 'total': 0}
-        
-        rows = safe_sheets_request(finance_sheet.get_all_records)
-        breakdown = {'general': 0, 'trust': 0, 'online': 0, 'text': 0, 'total': 0, 'count': 0}
+        from datetime import datetime as dt_module
         
         # Convert datetime to date if necessary
         if isinstance(start_date, datetime):
             start_date = start_date.date()
         if isinstance(end_date, datetime):
             end_date = end_date.date()
+        
+        breakdown = {'general': 0, 'trust': 0, 'online': 0, 'text': 0, 'total': 0, 'count': 0}
+        
+        # ============================================================
+        # STEP 1: TRY DATABASE FIRST (PRIMARY SOURCE)
+        # ============================================================
+        try:
+            # Build query
+            query = FinanceRecord.query.filter(
+                FinanceRecord.date >= start_date,
+                FinanceRecord.date <= end_date
+            )
+            
+            # Filter by campus if not "all_campuses"
+            if campus not in ['all_campuses', 'australia']:
+                # Normalize campus for matching - handle multiple formats
+                campus_normalized = campus.lower().replace(' ', '_').replace('-', '_')
+                # Try exact match first
+                query = query.filter(
+                    db.or_(
+                        db.func.lower(FinanceRecord.campus_id) == campus_normalized,
+                        db.func.lower(FinanceRecord.campus_id) == campus.lower(),
+                        db.func.lower(FinanceRecord.campus_name) == campus.lower(),
+                        db.func.lower(FinanceRecord.campus_name) == campus.replace('_', ' ').lower()
+                    )
+                )
+            
+            # Get records
+            records = query.all()
+            
+            if records:
+                # Aggregate from database
+                for record in records:
+                    breakdown['general'] += float(record.general or 0)
+                    breakdown['trust'] += float(record.trust or 0)
+                    breakdown['online'] += float(record.online or 0)
+                    breakdown['text'] += float(record.text or 0)
+                    breakdown['total'] += float(record.total or 0)
+                    breakdown['count'] += 1
+                
+                logger.info(f"Loaded tithe breakdown from database: {breakdown['count']} records for {campus}")
+                
+                # Calculate averages
+                if breakdown['count'] > 0:
+                    for key in ['general', 'trust', 'online', 'text', 'total']:
+                        breakdown[key] = round(breakdown[key] / breakdown['count'], 2)
+                
+                return breakdown
+        except Exception as e:
+            logger.warning(f"Error loading tithe from database, falling back to sheets: {str(e)}")
+        
+        # ============================================================
+        # STEP 2: FALLBACK TO GOOGLE SHEETS
+        # ============================================================
+        if not finance_sheet:
+            logger.warning("Finance sheet not available, returning zero breakdown")
+            return {'general': 0, 'trust': 0, 'online': 0, 'text': 0, 'total': 0}
+        
+        rows = safe_sheets_request(finance_sheet.get_all_records)
+        breakdown = {'general': 0, 'trust': 0, 'online': 0, 'text': 0, 'total': 0, 'count': 0}
         
         for row in rows:
             try:
@@ -6665,7 +6721,9 @@ def get_tithe_breakdown(campus, start_date, end_date):
             for key in ['general', 'trust', 'online', 'text', 'total']:
                 breakdown[key] = round(breakdown[key] / breakdown['count'], 2)
         
+        logger.info(f"Loaded tithe breakdown from sheets: {breakdown['count']} records for {campus}")
         return breakdown
+        
     except Exception as e:
         logger.error(f"Error fetching tithe breakdown: {str(e)}")
         return {'general': 0, 'trust': 0, 'online': 0, 'text': 0, 'total': 0}

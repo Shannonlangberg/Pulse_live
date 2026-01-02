@@ -5,3 +5,4 @@ CREATE INDEX IF NOT EXISTS idx_finance_records_campus ON finance_records(campus_
 CREATE INDEX IF NOT EXISTS idx_finance_records_region ON finance_records(region);
 CREATE INDEX IF NOT EXISTS idx_finance_records_date_campus ON finance_records(date, campus_id);
 
+

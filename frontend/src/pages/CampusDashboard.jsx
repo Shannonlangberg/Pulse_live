@@ -764,7 +764,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 </div>
                 <h3 className="text-white/80 text-sm font-medium mb-2">Average Giving</h3>
                 <div className="text-4xl font-bold text-white mb-2">
-                  ${((data.tithe_breakdown?.general || 0) + (data.tithe_breakdown?.trust || 0) + (data.tithe_breakdown?.online || 0)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  ${((data.tithe_breakdown?.general || 0) + (data.tithe_breakdown?.trust || 0) + (data.tithe_breakdown?.online || 0) + (data.tithe_breakdown?.text || 0)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                 </div>
                 <p className="text-yellow-200/80 text-sm">
                   Financial stewardship
