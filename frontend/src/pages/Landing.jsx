@@ -12,7 +12,9 @@ import {
   ChartBarIcon,
   BuildingOfficeIcon,
   BoltIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  PlayCircleIcon,
+  AcademicCapIcon
 } from '@heroicons/react/24/outline';
 
 const gradientBackground = 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950';
@@ -222,6 +224,47 @@ const Landing = () => {
               ))}
             </section>
           )}
+
+          {/* Training & Help Section */}
+          <section className="space-y-3 sm:space-y-4">
+            <div>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-1">
+                <AcademicCapIcon className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-400" />
+                Training & Help
+              </h2>
+              <p className="text-white/60 text-xs sm:text-sm md:text-base">
+                Learn how to use Pulse with our training resources
+              </p>
+            </div>
+            
+            <a
+              href="/videos/pulse-training.mp4"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block bg-gradient-to-br from-emerald-600/20 via-teal-600/20 to-cyan-600/20 border border-emerald-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 backdrop-blur-sm shadow-xl transition-all duration-300 active:scale-[0.98] lg:hover:scale-[1.02] lg:hover:border-emerald-400/50 lg:hover:shadow-2xl touch-manipulation"
+            >
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-emerald-500/30 to-teal-500/30 flex items-center justify-center flex-shrink-0 group-active:scale-95 lg:group-hover:scale-110 transition-transform duration-300">
+                  <PlayCircleIcon className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-200" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                    <h3 className="text-base sm:text-lg md:text-xl font-bold text-white">
+                      Pulse Training Video
+                    </h3>
+                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-200/70 lg:group-hover:text-emerald-200 lg:group-hover:translate-x-1 lg:group-hover:-translate-y-1 transition-all duration-300" />
+                  </div>
+                  <p className="text-sm sm:text-base text-white/80 leading-relaxed">
+                    Watch this comprehensive tutorial to learn how to navigate Pulse, input your weekly stats, and make the most of all the features available to you.
+                  </p>
+                  <div className="mt-3 sm:mt-4 inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-emerald-300">
+                    <PlayCircleIcon className="h-4 w-4" />
+                    <span>Click to watch video</span>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </section>
 
           {/* Quick Actions Section */}
           {quickActions.length > 0 && (

@@ -9920,6 +9920,21 @@ def serve_assets(filename):
         return send_from_directory(os.path.join(app.static_folder, 'assets'), filename)
     return jsonify({"error": "Static folder not configured"}), 404
 
+@app.route('/videos/<path:filename>')
+def serve_videos(filename):
+    """Serve training videos from static/videos directory"""
+    if app.static_folder:
+        # Ensure filename is a string
+        if not isinstance(filename, str):
+            filename = str(filename)
+        video_path = os.path.join(app.static_folder, 'videos', filename)
+        if os.path.exists(video_path):
+            return send_from_directory(os.path.join(app.static_folder, 'videos'), filename)
+        else:
+            logger.warning(f"Video not found: {filename}")
+            return jsonify({"error": "Video not found"}), 404
+    return jsonify({"error": "Static folder not configured"}), 404
+
 @app.route('/temp_audio/<path:filename>')
 def serve_audio(filename):
     """Serve generated audio files"""
