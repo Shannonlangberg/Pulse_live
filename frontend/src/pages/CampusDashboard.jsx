@@ -398,8 +398,9 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
   // Individual components for modal display (these are for breakdown purposes only, not for calculation)
   const sundayAdultAttendance = Math.round(sundayAttendanceFromServices > 0 ? sundayAttendanceFromServices : (isRollup ? (data.stats?.total_attendance || 0) : (data.stats?.avg_attendance || 0)));
   const youthAttendance = Math.round(data.stats?.avg_youth_attendance || 0);
-  const kidsAttendance = Math.round(data.stats?.avg_kids_attendance || 0);
-  const kidsLeaders = Math.round(data.stats?.avg_kids_leaders || 0);
+  // For rollup (Australia overview): use total kids_attendance, not average
+  const kidsAttendance = Math.round(isRollup ? (data.stats?.kids_attendance || 0) : (data.stats?.avg_kids_attendance || 0));
+  const kidsLeaders = Math.round(isRollup ? (data.stats?.kids_leaders || 0) : (data.stats?.avg_kids_leaders || 0));
   const kidsTotalForSunday = kidsAttendance + kidsLeaders;
   const saintsAttendance = Math.round(data.stats?.avg_saints || 0);
   const seniorsAttendance = Math.round(data.stats?.avg_seniors || 0);
@@ -707,10 +708,10 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 </div>
                 <h3 className="text-white/80 text-sm font-medium mb-2">Kids Church</h3>
                 <div className="text-4xl font-bold text-white mb-2">
-                  {(kidsAttendance + Math.round(data.stats?.avg_kids_leaders || 0)).toLocaleString()}
+                  {(kidsAttendance + kidsLeaders).toLocaleString()}
                 </div>
                 <p className="text-pink-200/80 text-sm">
-                  {kidsAttendance} kids + {Math.round(data.stats?.avg_kids_leaders || 0)} leaders
+                  {kidsAttendance} kids + {kidsLeaders} leaders
                 </p>
               </div>
             </div>
