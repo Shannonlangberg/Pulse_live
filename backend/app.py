@@ -996,9 +996,9 @@ def save_attendance_record(data, user_id=None):
             if sheet or client:  # Only if Google Sheets is available
                 logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
                 sync_result = sync_to_google_sheets(record, campus)
-                if sync_result:
-                record.synced_to_sheets = True
-                db.session.commit()
+                if sync_result is not None and sync_result:
+                    record.synced_to_sheets = True
+                    db.session.commit()
                     logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
                 else:
                     logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
@@ -6883,15 +6883,15 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     logger.info(f"[DASHBOARD] Australia dashboard: {len(records)} records, {len(campus_ids)} campuses")
                 else:
                     # 'all_campuses' - get all active campuses (all regions)
-                campuses_query = CampusV2.query.filter_by(active=True).all()
-                campus_ids = [c.id for c in campuses_query]
-                
-                records = AttendanceRecord.query.filter(
-                    AttendanceRecord.campus_id.in_(campus_ids),
-                    AttendanceRecord.date >= start_date,
-                    AttendanceRecord.date <= end_date
-                ).order_by(AttendanceRecord.date.desc()).all()
-                
+                    campuses_query = CampusV2.query.filter_by(active=True).all()
+                    campus_ids = [c.id for c in campuses_query]
+                    
+                    records = AttendanceRecord.query.filter(
+                        AttendanceRecord.campus_id.in_(campus_ids),
+                        AttendanceRecord.date >= start_date,
+                        AttendanceRecord.date <= end_date
+                    ).order_by(AttendanceRecord.date.desc()).all()
+                    
                     print(f"[DASHBOARD] Found {len(records)} database records across {len(campus_ids)} campuses (all regions)")
             else:
                 # Single campus - find by campus_id (e.g., 'adelaide_city', 'paradise')
@@ -7122,7 +7122,7 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 if campus in ['all_campuses', 'australia', 'usa']:
                     # Multi-campus query - filter by region for 'australia'
                     if campus == 'australia' and australia_region:
-                    ytd_records = AttendanceRecord.query.filter(
+                        ytd_records = AttendanceRecord.query.filter(
                             AttendanceRecord.region_id == australia_region.id,
                             AttendanceRecord.date >= ytd_start,
                             AttendanceRecord.date <= ytd_end
@@ -7131,9 +7131,9 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     else:
                         # All campuses/all regions
                         ytd_records = AttendanceRecord.query.filter(
-                        AttendanceRecord.date >= ytd_start,
-                        AttendanceRecord.date <= ytd_end
-                    ).all()
+                            AttendanceRecord.date >= ytd_start,
+                            AttendanceRecord.date <= ytd_end
+                        ).all()
                 else:
                     # Single campus query
                     ytd_records = AttendanceRecord.query.filter(
@@ -10488,7 +10488,7 @@ def sync_pending_records():
                 
                 # Attempt to sync
                 sync_result = sync_to_google_sheets(record, campus)
-                if sync_result:
+                if sync_result is not None and sync_result:
                     record.synced_to_sheets = True
                     db.session.commit()
                     synced_count += 1
@@ -10572,7 +10572,7 @@ def sync_all_records():
                 
                 # Attempt to sync
                 sync_result = sync_to_google_sheets(record, campus)
-                if sync_result:
+                if sync_result is not None and sync_result:
                     record.synced_to_sheets = True
                     db.session.commit()
                     synced_count += 1
@@ -13469,9 +13469,9 @@ def save_attendance_record(data, user_id=None):
             if sheet or client:  # Only if Google Sheets is available
                 logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
                 sync_result = sync_to_google_sheets(record, campus)
-                if sync_result:
-                record.synced_to_sheets = True
-                db.session.commit()
+                if sync_result is not None and sync_result:
+                    record.synced_to_sheets = True
+                    db.session.commit()
                     logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
                 else:
                     logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
@@ -14681,22 +14681,22 @@ def create_user_api():
                 logger.info(f"Reactivated user: {username} with role: {data.get('role')}")
                 return jsonify({"success": True, "message": "User reactivated and updated successfully"})
         else:
-        # Insert new user
-        cursor.execute('''
-            INSERT INTO users (username, password_hash, full_name, email, role, campus, region_id, active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            username,
-            generate_password_hash(password),
-            data.get('full_name', username).strip() if data.get('full_name') else username,
-            data.get('email', f"{username}@futures.church").strip() if data.get('email') else f"{username}@futures.church",
-            data.get('role', 'campus_pastor'),
-            data.get('campus', 'all_campuses'),
-            region_id,
-            1
-        ))
-        
-        conn.commit()
+            # Insert new user
+            cursor.execute('''
+                INSERT INTO users (username, password_hash, full_name, email, role, campus, region_id, active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                username,
+                generate_password_hash(password),
+                data.get('full_name', username).strip() if data.get('full_name') else username,
+                data.get('email', f"{username}@futures.church").strip() if data.get('email') else f"{username}@futures.church",
+                data.get('role', 'campus_pastor'),
+                data.get('campus', 'all_campuses'),
+                region_id,
+                1
+            ))
+            
+            conn.commit()
         conn.close()
         
         logger.info(f"Created new user: {username} with role: {data.get('role')}")
