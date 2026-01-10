@@ -98,7 +98,7 @@ def load_campus_config():
         print(f"[ERROR] Failed to load campus config: {e}")
         try:
             logger.error(f"Failed to load campus config: {e}")
-        except:
+        except Exception:
             pass
         return DEFAULT_CAMPUS_SERVICE_TIMES.copy()
 
@@ -110,13 +110,13 @@ def save_campus_config(config: dict) -> bool:
             json.dump(config, f, indent=2)
         try:
             logger.info(f"Campus configuration saved successfully")
-        except:
+        except Exception:
             print(f"[INFO] Campus configuration saved successfully")
         return True
     except Exception as e:
         try:
             logger.error(f"Failed to save campus config: {e}")
-        except:
+        except Exception:
             print(f"[ERROR] Failed to save campus config: {e}")
         return False
 
