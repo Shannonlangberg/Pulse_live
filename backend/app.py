@@ -14406,6 +14406,7 @@ def get_regional_dashboard_data():
         total_attendance = sum(r.total_attendance or 0 for r in records)
         total_people_in_campus = sum(r.total_people_in_campus or 0 for r in records)
         total_kids = sum(r.kids_attendance or 0 for r in records)
+        total_kids_leaders = sum(r.kids_leaders or 0 for r in records)
         total_youth = sum(r.youth_attendance or 0 for r in records)
         total_salvations = sum((r.first_time_christians or 0) + (r.rededications or 0) for r in records)
         total_baptisms = sum(r.baptisms or 0 for r in records)
@@ -14417,6 +14418,7 @@ def get_regional_dashboard_data():
         record_count = max(1, len(records))
         avg_attendance = total_attendance / record_count if record_count > 0 else 0
         avg_kids = total_kids / record_count if record_count > 0 else 0
+        avg_kids_leaders = total_kids_leaders / record_count if record_count > 0 else 0
         avg_youth = total_youth / record_count if record_count > 0 else 0
         avg_giving = total_giving / record_count if record_count > 0 else 0
         
@@ -14461,6 +14463,8 @@ def get_regional_dashboard_data():
                 'avg_weekly_attendance': round(avg_attendance, 1),
                 'total_kids': total_kids,
                 'avg_kids': round(avg_kids, 1),
+                'total_kids_leaders': total_kids_leaders,
+                'avg_kids_leaders': round(avg_kids_leaders, 1),
                 'total_youth': total_youth,
                 'avg_youth': round(avg_youth, 1),
                 'total_salvations': total_salvations,
