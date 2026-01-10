@@ -97,7 +97,7 @@ def load_campus_config():
         # Use print for early initialization errors before logger is available
         print(f"[ERROR] Failed to load campus config: {e}")
         try:
-            logger.error(f"Failed to load campus config: {e}")
+        logger.error(f"Failed to load campus config: {e}")
         except:
             pass
         return DEFAULT_CAMPUS_SERVICE_TIMES.copy()
@@ -109,13 +109,13 @@ def save_campus_config(config: dict) -> bool:
         with open(config_file, 'w') as f:
             json.dump(config, f, indent=2)
         try:
-            logger.info(f"Campus configuration saved successfully")
+        logger.info(f"Campus configuration saved successfully")
         except:
             print(f"[INFO] Campus configuration saved successfully")
         return True
     except Exception as e:
         try:
-            logger.error(f"Failed to save campus config: {e}")
+        logger.error(f"Failed to save campus config: {e}")
         except:
             print(f"[ERROR] Failed to save campus config: {e}")
         return False
@@ -997,8 +997,8 @@ def save_attendance_record(data, user_id=None):
                 logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
                 sync_result = sync_to_google_sheets(record, campus)
                 if sync_result:
-                    record.synced_to_sheets = True
-                    db.session.commit()
+                record.synced_to_sheets = True
+                db.session.commit()
                     logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
                 else:
                     logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
@@ -1052,9 +1052,9 @@ def sync_to_google_sheets(record, campus):
             # Open the region-specific sheet
             if client:  # Use the global gspread client
                 try:
-                    region_spreadsheet = client.open_by_key(target_spreadsheet_id)
-                    target_sheet = region_spreadsheet.worksheet(target_tab_name)
-                    logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
+                region_spreadsheet = client.open_by_key(target_spreadsheet_id)
+                target_sheet = region_spreadsheet.worksheet(target_tab_name)
+                logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
                 except Exception as open_error:
                     logger.error(f"[SHEETS_SYNC] Failed to open region sheet: {open_error}")
                     import traceback
@@ -1165,7 +1165,7 @@ def sync_to_google_sheets(record, campus):
     
     # Append row (for updates, we'd need to find and update the existing row)
     try:
-        target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
+    target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
         logger.info(f"[SHEETS_SYNC] Successfully appended row to Google Sheets")
     except Exception as append_error:
         logger.error(f"[SHEETS_SYNC] Failed to append row to Google Sheets: {append_error}")
@@ -6883,14 +6883,14 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     logger.info(f"[DASHBOARD] Australia dashboard: {len(records)} records, {len(campus_ids)} campuses")
                 else:
                     # 'all_campuses' - get all active campuses (all regions)
-                    campuses_query = CampusV2.query.filter_by(active=True).all()
-                    campus_ids = [c.id for c in campuses_query]
+                campuses_query = CampusV2.query.filter_by(active=True).all()
+                campus_ids = [c.id for c in campuses_query]
                 
-                    records = AttendanceRecord.query.filter(
-                        AttendanceRecord.campus_id.in_(campus_ids),
-                        AttendanceRecord.date >= start_date,
-                        AttendanceRecord.date <= end_date
-                    ).order_by(AttendanceRecord.date.desc()).all()
+                records = AttendanceRecord.query.filter(
+                    AttendanceRecord.campus_id.in_(campus_ids),
+                    AttendanceRecord.date >= start_date,
+                    AttendanceRecord.date <= end_date
+                ).order_by(AttendanceRecord.date.desc()).all()
                 
                     print(f"[DASHBOARD] Found {len(records)} database records across {len(campus_ids)} campuses (all regions)")
             else:
@@ -7122,7 +7122,7 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 if campus in ['all_campuses', 'australia', 'usa']:
                     # Multi-campus query - filter by region for 'australia'
                     if campus == 'australia' and australia_region:
-                        ytd_records = AttendanceRecord.query.filter(
+                    ytd_records = AttendanceRecord.query.filter(
                             AttendanceRecord.region_id == australia_region.id,
                             AttendanceRecord.date >= ytd_start,
                             AttendanceRecord.date <= ytd_end
@@ -7257,7 +7257,13 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
         # Pre-normalize campus for single-pass filtering
         campus_normalized = None
         skip_campus_filter = campus in ['all_campuses', 'australia']
-        if not skip_campus_filter:
+        australia_campuses = None
+        if campus == 'australia':
+            # For Australia rollup, filter to only Australian campuses
+            australia_campuses = ['paradise', 'south', 'salisbury', 'adelaide_city', 'adelaide city', 
+                                 'mount_barker', 'mount barker', 'copper_coast', 'copper coast',
+                                 'clare_valley', 'clare valley', 'victor_harbour', 'victor_harbor', 'victor harbour']
+        elif not skip_campus_filter:
             campus_normalized = normalize_campus(campus)
         
         # Pre-compile date parsing (most common format first for speed)
@@ -7267,7 +7273,19 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
         filtered_rows = []
         for row in rows:
             # Campus filtering (if needed)
-            if not skip_campus_filter:
+            if campus == 'australia' and australia_campuses:
+                # Filter to only Australian campuses, exclude non-AU like Alpharetta
+                row_campus = normalize_campus(row.get("Campus") or row.get("campus") or "")
+                row_campus_lower = row_campus.lower().replace(' ', '_').replace('-', '_')
+                is_australian = False
+                for au_campus in australia_campuses:
+                    au_normalized = au_campus.lower().replace(' ', '_').replace('-', '_')
+                    if au_normalized in row_campus_lower or row_campus_lower in au_normalized:
+                        is_australian = True
+                        break
+                if not is_australian:
+                    continue
+            elif not skip_campus_filter:
                 row_campus = normalize_campus(row.get("Campus") or row.get("campus") or "")
                 campus_match = (row_campus == campus_normalized or
                                campus_normalized in row_campus or
@@ -13452,8 +13470,8 @@ def save_attendance_record(data, user_id=None):
                 logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
                 sync_result = sync_to_google_sheets(record, campus)
                 if sync_result:
-                    record.synced_to_sheets = True
-                    db.session.commit()
+                record.synced_to_sheets = True
+                db.session.commit()
                     logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
                 else:
                     logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
@@ -14663,8 +14681,8 @@ def create_user_api():
                 logger.info(f"Reactivated user: {username} with role: {data.get('role')}")
                 return jsonify({"success": True, "message": "User reactivated and updated successfully"})
         else:
-            # Insert new user
-            cursor.execute('''
+        # Insert new user
+        cursor.execute('''
             INSERT INTO users (username, password_hash, full_name, email, role, campus, region_id, active)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
@@ -14678,11 +14696,11 @@ def create_user_api():
             1
         ))
         
-            conn.commit()
-            conn.close()
+        conn.commit()
+        conn.close()
         
-            logger.info(f"Created new user: {username} with role: {data.get('role')}")
-            return jsonify({"success": True, "message": "User created successfully"})
+        logger.info(f"Created new user: {username} with role: {data.get('role')}")
+        return jsonify({"success": True, "message": "User created successfully"})
     except Exception as e:
         logger.error(f"Create user API error: {e}", exc_info=True)
         return jsonify({"error": "Failed to create user"}), 500
