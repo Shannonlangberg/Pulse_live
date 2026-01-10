@@ -109,13 +109,13 @@ def save_campus_config(config: dict) -> bool:
         with open(config_file, 'w') as f:
             json.dump(config, f, indent=2)
         try:
-        logger.info(f"Campus configuration saved successfully")
+            logger.info(f"Campus configuration saved successfully")
         except:
             print(f"[INFO] Campus configuration saved successfully")
         return True
     except Exception as e:
         try:
-        logger.error(f"Failed to save campus config: {e}")
+            logger.error(f"Failed to save campus config: {e}")
         except:
             print(f"[ERROR] Failed to save campus config: {e}")
         return False
@@ -1052,9 +1052,9 @@ def sync_to_google_sheets(record, campus):
             # Open the region-specific sheet
             if client:  # Use the global gspread client
                 try:
-                region_spreadsheet = client.open_by_key(target_spreadsheet_id)
-                target_sheet = region_spreadsheet.worksheet(target_tab_name)
-                logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
+                    region_spreadsheet = client.open_by_key(target_spreadsheet_id)
+                    target_sheet = region_spreadsheet.worksheet(target_tab_name)
+                    logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
                 except Exception as open_error:
                     logger.error(f"[SHEETS_SYNC] Failed to open region sheet: {open_error}")
                     import traceback
@@ -1165,7 +1165,7 @@ def sync_to_google_sheets(record, campus):
     
     # Append row (for updates, we'd need to find and update the existing row)
     try:
-    target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
+        target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
         logger.info(f"[SHEETS_SYNC] Successfully appended row to Google Sheets")
     except Exception as append_error:
         logger.error(f"[SHEETS_SYNC] Failed to append row to Google Sheets: {append_error}")
