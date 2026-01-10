@@ -97,7 +97,7 @@ def load_campus_config():
         # Use print for early initialization errors before logger is available
         print(f"[ERROR] Failed to load campus config: {e}")
         try:
-        logger.error(f"Failed to load campus config: {e}")
+            logger.error(f"Failed to load campus config: {e}")
         except:
             pass
         return DEFAULT_CAMPUS_SERVICE_TIMES.copy()
