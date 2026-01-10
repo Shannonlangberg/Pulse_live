@@ -2097,18 +2097,61 @@ class User(UserMixin):
             return False
         
     def has_permission(self, permission_type, action=None, campus=None):
-        """Check if user has specific permission based on role
+        """Check if user has specific permission based on role and custom_permissions
         
         Supports both old-style (e.g., 'log_stats') and new RBAC-style (e.g., 'groups', 'view') permissions
+        
+        Custom permissions (from Role Manager) can override role defaults:
+        - 'input: true' grants log_stats and recall_stats
+        - 'dashboard: true' grants dashboard_access and recall_stats
+        - 'finance: true' grants finance_access
         """
         # If action is provided, use RBAC system
         if action is not None:
             try:
                 from utils.rbac import rbac_manager
-                return rbac_manager.has_permission(self.role, permission_type, action)
+                custom_perms = getattr(self, 'custom_permissions', {}) or {}
+                return rbac_manager.has_permission(self.role, permission_type, action, custom_permissions=custom_perms)
             except Exception as e:
                 logger.error(f"Error checking RBAC permission: {e}")
                 # Fall back to old system if RBAC fails
+        
+        # FIRST: Check custom_permissions (set via Role Manager)
+        custom_perms = getattr(self, 'custom_permissions', {}) or {}
+        
+        # Map feature flags to backend permissions
+        if permission_type == 'log_stats':
+            # If user has 'input: true' in custom_permissions, grant log_stats
+            if custom_perms.get('input') is True:
+                logger.info(f"[PERMISSION_CHECK] User granted log_stats via custom_permissions.input=True")
+                return True
+            # Explicitly denied
+            if custom_perms.get('input') is False:
+                logger.info(f"[PERMISSION_CHECK] User denied log_stats via custom_permissions.input=False")
+                return False
+        
+        if permission_type == 'recall_stats':
+            # If user has 'input: true' or 'dashboard: true', grant recall_stats (needed to view data)
+            if custom_perms.get('input') is True or custom_perms.get('dashboard') is True:
+                logger.info(f"[PERMISSION_CHECK] User granted recall_stats via custom_permissions (input={custom_perms.get('input')}, dashboard={custom_perms.get('dashboard')})")
+                return True
+            # Explicitly denied
+            if custom_perms.get('input') is False and custom_perms.get('dashboard') is False:
+                return False
+        
+        if permission_type == 'dashboard_access':
+            # If user has 'dashboard: true', grant dashboard_access
+            if custom_perms.get('dashboard') is True:
+                return True
+            if custom_perms.get('dashboard') is False:
+                return False
+        
+        if permission_type == 'finance_access':
+            # If user has 'finance: true', grant finance_access
+            if custom_perms.get('finance') is True:
+                return True
+            if custom_perms.get('finance') is False:
+                return False
         
         # Define permissions for each role (legacy system)
         role_permissions = {
@@ -2235,6 +2278,7 @@ class User(UserMixin):
             return False
             
         elif permission_type == 'recall_stats':
+            # Check role-based permissions (custom_permissions already checked above)
             if perm_value is True:
                 return True
             elif perm_value == 'own_campus':

@@ -91,9 +91,9 @@ const LogStats = () => {
   const totalKidsAttendance = calculateTotalKidsAttendance();
   const totalKidsOverall = totalKidsAttendance + (parseInt(quickInputStats['Kids Leaders']) || 0);
 
-  // Check user role and redirect staff members
+  // Check user permissions and redirect if no access
   useEffect(() => {
-    const checkRole = async () => {
+    const checkPermissions = async () => {
       try {
         const response = await fetch('/api/session', {
           credentials: 'include',
@@ -101,15 +101,38 @@ const LogStats = () => {
         });
         if (response.ok) {
           const data = await response.json();
-          if (data.authenticated && data.role === 'staff') {
-            navigate('/resources');
+          if (data.authenticated) {
+            const customPerms = data.custom_permissions || {};
+            const role = data.role || 'member';
+            
+            // Check if user has input access via custom_permissions or role
+            // Priority: custom_permissions.input > role defaults
+            let hasInputAccess = false;
+            
+            if (customPerms.input === true) {
+              // Explicitly granted via custom_permissions
+              hasInputAccess = true;
+            } else if (customPerms.input === false) {
+              // Explicitly denied via custom_permissions
+              hasInputAccess = false;
+            } else {
+              // Not set in custom_permissions, check role defaults
+              hasInputAccess = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 
+                               'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'member'].includes(role);
+            }
+            
+            // Redirect if user doesn't have input access
+            if (!hasInputAccess) {
+              console.log('[LogStats] User does not have input access, redirecting to home');
+              navigate('/');
+            }
           }
         }
       } catch (error) {
-        console.error('Error checking user role:', error);
+        console.error('Error checking user permissions:', error);
       }
     };
-    checkRole();
+    checkPermissions();
   }, [navigate]);
 
   useEffect(() => {
