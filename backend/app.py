@@ -97,7 +97,7 @@ def load_campus_config():
         # Use print for early initialization errors before logger is available
         print(f"[ERROR] Failed to load campus config: {e}")
         try:
-            logger.error(f"Failed to load campus config: {e}")
+        logger.error(f"Failed to load campus config: {e}")
         except:
             pass
         return DEFAULT_CAMPUS_SERVICE_TIMES.copy()
@@ -109,13 +109,13 @@ def save_campus_config(config: dict) -> bool:
         with open(config_file, 'w') as f:
             json.dump(config, f, indent=2)
         try:
-            logger.info(f"Campus configuration saved successfully")
+        logger.info(f"Campus configuration saved successfully")
         except:
             print(f"[INFO] Campus configuration saved successfully")
         return True
     except Exception as e:
         try:
-            logger.error(f"Failed to save campus config: {e}")
+        logger.error(f"Failed to save campus config: {e}")
         except:
             print(f"[ERROR] Failed to save campus config: {e}")
         return False
@@ -997,8 +997,8 @@ def save_attendance_record(data, user_id=None):
                 logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
                 sync_result = sync_to_google_sheets(record, campus)
                 if sync_result:
-                    record.synced_to_sheets = True
-                    db.session.commit()
+                record.synced_to_sheets = True
+                db.session.commit()
                     logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
                 else:
                     logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
@@ -1052,9 +1052,9 @@ def sync_to_google_sheets(record, campus):
             # Open the region-specific sheet
             if client:  # Use the global gspread client
                 try:
-                    region_spreadsheet = client.open_by_key(target_spreadsheet_id)
-                    target_sheet = region_spreadsheet.worksheet(target_tab_name)
-                    logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
+                region_spreadsheet = client.open_by_key(target_spreadsheet_id)
+                target_sheet = region_spreadsheet.worksheet(target_tab_name)
+                logger.info(f"[SHEETS_SYNC] Successfully opened region sheet: {region.name}/{target_tab_name}")
                 except Exception as open_error:
                     logger.error(f"[SHEETS_SYNC] Failed to open region sheet: {open_error}")
                     import traceback
@@ -1165,7 +1165,7 @@ def sync_to_google_sheets(record, campus):
     
     # Append row (for updates, we'd need to find and update the existing row)
     try:
-        target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
+    target_sheet.append_row(row_values, value_input_option='USER_ENTERED', table_range='A1')
         logger.info(f"[SHEETS_SYNC] Successfully appended row to Google Sheets")
     except Exception as append_error:
         logger.error(f"[SHEETS_SYNC] Failed to append row to Google Sheets: {append_error}")
@@ -6851,10 +6851,38 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
         print(f"[DASHBOARD] Campus: {campus}, Date range: {start_date} to {end_date}, Source: Trying Database first")
         logger.info(f"[DASHBOARD] Campus: {campus}, Date range: {start_date} to {end_date}")
         
+        # Get Australia region ID for filtering (used in multiple places)
+        from models import Region
+        australia_region = None
+        if campus == 'australia':
+            australia_region = Region.query.filter_by(code='AU').first()
+            if not australia_region:
+                logger.error("[DASHBOARD] Australia region not found in database")
+                raise Exception("Australia region not found")
+            print(f"[DASHBOARD] Using Australia region filter (region_id={australia_region.id})")
+        
         # Query database for records
         try:
             if campus in ['all_campuses', 'australia']:
-                # All campuses - get all active campuses
+                # For 'australia', filter by Australia region only
+                # For 'all_campuses', include all active regions (but typically means Australia in practice)
+                if campus == 'australia' and australia_region:
+                    # Get only Australia region campuses
+                    campuses_query = CampusV2.query.filter_by(active=True, region_id=australia_region.id).all()
+                    campus_ids = [c.id for c in campuses_query]
+                    
+                    # Also filter records by region_id for safety
+                    records = AttendanceRecord.query.filter(
+                        AttendanceRecord.region_id == australia_region.id,
+                        AttendanceRecord.campus_id.in_(campus_ids),
+                        AttendanceRecord.date >= start_date,
+                        AttendanceRecord.date <= end_date
+                    ).order_by(AttendanceRecord.date.desc()).all()
+                    
+                    print(f"[DASHBOARD] Found {len(records)} database records across {len(campus_ids)} Australia campuses (region_id={australia_region.id})")
+                    logger.info(f"[DASHBOARD] Australia dashboard: {len(records)} records, {len(campus_ids)} campuses")
+                else:
+                    # 'all_campuses' - get all active campuses (all regions)
                 campuses_query = CampusV2.query.filter_by(active=True).all()
                 campus_ids = [c.id for c in campuses_query]
                 
@@ -6864,7 +6892,7 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     AttendanceRecord.date <= end_date
                 ).order_by(AttendanceRecord.date.desc()).all()
                 
-                print(f"[DASHBOARD] Found {len(records)} database records across {len(campus_ids)} campuses")
+                    print(f"[DASHBOARD] Found {len(records)} database records across {len(campus_ids)} campuses (all regions)")
             else:
                 # Single campus - find by campus_id (e.g., 'adelaide_city', 'paradise')
                 campus_obj = CampusV2.query.filter_by(campus_id=campus).first()
@@ -6922,6 +6950,9 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 service_breakdown = {}
                 kids_service_breakdown = {}
                 
+                # Track kids totals for debugging
+                kids_by_campus = {}
+                
                 for record in records:
                     # Aggregate totals
                     stats['total_attendance'] += record.total_attendance or 0
@@ -6936,10 +6967,21 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     stats['youth_salvations'] += record.youth_salvations or 0
                     stats['youth_new_people'] += record.youth_new_people or 0
                     stats['youth_leaders'] += record.youth_leaders or 0
-                    stats['kids_attendance'] += record.kids_attendance or 0
+                    
+                    # Kids aggregation
+                    kids_val = record.kids_attendance or 0
+                    stats['kids_attendance'] += kids_val
                     stats['kids_leaders'] += record.kids_leaders or 0
                     stats['new_kids'] += record.new_kids or 0
                     stats['new_kids_salvations'] += record.new_kids_salvations or 0
+                    
+                    # Track kids by campus for debugging
+                    if kids_val > 0:
+                        campus_obj_entry = CampusV2.query.get(record.campus_id)
+                        campus_name = campus_obj_entry.display_name if campus_obj_entry else f"Campus_{record.campus_id}"
+                        if campus_name not in kids_by_campus:
+                            kids_by_campus[campus_name] = 0
+                        kids_by_campus[campus_name] += kids_val
                     stats['packs_out'] += record.packs_out or 0
                     stats['connect_groups'] += record.connect_groups or 0
                     stats['dream_team'] += record.dream_team or 0
@@ -7000,6 +7042,13 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 # Calculate derived stats
                 stats['new_people'] = stats['first_time_visitors'] + stats['visitors']
                 stats['new_christians'] = stats['first_time_christians'] + stats['rededications']
+                
+                # Debug logging for kids totals
+                if kids_by_campus:
+                    print(f"[DASHBOARD] Kids breakdown by campus: {kids_by_campus}")
+                    logger.info(f"[DASHBOARD] Kids breakdown by campus: {kids_by_campus}")
+                print(f"[DASHBOARD] Total kids_attendance summed: {stats['kids_attendance']} across {len(records)} records")
+                logger.info(f"[DASHBOARD] Total kids_attendance: {stats['kids_attendance']}, entry_count: {len(records)}")
                 
                 # Calculate averages
                 entry_count = stats['entry_count'] or 1
@@ -7071,8 +7120,17 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 
                 # Query YTD records (separate from filtered records)
                 if campus in ['all_campuses', 'australia', 'usa']:
-                    # Multi-campus query
+                    # Multi-campus query - filter by region for 'australia'
+                    if campus == 'australia' and australia_region:
                     ytd_records = AttendanceRecord.query.filter(
+                            AttendanceRecord.region_id == australia_region.id,
+                            AttendanceRecord.date >= ytd_start,
+                            AttendanceRecord.date <= ytd_end
+                        ).all()
+                        print(f"[DASHBOARD YTD] Filtered YTD records for Australia region (region_id={australia_region.id})")
+                    else:
+                        # All campuses/all regions
+                        ytd_records = AttendanceRecord.query.filter(
                         AttendanceRecord.date >= ytd_start,
                         AttendanceRecord.date <= ytd_end
                     ).all()
@@ -13394,8 +13452,8 @@ def save_attendance_record(data, user_id=None):
                 logger.info(f"[SAVE_ATTENDANCE] Attempting Google Sheets sync - sheet: {sheet is not None}, client: {client is not None}")
                 sync_result = sync_to_google_sheets(record, campus)
                 if sync_result:
-                    record.synced_to_sheets = True
-                    db.session.commit()
+                record.synced_to_sheets = True
+                db.session.commit()
                     logger.info(f"[SAVE_ATTENDANCE] ✓ Successfully synced to Google Sheets")
                 else:
                     logger.warning(f"[SAVE_ATTENDANCE] ✗ Sync to Google Sheets returned False - not marking as synced")
@@ -14605,8 +14663,8 @@ def create_user_api():
                 logger.info(f"Reactivated user: {username} with role: {data.get('role')}")
                 return jsonify({"success": True, "message": "User reactivated and updated successfully"})
         else:
-            # Insert new user
-            cursor.execute('''
+        # Insert new user
+        cursor.execute('''
             INSERT INTO users (username, password_hash, full_name, email, role, campus, region_id, active)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
