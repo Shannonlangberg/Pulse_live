@@ -6737,8 +6737,14 @@ def get_tithe_breakdown(campus, start_date, end_date):
                     # Use the exact campus_id from the database - this is the most reliable match
                     exact_campus_id = campus_obj.campus_id
                     logger.info(f"[TITHE_BREAKDOWN] Found campus in CampusV2: '{campus}' -> campus_id='{exact_campus_id}', name='{campus_obj.name}', display_name='{campus_obj.display_name}'")
-                    # Match by exact campus_id (case-insensitive) - this should match what's in FinanceRecord
-                    query = query.filter(db.func.lower(FinanceRecord.campus_id) == exact_campus_id.lower())
+                    # Match by exact campus_id OR campus_name (case-insensitive) - handle both formats
+                    query = query.filter(
+                        db.or_(
+                            db.func.lower(FinanceRecord.campus_id) == exact_campus_id.lower(),
+                            db.func.lower(FinanceRecord.campus_name) == campus_obj.display_name.lower(),
+                            db.func.lower(FinanceRecord.campus_name) == campus_obj.name.lower()
+                        )
+                    )
                 else:
                     # Fallback: try multiple format variants
                     campus_normalized = campus.lower().replace(' ', '_').replace('-', '_').strip()
