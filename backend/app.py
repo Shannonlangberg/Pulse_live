@@ -6721,27 +6721,66 @@ def get_tithe_breakdown(campus, start_date, end_date):
             
             # Filter by campus if not "all_campuses"
             if campus not in ['all_campuses', 'australia']:
-                # Normalize campus for matching - handle multiple formats
-                campus_normalized = campus.lower().replace(' ', '_').replace('-', '_')
-                logger.info(f"[TITHE_BREAKDOWN] Filtering by campus: normalized='{campus_normalized}', original='{campus}'")
-                
-                # Try exact match first
-                query = query.filter(
+                # First, try to find the campus in CampusV2 to get the exact campus_id
+                campus_obj = CampusV2.query.filter(
                     db.or_(
-                        db.func.lower(FinanceRecord.campus_id) == campus_normalized,
-                        db.func.lower(FinanceRecord.campus_id) == campus.lower(),
-                        db.func.lower(FinanceRecord.campus_name) == campus.lower(),
-                        db.func.lower(FinanceRecord.campus_name) == campus.replace('_', ' ').lower()
+                        db.func.lower(CampusV2.campus_id) == campus.lower(),
+                        db.func.lower(CampusV2.name) == campus.lower(),
+                        db.func.lower(CampusV2.display_name) == campus.lower(),
+                        db.func.lower(CampusV2.campus_id) == campus.lower().replace(' ', '_').replace('-', '_'),
+                        db.func.lower(CampusV2.name) == campus.lower().replace('_', ' ').replace('-', ' '),
+                        db.func.lower(CampusV2.display_name) == campus.lower().replace('_', ' ').replace('-', ' ')
                     )
-                )
+                ).first()
+                
+                if campus_obj:
+                    # Use the exact campus_id from the database
+                    exact_campus_id = campus_obj.campus_id
+                    logger.info(f"[TITHE_BREAKDOWN] Found campus in database: '{campus}' -> campus_id='{exact_campus_id}'")
+                    query = query.filter(
+                        db.or_(
+                            db.func.lower(FinanceRecord.campus_id) == exact_campus_id.lower(),
+                            db.func.lower(FinanceRecord.campus_id) == campus.lower(),
+                            db.func.lower(FinanceRecord.campus_name) == campus_obj.display_name.lower(),
+                            db.func.lower(FinanceRecord.campus_name) == campus_obj.name.lower()
+                        )
+                    )
+                else:
+                    # Fallback: try multiple format variants
+                    campus_normalized = campus.lower().replace(' ', '_').replace('-', '_').strip()
+                    campus_lower = campus.lower().strip()
+                    campus_name_variants = [
+                        campus_lower,
+                        campus_normalized,
+                        campus.replace('_', ' ').lower(),
+                        campus.replace(' ', '_').lower(),
+                        campus.replace('-', '_').lower(),
+                        campus.replace('-', ' ').lower()
+                    ]
+                    
+                    logger.info(f"[TITHE_BREAKDOWN] Campus not found in CampusV2, using variants: original='{campus}', normalized='{campus_normalized}'")
+                    
+                    # Build comprehensive OR filter for campus matching
+                    conditions = []
+                    for variant in campus_name_variants:
+                        conditions.append(db.func.lower(FinanceRecord.campus_id) == variant)
+                        conditions.append(db.func.lower(FinanceRecord.campus_name) == variant)
+                    
+                    query = query.filter(db.or_(*conditions))
+                    logger.info(f"[TITHE_BREAKDOWN] Applied {len(conditions)} matching conditions (fallback)")
             else:
                 logger.info(f"[TITHE_BREAKDOWN] No campus filter (all_campuses or australia)")
             
             # Get records
             records = query.all()
-            logger.info(f"[TITHE_BREAKDOWN] Found {len(records)} finance records in database")
+            logger.info(f"[TITHE_BREAKDOWN] Found {len(records)} finance records in database for campus '{campus}' in date range {start_date} to {end_date}")
             
             if records:
+                # Log all found records for debugging
+                logger.info(f"[TITHE_BREAKDOWN] Records found:")
+                for record in records:
+                    logger.info(f"  - {record.campus_name} (ID: {record.campus_id}) on {record.date}: ${record.total}")
+                
                 # Aggregate from database
                 for record in records:
                     breakdown['general'] += float(record.general or 0)
@@ -6750,19 +6789,27 @@ def get_tithe_breakdown(campus, start_date, end_date):
                     breakdown['text'] += float(record.text or 0)
                     breakdown['total'] += float(record.total or 0)
                     breakdown['count'] += 1
-                    logger.debug(f"[TITHE_BREAKDOWN] Record: {record.campus_name} on {record.date}, total=${record.total}")
                 
-                logger.info(f"[TITHE_BREAKDOWN] Aggregated from database: count={breakdown['count']}, total=${breakdown['total']:.2f} for campus '{campus}'")
+                logger.info(f"[TITHE_BREAKDOWN] Aggregated from database: count={breakdown['count']}, total=${breakdown['total']:.2f}, general=${breakdown['general']:.2f}, trust=${breakdown['trust']:.2f}, online=${breakdown['online']:.2f}, text=${breakdown['text']:.2f}")
                 
                 # Calculate averages
                 if breakdown['count'] > 0:
                     for key in ['general', 'trust', 'online', 'text', 'total']:
                         breakdown[key] = round(breakdown[key] / breakdown['count'], 2)
                 
-                logger.info(f"[TITHE_BREAKDOWN] ✅ Returning database data: {breakdown}")
+                logger.info(f"[TITHE_BREAKDOWN] ✅ Returning database data (averages): {breakdown}")
                 return breakdown
             else:
-                logger.info(f"[TITHE_BREAKDOWN] No database records found, falling back to sheets")
+                logger.warning(f"[TITHE_BREAKDOWN] ⚠️ No database records found for campus '{campus}' in date range {start_date} to {end_date}, falling back to sheets")
+                # Log what records exist in the database for debugging
+                all_records = FinanceRecord.query.filter(
+                    FinanceRecord.date >= start_date,
+                    FinanceRecord.date <= end_date
+                ).all()
+                if all_records:
+                    logger.info(f"[TITHE_BREAKDOWN] But found {len(all_records)} records in date range for other campuses:")
+                    for record in all_records[:10]:  # Log first 10
+                        logger.info(f"  - {record.campus_name} (ID: {record.campus_id}) on {record.date}")
         except Exception as e:
             logger.error(f"[TITHE_BREAKDOWN] ❌ Error loading tithe from database: {str(e)}", exc_info=True)
             logger.warning(f"[TITHE_BREAKDOWN] Falling back to Google Sheets")
