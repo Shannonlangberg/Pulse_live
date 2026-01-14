@@ -2063,6 +2063,7 @@ class User(UserMixin):
         self.active = user_data['active']
         self.password_hash = user_data['password_hash']
         self.custom_permissions = user_data.get('custom_permissions') or {}
+        self.region_id = user_data.get('region_id')
         
     def is_authenticated(self):
         return True
@@ -2315,20 +2316,28 @@ def load_user(user_id):
         conn = get_db()
         cursor = conn.cursor()
         
-        # Try to select with custom_permissions, fallback if column doesn't exist
+        # Try to select with custom_permissions and region_id, fallback if columns don't exist
         try:
             cursor.execute('''
-                SELECT id, username, password_hash, full_name, email, role, campus, active, custom_permissions
+                SELECT id, username, password_hash, full_name, email, role, campus, active, custom_permissions, region_id
                 FROM users
                 WHERE id = ? AND active = 1
             ''', (user_id,))
         except Exception:
-            # Fallback if custom_permissions column doesn't exist yet
-            cursor.execute('''
-                SELECT id, username, password_hash, full_name, email, role, campus, active
-                FROM users
-                WHERE id = ? AND active = 1
-            ''', (user_id,))
+            try:
+                # Try with custom_permissions but without region_id
+                cursor.execute('''
+                    SELECT id, username, password_hash, full_name, email, role, campus, active, custom_permissions
+                    FROM users
+                    WHERE id = ? AND active = 1
+                ''', (user_id,))
+            except Exception:
+                # Fallback if custom_permissions column doesn't exist yet
+                cursor.execute('''
+                    SELECT id, username, password_hash, full_name, email, role, campus, active
+                    FROM users
+                    WHERE id = ? AND active = 1
+                ''', (user_id,))
         
         row = cursor.fetchone()
         conn.close()
@@ -2336,6 +2345,8 @@ def load_user(user_id):
         if row:
             import json
             custom_permissions = {}
+            region_id = None
+            
             if len(row) > 8:
                 try:
                     custom_perms = row[8]
@@ -2343,6 +2354,10 @@ def load_user(user_id):
                         custom_permissions = json.loads(custom_perms) if isinstance(custom_perms, str) else custom_perms
                 except:
                     custom_permissions = {}
+            
+            # Get region_id if available (column 9)
+            if len(row) > 9:
+                region_id = row[9]
             
             user_data = {
                 'id': str(row[0]),  # Flask-Login expects string ID
@@ -2353,7 +2368,8 @@ def load_user(user_id):
                 'role': row[5],
                 'campus': row[6] or '',
                 'active': bool(row[7]),
-                'custom_permissions': custom_permissions
+                'custom_permissions': custom_permissions,
+                'region_id': region_id
             }
             return User(user_data)
         return None
@@ -2375,23 +2391,31 @@ def authenticate_user(username_or_email, password):
         
         # Check both username and email fields (case-insensitive)
         # SQLite: Use LOWER() on both sides for reliable case-insensitive comparison
-        # Try to include custom_permissions if column exists, otherwise fall back to 8 columns
+        # Try to include custom_permissions and region_id if columns exist
         try:
             cursor.execute('''
-                SELECT id, username, password_hash, full_name, email, role, campus, active, custom_permissions
+                SELECT id, username, password_hash, full_name, email, role, campus, active, custom_permissions, region_id
                 FROM users
                 WHERE (LOWER(TRIM(username)) = LOWER(?) OR LOWER(TRIM(email)) = LOWER(?)) AND active = 1
             ''', (username_or_email.strip(), username_or_email.strip()))
         except Exception as col_error:
             # Check if error is due to missing column
             error_msg = str(col_error).lower()
-            if 'no such column' in error_msg or 'custom_permissions' in error_msg:
-                logger.info("custom_permissions column doesn't exist yet, using fallback query")
-                cursor.execute('''
-                    SELECT id, username, password_hash, full_name, email, role, campus, active
-                    FROM users
-                    WHERE (LOWER(TRIM(username)) = LOWER(?) OR LOWER(TRIM(email)) = LOWER(?)) AND active = 1
-                ''', (username_or_email.strip(), username_or_email.strip()))
+            if 'no such column' in error_msg:
+                try:
+                    # Try with custom_permissions but without region_id
+                    cursor.execute('''
+                        SELECT id, username, password_hash, full_name, email, role, campus, active, custom_permissions
+                        FROM users
+                        WHERE (LOWER(TRIM(username)) = LOWER(?) OR LOWER(TRIM(email)) = LOWER(?)) AND active = 1
+                    ''', (username_or_email.strip(), username_or_email.strip()))
+                except Exception:
+                    # Fallback if custom_permissions column doesn't exist yet
+                    cursor.execute('''
+                        SELECT id, username, password_hash, full_name, email, role, campus, active
+                        FROM users
+                        WHERE (LOWER(TRIM(username)) = LOWER(?) OR LOWER(TRIM(email)) = LOWER(?)) AND active = 1
+                    ''', (username_or_email.strip(), username_or_email.strip()))
             else:
                 # Re-raise if it's a different error
                 logger.error(f"Database error in authenticate_user: {col_error}")
@@ -2410,6 +2434,7 @@ def authenticate_user(username_or_email, password):
             # Handle custom_permissions if column exists
             import json
             custom_permissions = {}
+            region_id = None
             if len(row) > 8:
                 try:
                     custom_perms = row[8]
@@ -2417,6 +2442,10 @@ def authenticate_user(username_or_email, password):
                         custom_permissions = json.loads(custom_perms) if isinstance(custom_perms, str) else custom_perms
                 except:
                     custom_permissions = {}
+            
+            # Get region_id if available (column 9)
+            if len(row) > 9:
+                region_id = row[9]
             
             user_data = {
                 'id': str(row[0]),
@@ -2427,7 +2456,8 @@ def authenticate_user(username_or_email, password):
                 'role': row[5],
                 'campus': row[6] or '',
                 'active': bool(row[7]),
-                'custom_permissions': custom_permissions
+                'custom_permissions': custom_permissions,
+                'region_id': region_id
             }
             
             user = User(user_data)
@@ -8992,22 +9022,24 @@ def get_existing_finance_data():
 @app.route('/api/finance/submit', methods=['POST'])
 @login_required
 def submit_finance_data():
-    """Submit tithe data for multiple campuses"""
+    """Submit tithe data for multiple campuses - region-restricted for finance users"""
     try:
-        # Check if finance sheet is available
-        if not finance_sheet:
-            logger.error("Finance sheet is not available - check Google Sheets connection")
-            return jsonify({'success': False, 'error': 'Finance sheet not available. Please contact administrator.'}), 500
-        
         # Only users with finance access can access this
         if not current_user.has_permission('finance_access'):
             return jsonify({'success': False, 'error': 'Access denied. Finance access required.'}), 403
+        
+        # Get user's region_id for filtering
+        user_region_id = getattr(current_user, 'region_id', None)
+        
+        # For finance users, restrict to their region only (unless superadmin)
+        if current_user.role == 'finance' and user_region_id and current_user.role != 'superadmin':
+            logger.info(f"[FINANCE_SUBMIT] Finance user {current_user.username} restricted to region_id={user_region_id}")
         
         data = request.get_json()
         selected_date = data.get('date')
         tithe_data = data.get('tithe_data', {})
         
-        logger.info(f"Finance submit request - Date: {selected_date}, Campus count: {len(tithe_data)}")
+        logger.info(f"Finance submit request - Date: {selected_date}, Campus count: {len(tithe_data)}, User region: {user_region_id}")
         
         if not selected_date:
             return jsonify({'success': False, 'error': 'Date is required'}), 400
@@ -9021,6 +9053,29 @@ def submit_finance_data():
         # Process each campus's tithe data
         for campus_id, campus_data in tithe_data.items():
             if campus_data:
+                # Validate region access for finance users
+                if current_user.role == 'finance' and user_region_id and current_user.role != 'superadmin':
+                    # Get campus to check its region
+                    campus = CampusV2.query.filter_by(campus_id=campus_id).first()
+                    if not campus:
+                        logger.warning(f"[FINANCE_SUBMIT] Campus {campus_id} not found")
+                        results.append({
+                            'campus': campus_id,
+                            'success': False,
+                            'message': f'Campus {campus_id} not found'
+                        })
+                        continue
+                    
+                    # Check if campus is in user's region
+                    if campus.region_id != user_region_id:
+                        logger.warning(f"[FINANCE_SUBMIT] Finance user {current_user.username} attempted to input for campus {campus_id} (region_id={campus.region_id}) but user is restricted to region_id={user_region_id}")
+                        results.append({
+                            'campus': campus_id,
+                            'success': False,
+                            'message': f'Access denied. You can only input finance data for campuses in your region.'
+                        })
+                        continue
+                
                 # campus_data is now a dict with {general, trust, online, text}
                 general = float(campus_data.get('general', 0))
                 trust = float(campus_data.get('trust', 0))
@@ -10862,6 +10917,7 @@ def session_info():
             "role": current_user.role,
             "campus": current_user.campus,
             "full_name": current_user.full_name,
+            "region_id": getattr(current_user, 'region_id', None),  # Include region_id for frontend filtering
             "custom_permissions": user_custom_perms,  # Return ONLY user's custom permissions, not merged feature flags
             "needs_drive_auth": needs_drive_auth,
             "drive_status": drive_status,  # Debug info
@@ -11555,9 +11611,16 @@ def get_campuses():
             filtered_campuses = [c for c in active_campuses if c['id'] == current_user.campus]
             default_campus = current_user.campus
         elif current_user.role == 'finance':
-            # Finance users see all campuses (for logging purposes)
-            filtered_campuses = active_campuses
-            default_campus = "all_campuses"
+            # Finance users see only campuses in their region (unless superadmin)
+            user_region_id = getattr(current_user, 'region_id', None)
+            if user_region_id and current_user.role != 'superadmin':
+                # Filter to only campuses in user's region
+                filtered_campuses = [c for c in active_campuses if c.get('region_id') == user_region_id]
+                logger.info(f"[CAMPUSES] Finance user {current_user.username} filtered to region_id={user_region_id}: {len(filtered_campuses)} campuses")
+            else:
+                # Superadmin or no region_id - see all campuses
+                filtered_campuses = active_campuses
+            default_campus = filtered_campuses[0]['id'] if len(filtered_campuses) == 1 else "all_campuses"
         elif current_user.role == 'pastor':
             # Pastors see all campuses (for logging purposes)
             filtered_campuses = active_campuses
