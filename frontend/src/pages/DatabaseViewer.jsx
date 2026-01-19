@@ -235,6 +235,50 @@ const DatabaseViewer = () => {
     }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (campusFilter) params.append('campus', campusFilter);
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
+      
+      const url = `/api/database_viewer/export?${params}`;
+      
+      // Fetch the CSV with credentials
+      const response = await fetch(url, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to export CSV');
+      }
+      
+      // Get the filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'attendance_records.csv';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      // Get the CSV blob and create download link
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      alert('Error exporting CSV: ' + err.message);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
       <div className="max-w-7xl mx-auto">
@@ -322,22 +366,31 @@ const DatabaseViewer = () => {
                 Apply Filters
               </button>
               {activeTab === 'attendance' && (
-                <button
-                  onClick={handleSyncPending}
-                  disabled={syncing}
-                  className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-green-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
-                >
-                  {syncing ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      🔄 Sync Pending
-                    </>
-                  )}
-                </button>
+                <>
+                  <button
+                    onClick={handleExportCSV}
+                    className="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                    disabled={loading || records.length === 0}
+                  >
+                    📥 Export CSV
+                  </button>
+                  <button
+                    onClick={handleSyncPending}
+                    disabled={syncing}
+                    className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-green-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                  >
+                    {syncing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        🔄 Sync Pending
+                      </>
+                    )}
+                  </button>
+                </>
               )}
             </div>
           </div>

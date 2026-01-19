@@ -12933,6 +12933,133 @@ def get_database_viewer():
         logger.error(f"[DATABASE_VIEWER] Full traceback: {error_trace}")
         return jsonify({"error": f"Failed to load database records: {str(e)}"}), 500
 
+@app.route('/api/database_viewer/export', methods=['GET'])
+@login_required
+def export_database_viewer_csv():
+    """
+    Export attendance records as CSV - uses same filters as database_viewer
+    """
+    try:
+        import csv
+        import io
+        from models import AttendanceRecord, CampusV2, Region
+        
+        # Check user role - only admins can export
+        user_role = getattr(current_user, 'role', 'member')
+        if user_role not in ['superadmin', 'admin']:
+            return jsonify({"error": "Access denied - admin only"}), 403
+        
+        # Get filters from query params (same as database_viewer)
+        campus_filter = request.args.get('campus', '')
+        start_date_str = request.args.get('start_date', '')
+        end_date_str = request.args.get('end_date', '')
+        
+        # Build query (same logic as database_viewer)
+        query = AttendanceRecord.query
+        
+        if campus_filter:
+            campus_obj = CampusV2.query.filter_by(campus_id=campus_filter).first()
+            if campus_obj:
+                query = query.filter(AttendanceRecord.campus_id == campus_obj.id)
+        
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            query = query.filter(AttendanceRecord.date >= start_date)
+        
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            query = query.filter(AttendanceRecord.date <= end_date)
+        
+        # Get all records (no limit for export)
+        records = query.order_by(AttendanceRecord.date.desc(), AttendanceRecord.created_at.desc()).all()
+        
+        # Get regions
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, code, display_name FROM regions WHERE active = 1")
+        region_rows = cursor.fetchall()
+        region_by_id = {row[0]: {'id': row[0], 'name': row[1], 'code': row[2], 'display_name': row[3]} for row in region_rows}
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            'Date', 'Campus', 'Region', 'Total Attendance', 'Total People in Campus',
+            'Kids Attendance', 'Kids Leaders', 'New Kids', 'Kids Salvations',
+            'Youth Attendance', 'Youth Leaders', 'Youth Salvations', 'Youth New People',
+            'First Time Visitors', 'Visitors', 'New People', 'Hands Up',
+            'First Time Christians', 'Rededications', 'New Christians', 'Salvation Cards Returned',
+            'Baptisms', 'Child Dedications', 'Connect Groups', 'Dream Team', 'Packs Out',
+            'Tithe', 'Synced to Sheets', 'Created At', 'Updated At'
+        ])
+        
+        # Write data rows
+        for record in records:
+            campus = CampusV2.query.get(record.campus_id)
+            region = region_by_id.get(record.region_id) if record.region_id else None
+            
+            # Calculate derived fields
+            new_people = (record.first_time_visitors or 0) + (record.visitors or 0)
+            new_christians = (record.first_time_christians or 0) + (record.rededications or 0)
+            
+            writer.writerow([
+                record.date.strftime('%Y-%m-%d') if record.date else '',
+                campus.display_name if campus else f"Unknown (ID: {record.campus_id})",
+                region['display_name'] if region else f"Unknown (ID: {record.region_id})",
+                record.total_attendance or 0,
+                record.total_people_in_campus or 0,
+                record.kids_attendance or 0,
+                record.kids_leaders or 0,
+                record.new_kids or 0,
+                record.new_kids_salvations or 0,
+                record.youth_attendance or 0,
+                record.youth_leaders or 0,
+                record.youth_salvations or 0,
+                record.youth_new_people or 0,
+                record.first_time_visitors or 0,
+                record.visitors or 0,
+                new_people,
+                record.hands_up or 0,
+                record.first_time_christians or 0,
+                record.rededications or 0,
+                new_christians,
+                record.salvation_cards_returned or 0,
+                record.baptisms or 0,
+                record.child_dedications or 0,
+                record.connect_groups or 0,
+                record.dream_team or 0,
+                record.packs_out or 0,
+                f"${float(record.tithe or 0):.2f}",
+                'Yes' if record.synced_to_sheets else 'No',
+                record.created_at.isoformat() if record.created_at else '',
+                record.updated_at.isoformat() if record.updated_at else ''
+            ])
+        
+        # Prepare response
+        output.seek(0)
+        response = make_response(output.getvalue())
+        
+        # Generate filename with date range
+        date_range = ""
+        if start_date_str and end_date_str:
+            date_range = f"_{start_date_str}_to_{end_date_str}"
+        elif start_date_str:
+            date_range = f"_from_{start_date_str}"
+        elif end_date_str:
+            date_range = f"_to_{end_date_str}"
+        
+        filename = f"attendance_records{date_range}_{datetime.now().strftime('%Y%m%d')}.csv"
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"[EXPORT_CSV] Error: {e}", exc_info=True)
+        return jsonify({"error": f"Failed to export CSV: {str(e)}"}), 500
+
 @app.route('/api/attendance_records/<int:record_id>', methods=['DELETE'])
 @login_required
 def delete_attendance_record(record_id):
