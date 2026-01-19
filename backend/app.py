@@ -7002,6 +7002,7 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     'rededications': 0,
                     'new_christians': 0,
                     'hands_up': 0,
+                    'cards_back': 0,
                     'salvation_cards_returned': 0,
                     'youth_attendance': 0,
                     'youth_salvations': 0,
@@ -7039,6 +7040,7 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     stats['first_time_christians'] += record.first_time_christians or 0
                     stats['rededications'] += record.rededications or 0
                     stats['hands_up'] += record.hands_up or 0
+                    stats['cards_back'] += record.cards_back or 0
                     stats['salvation_cards_returned'] += record.salvation_cards_returned or 0
                     stats['youth_attendance'] += record.youth_attendance or 0
                     stats['youth_salvations'] += record.youth_salvations or 0
@@ -12814,15 +12816,24 @@ def get_database_viewer():
     """
     try:
         from models import AttendanceRecord, CampusV2, Region
+        from utils.rbac import rbac_manager
         
-        # Check user role - only admins can view full database
+        # Check user role and custom permissions
         user_role = getattr(current_user, 'role', 'member')
-        print(f"[DATABASE_VIEWER] User role: {user_role}")
-        logger.info(f"[DATABASE_VIEWER] User role: {user_role}")
+        custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
         
-        if user_role not in ['superadmin', 'admin']:
-            print(f"[DATABASE_VIEWER] Access denied for role: {user_role}")
-            return jsonify({"error": "Access denied - admin only"}), 403
+        print(f"[DATABASE_VIEWER] User role: {user_role}, custom_perms: {custom_perms}")
+        logger.info(f"[DATABASE_VIEWER] User role: {user_role}, custom_perms: {custom_perms}")
+        
+        # Check if user has access via role or custom permissions
+        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']
+        has_role_access = user_role in allowed_roles
+        has_custom_access = rbac_manager.has_feature_access(user_role, 'database_viewer', custom_permissions=custom_perms)
+        
+        if not (has_role_access or has_custom_access):
+            print(f"[DATABASE_VIEWER] Access denied for role: {user_role}, custom_perms: {custom_perms}")
+            logger.warning(f"[DATABASE_VIEWER] Access denied for role: {user_role}")
+            return jsonify({"error": "Access denied - insufficient permissions"}), 403
         
         # Get filters from query params
         campus_filter = request.args.get('campus', '')
@@ -12904,6 +12915,7 @@ def get_database_viewer():
                 'first_time_visitors': record.first_time_visitors,
                 'visitors': record.visitors,
                 'hands_up': record.hands_up,
+                'cards_back': record.cards_back,
                 'first_time_christians': record.first_time_christians,
                 'rededications': record.rededications,
                 'salvation_cards_returned': record.salvation_cards_returned,
@@ -12943,11 +12955,20 @@ def export_database_viewer_csv():
         import csv
         import io
         from models import AttendanceRecord, CampusV2, Region
+        from utils.rbac import rbac_manager
         
-        # Check user role - only admins can export
+        # Check user role and custom permissions (same as database_viewer endpoint)
         user_role = getattr(current_user, 'role', 'member')
-        if user_role not in ['superadmin', 'admin']:
-            return jsonify({"error": "Access denied - admin only"}), 403
+        custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+        
+        # Check if user has access via role or custom permissions
+        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']
+        has_role_access = user_role in allowed_roles
+        has_custom_access = rbac_manager.has_feature_access(user_role, 'database_viewer', custom_permissions=custom_perms)
+        
+        if not (has_role_access or has_custom_access):
+            logger.warning(f"[EXPORT_CSV] Access denied for role: {user_role}")
+            return jsonify({"error": "Access denied - insufficient permissions"}), 403
         
         # Get filters from query params (same as database_viewer)
         campus_filter = request.args.get('campus', '')
@@ -12989,7 +13010,7 @@ def export_database_viewer_csv():
             'Date', 'Campus', 'Region', 'Total Attendance', 'Total People in Campus',
             'Kids Attendance', 'Kids Leaders', 'New Kids', 'Kids Salvations',
             'Youth Attendance', 'Youth Leaders', 'Youth Salvations', 'Youth New People',
-            'First Time Visitors', 'Visitors', 'New People', 'Hands Up',
+            'First Time Visitors', 'Visitors', 'New People', 'Hands Up', 'Cards Returned',
             'First Time Christians', 'Rededications', 'New Christians', 'Salvation Cards Returned',
             'Baptisms', 'Child Dedications', 'Connect Groups', 'Dream Team', 'Packs Out',
             'Tithe', 'Synced to Sheets', 'Created At', 'Updated At'
@@ -13022,6 +13043,7 @@ def export_database_viewer_csv():
                 record.visitors or 0,
                 new_people,
                 record.hands_up or 0,
+                record.cards_back or 0,
                 record.first_time_christians or 0,
                 record.rededications or 0,
                 new_christians,
