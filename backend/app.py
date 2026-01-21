@@ -10484,15 +10484,23 @@ def debug_routes():
 @app.route('/api/profile/change-password', methods=['POST', 'OPTIONS'])
 def profile_change_password():
     """Allow users to change their own password"""
-    logger.info(f"[PROFILE] Password change endpoint hit - method: {request.method}, authenticated: {current_user.is_authenticated}")
+    logger.info(f"[PROFILE] Password change endpoint hit - method: {request.method}, authenticated: {current_user.is_authenticated}, session_user_id: {session.get('_user_id')}")
     
     # Handle OPTIONS for CORS preflight
     if request.method == 'OPTIONS':
         return '', 200
     
-    # Manual authentication check
-    if not current_user.is_authenticated:
-        logger.warning(f"[PROFILE] Unauthenticated password change attempt")
+    # Check authentication - try both Flask-Login and session
+    user_id = None
+    if current_user.is_authenticated:
+        user_id = current_user.id
+    elif '_user_id' in session:
+        # Fallback: load user from session if Flask-Login didn't work
+        user_id = session.get('_user_id')
+        logger.info(f"[PROFILE] Using session _user_id: {user_id}")
+    
+    if not user_id:
+        logger.warning(f"[PROFILE] Unauthenticated password change attempt - session keys: {list(session.keys())}")
         return jsonify({"error": "Authentication required"}), 401
     
     try:
@@ -10506,8 +10514,7 @@ def profile_change_password():
         if len(new_password) < 6:
             return jsonify({"error": "Password must be at least 6 characters"}), 400
         
-        # Get user directly from database using current_user.id
-        user_id = current_user.id
+        # Get user directly from database
         logger.info(f"[PROFILE] Changing password for user_id: {user_id}")
         conn = get_db()
         cursor = conn.cursor()
@@ -10528,20 +10535,32 @@ def profile_change_password():
         cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_password_hash, user_id))
         conn.commit()
         
-        logger.info(f"[PROFILE] Password changed successfully for user_id: {user_id}")
+        logger.info(f"[PROFILE] ✅ Password changed successfully for user_id: {user_id}")
         return jsonify({"success": True, "message": "Password changed successfully"})
     except Exception as e:
-        logger.error(f"[PROFILE] Change password error: {e}")
+        logger.error(f"[PROFILE] Change password error: {e}", exc_info=True)
         return jsonify({"error": "Failed to change password"}), 500
 
-@app.route('/api/profile/update-email', methods=['POST'])
+@app.route('/api/profile/update-email', methods=['POST', 'OPTIONS'])
 def profile_update_email():
     """Allow users to update their email"""
-    logger.info(f"[PROFILE] Email update endpoint hit - authenticated: {current_user.is_authenticated}")
+    logger.info(f"[PROFILE] Email update endpoint hit - method: {request.method}, authenticated: {current_user.is_authenticated}, session_user_id: {session.get('_user_id')}")
     
-    # Manual authentication check
-    if not current_user.is_authenticated:
-        logger.warning(f"[PROFILE] Unauthenticated email update attempt")
+    # Handle OPTIONS for CORS preflight
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    # Check authentication - try both Flask-Login and session
+    user_id = None
+    if current_user.is_authenticated:
+        user_id = current_user.id
+    elif '_user_id' in session:
+        # Fallback: load user from session if Flask-Login didn't work
+        user_id = session.get('_user_id')
+        logger.info(f"[PROFILE] Using session _user_id: {user_id}")
+    
+    if not user_id:
+        logger.warning(f"[PROFILE] Unauthenticated email update attempt - session keys: {list(session.keys())}")
         return jsonify({"error": "Authentication required"}), 401
     
     try:
@@ -10551,8 +10570,7 @@ def profile_update_email():
         if not email or '@' not in email:
             return jsonify({"error": "Invalid email address"}), 400
         
-        # Get user directly from database using current_user.id
-        user_id = current_user.id
+        # Get user directly from database
         logger.info(f"[PROFILE] Updating email for user_id: {user_id}")
         conn = get_db()
         cursor = conn.cursor()
@@ -10567,10 +10585,10 @@ def profile_update_email():
         cursor.execute('UPDATE users SET email = ? WHERE id = ?', (email, user_id))
         conn.commit()
         
-        logger.info(f"[PROFILE] Email updated successfully for user_id: {user_id}")
+        logger.info(f"[PROFILE] ✅ Email updated successfully for user_id: {user_id}")
         return jsonify({"success": True, "message": "Email updated successfully"})
     except Exception as e:
-        logger.error(f"[PROFILE] Update email error: {e}")
+        logger.error(f"[PROFILE] Update email error: {e}", exc_info=True)
         return jsonify({"error": "Failed to update email"}), 500
 
 @app.route('/api/sync/pending', methods=['POST'])
