@@ -9715,6 +9715,7 @@ def api_login():
             # Ensure session is saved
             session.modified = True
             logger.info(f"✅ User {username} logged in successfully, user_id={user.id}, role={user.role}")
+            logger.info(f"[LOGIN] Session after login_user: keys={list(session.keys())}, _user_id={session.get('_user_id')}")
             
             # Log successful login
             try:
@@ -10357,6 +10358,14 @@ def health_check():
 @app.route('/api/debug/auth', methods=['GET', 'POST'])
 def debug_auth():
     """Debug authentication status"""
+    # Try to load user from session manually
+    manual_user = None
+    if '_user_id' in session:
+        try:
+            manual_user = load_user(session.get('_user_id'))
+        except Exception as e:
+            manual_user = f"Error loading user: {e}"
+    
     return jsonify({
         "method": request.method,
         "is_authenticated": current_user.is_authenticated,
@@ -10365,12 +10374,22 @@ def debug_auth():
         "role": current_user.role if current_user.is_authenticated else None,
         "session_keys": list(session.keys()),
         "session_user_id": session.get('_user_id'),
-        "cookies": list(request.cookies.keys()),
+        "session_fresh": session.get('_fresh'),
+        "cookies_received": list(request.cookies.keys()),
         "has_session_cookie": 'session' in request.cookies,
+        "session_cookie_value_length": len(request.cookies.get('session', '')) if 'session' in request.cookies else 0,
+        "manual_user_load": str(manual_user) if manual_user and not isinstance(manual_user, str) else manual_user,
         "cookie_config": {
             "samesite": app.config.get('SESSION_COOKIE_SAMESITE'),
             "secure": app.config.get('SESSION_COOKIE_SECURE'),
-            "httponly": app.config.get('SESSION_COOKIE_HTTPONLY')
+            "httponly": app.config.get('SESSION_COOKIE_HTTPONLY'),
+            "name": app.config.get('SESSION_COOKIE_NAME')
+        },
+        "request_headers": {
+            "cookie": request.headers.get('Cookie', 'None'),
+            "host": request.headers.get('Host'),
+            "origin": request.headers.get('Origin'),
+            "referer": request.headers.get('Referer')
         }
     })
 
@@ -10498,7 +10517,14 @@ def debug_routes():
 @app.route('/api/profile/change-password', methods=['POST', 'OPTIONS'])
 def profile_change_password():
     """Allow users to change their own password"""
-    logger.info(f"[PROFILE] Password change endpoint hit - method: {request.method}, authenticated: {current_user.is_authenticated}, session_user_id: {session.get('_user_id')}")
+    logger.info(f"[PROFILE-PWD] === PASSWORD CHANGE REQUEST ===")
+    logger.info(f"[PROFILE-PWD] Method: {request.method}")
+    logger.info(f"[PROFILE-PWD] Cookies received: {list(request.cookies.keys())}")
+    logger.info(f"[PROFILE-PWD] Has session cookie: {'session' in request.cookies}")
+    logger.info(f"[PROFILE-PWD] Session keys: {list(session.keys())}")
+    logger.info(f"[PROFILE-PWD] Session _user_id: {session.get('_user_id')}")
+    logger.info(f"[PROFILE-PWD] current_user.is_authenticated: {current_user.is_authenticated}")
+    logger.info(f"[PROFILE-PWD] current_user: {current_user}")
     
     # Handle OPTIONS for CORS preflight
     if request.method == 'OPTIONS':
@@ -10508,14 +10534,18 @@ def profile_change_password():
     user_id = None
     if current_user.is_authenticated:
         user_id = current_user.id
+        logger.info(f"[PROFILE-PWD] ✅ Authenticated via Flask-Login, user_id: {user_id}")
     elif '_user_id' in session:
         # Fallback: load user from session if Flask-Login didn't work
         user_id = session.get('_user_id')
-        logger.info(f"[PROFILE] Using session _user_id: {user_id}")
+        logger.info(f"[PROFILE-PWD] ⚠️  Using session fallback, _user_id: {user_id}")
     
     if not user_id:
-        logger.warning(f"[PROFILE] Unauthenticated password change attempt - session keys: {list(session.keys())}")
-        return jsonify({"error": "Authentication required"}), 401
+        logger.error(f"[PROFILE-PWD] ❌ AUTHENTICATION FAILED")
+        logger.error(f"[PROFILE-PWD] Session keys: {list(session.keys())}")
+        logger.error(f"[PROFILE-PWD] Cookies: {list(request.cookies.keys())}")
+        logger.error(f"[PROFILE-PWD] Request headers: {dict(request.headers)}")
+        return jsonify({"error": "Authentication required", "debug": {"session_keys": list(session.keys()), "has_cookie": 'session' in request.cookies}}), 401
     
     try:
         data = request.get_json()
