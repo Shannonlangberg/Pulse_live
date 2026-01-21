@@ -50,13 +50,33 @@ const MyProfile = () => {
     e.preventDefault();
     
     // Validation
+    if (!passwordData.current_password) {
+      setMessage({ type: 'error', text: 'Please enter your current password' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+      return;
+    }
+    
+    if (!passwordData.new_password) {
+      setMessage({ type: 'error', text: 'Please enter a new password' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+      return;
+    }
+    
     if (passwordData.new_password !== passwordData.confirm_password) {
       setMessage({ type: 'error', text: 'New passwords do not match' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
       return;
     }
     
     if (passwordData.new_password.length < 6) {
-      setMessage({ type: 'error', text: 'Password must be at least 6 characters' });
+      setMessage({ type: 'error', text: 'Password must be at least 6 characters long' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+      return;
+    }
+    
+    if (passwordData.current_password === passwordData.new_password) {
+      setMessage({ type: 'error', text: 'New password must be different from current password' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
       return;
     }
     
@@ -79,18 +99,25 @@ const MyProfile = () => {
       const data = await response.json();
       
       if (response.ok) {
-        setMessage({ type: 'success', text: 'Password changed successfully!' });
+        setMessage({ type: 'success', text: '✅ Password changed successfully! Your new password is now active.' });
         setPasswordData({
           current_password: '',
           new_password: '',
           confirm_password: ''
         });
+        // Auto-dismiss success message after 5 seconds
+        setTimeout(() => setMessage({ type: '', text: '' }), 5000);
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to change password' });
+        // Show specific error message from server
+        const errorMsg = data.error || 'Failed to change password';
+        setMessage({ type: 'error', text: errorMsg });
+        // Auto-dismiss error after 8 seconds
+        setTimeout(() => setMessage({ type: '', text: '' }), 8000);
       }
     } catch (err) {
       console.error('Password change error:', err);
-      setMessage({ type: 'error', text: 'Failed to change password' });
+      setMessage({ type: 'error', text: 'Network error: Unable to change password. Please try again.' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 8000);
     } finally {
       setSaving(false);
     }
@@ -100,8 +127,21 @@ const MyProfile = () => {
     e.preventDefault();
     
     // Validation
-    if (!emailData.email || !emailData.email.includes('@')) {
+    if (!emailData.email || !emailData.email.trim()) {
+      setMessage({ type: 'error', text: 'Please enter an email address' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+      return;
+    }
+    
+    if (!emailData.email.includes('@') || !emailData.email.includes('.')) {
       setMessage({ type: 'error', text: 'Please enter a valid email address' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+      return;
+    }
+    
+    if (user && emailData.email === user.email) {
+      setMessage({ type: 'error', text: 'This is already your current email address' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
       return;
     }
     
@@ -121,14 +161,18 @@ const MyProfile = () => {
       const data = await response.json();
       
       if (response.ok) {
-        setMessage({ type: 'success', text: 'Email updated successfully!' });
+        setMessage({ type: 'success', text: '✅ Email updated successfully! Your new email is now active.' });
         loadProfile(); // Reload to get updated info
+        setTimeout(() => setMessage({ type: '', text: '' }), 5000);
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to update email' });
+        const errorMsg = data.error || 'Failed to update email';
+        setMessage({ type: 'error', text: errorMsg });
+        setTimeout(() => setMessage({ type: '', text: '' }), 8000);
       }
     } catch (err) {
       console.error('Email update error:', err);
-      setMessage({ type: 'error', text: 'Failed to update email' });
+      setMessage({ type: 'error', text: 'Network error: Unable to update email. Please try again.' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 8000);
     } finally {
       setSaving(false);
     }
