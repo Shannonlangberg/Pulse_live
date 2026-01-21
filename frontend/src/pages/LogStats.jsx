@@ -585,11 +585,11 @@ const LogStats = () => {
           </div>
         </div>
 
-        {/* Recent Entries from Last 7 Days */}
+        {/* Recent Entries from Last 30 Days */}
         <div className="max-w-6xl mx-auto mt-8">
           <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-3xl p-8 border border-white/20 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-white">Recent Entries (Last 7 Days)</h3>
+              <h3 className="text-2xl font-bold text-white">Recent Entries (Last 30 Days)</h3>
               {loadingRecent && (
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
               )}

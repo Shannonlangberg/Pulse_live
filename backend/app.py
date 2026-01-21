@@ -13270,16 +13270,16 @@ def update_attendance_record(record_id):
 @app.route('/api/recent_entries', methods=['GET'])
 @login_required
 def get_recent_entries():
-    """Get recent entries for the user's campus (last 7 days) - NOW USING DATABASE"""
+    """Get recent entries for the user's campus (last 30 days) - NOW USING DATABASE"""
     try:
         # Get campus from query parameter or user's default campus
         campus = request.args.get('campus', '').strip()
         if not campus and hasattr(current_user, 'campus'):
             campus = current_user.campus
         
-        # Calculate date range (last 7 days)
+        # Calculate date range (last 30 days)
         end_date = datetime.now().date()
-        start_date = end_date - timedelta(days=7)
+        start_date = end_date - timedelta(days=30)
         
         # Get data from DATABASE (primary source)
         entries = []
