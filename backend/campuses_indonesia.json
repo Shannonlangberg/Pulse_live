@@ -1,0 +1,138 @@
+{
+  "campuses": {
+    "denpasar": {
+      "id": "denpasar",
+      "name": "Denpasar Campus",
+      "display_name": "Denpasar",
+      "active": true,
+      "detection_patterns": ["denpasar", "bali"],
+      "service_times": ["9:00 AM", "6:00 PM"],
+      "pastors": [
+        {
+          "name": "Gatut Budiyono",
+          "email": "gatut.budiyono@futures.church"
+        },
+        {
+          "name": "Esther Subijanto",
+          "email": "esther.subijanto@futures.church"
+        }
+      ],
+      "campus_emails": [
+        "production.denpasar@futures.church",
+        "futuresdenpasar@gmail.com"
+      ],
+      "administrators": [
+        {
+          "name": "Michelle Fortunella S",
+          "email": "michellefortunellaa@gmail.com"
+        }
+      ]
+    },
+    "langowan": {
+      "id": "langowan",
+      "name": "Langowan Campus",
+      "display_name": "Langowan",
+      "active": true,
+      "detection_patterns": ["langowan"],
+      "service_times": ["10:00 AM", "7:00 PM"],
+      "pastors": [
+        {
+          "name": "Jimmy Taroreh",
+          "email": "jimmy.taroreh@futures.church"
+        },
+        {
+          "name": "Desy Lumingkewas",
+          "email": "deisy.lumingkewas@futures.church"
+        }
+      ],
+      "campus_emails": [
+        "production.langowan@futures.church",
+        "futureslangowan@gmail.com"
+      ],
+      "administrators": [
+        {
+          "name": "Deisy Lumingkewas",
+          "email": "deisysteivra@gmail.com"
+        }
+      ]
+    },
+    "samarinda": {
+      "id": "samarinda",
+      "name": "Samarinda Campus",
+      "display_name": "Samarinda",
+      "active": true,
+      "detection_patterns": ["samarinda"],
+      "service_times": ["9:00 AM", "5:00 PM"],
+      "pastors": [
+        {
+          "name": "Samuel Darmanto",
+          "email": "samuel.darmanto@futures.church"
+        }
+      ],
+      "campus_emails": [
+        "production.samarinda@futures.church",
+        "futuressamarinda@gmail.com"
+      ],
+      "administrators": [
+        {
+          "name": "Christoper Obaja",
+          "email": "christoperkharismaobaja@gmail.com"
+        },
+        {
+          "name": "Ocha Bun Prayu",
+          "email": "ochabunprayu@gmail.com"
+        }
+      ]
+    },
+    "solo": {
+      "id": "solo",
+      "name": "Solo Campus",
+      "display_name": "Solo",
+      "active": true,
+      "detection_patterns": ["solo", "surakarta"],
+      "service_times": ["4:00 PM"],
+      "pastors": [
+        {
+          "name": "Adi Ehut Lande",
+          "email": "adi.lande@futures.church"
+        },
+        {
+          "name": "Lala Nokita Dewi",
+          "email": "lala.lande@futures.church"
+        }
+      ],
+      "campus_emails": [
+        "production.solo@futures.church"
+      ],
+      "administrators": []
+    },
+    "cemani": {
+      "id": "cemani",
+      "name": "Cemani Campus",
+      "display_name": "Cemani",
+      "active": true,
+      "detection_patterns": ["cemani"],
+      "service_times": ["7:00 AM"],
+      "pastors": [
+        {
+          "name": "Adi Ehut Lande",
+          "email": "adi.lande@futures.church"
+        },
+        {
+          "name": "Lala Nokita Dewi",
+          "email": "lala.lande@futures.church"
+        }
+      ],
+      "campus_emails": [
+        "production.cemani@futures.church"
+      ],
+      "administrators": []
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "2026-01-21",
+    "region": "Indonesia"
+  }
+}
+

@@ -51,6 +51,15 @@ else
   echo "⚠️  Data fix failed or skipped - continuing with server startup"
 fi
 
+# Seed Indonesian campuses
+echo ""
+echo "🇮🇩 Seeding Indonesian campuses..."
+if python seed_indonesia_campuses.py; then
+  echo "✅ Indonesian campuses seeded successfully!"
+else
+  echo "⚠️  Indonesian campus seeding failed or skipped - continuing with server startup"
+fi
+
 echo ""
 echo "=== Starting Python app ==="
 
