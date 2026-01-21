@@ -1,0 +1,116 @@
+{
+  "users": {
+    "gatut.budiyono": {
+      "username": "gatut.budiyono",
+      "email": "gatut.budiyono@futures.church",
+      "full_name": "Gatut Budiyono",
+      "role": "campus_pastor",
+      "campus": "denpasar",
+      "active": true
+    },
+    "esther.subijanto": {
+      "username": "esther.subijanto",
+      "email": "esther.subijanto@futures.church",
+      "full_name": "Esther Subijanto",
+      "role": "campus_pastor",
+      "campus": "denpasar",
+      "active": true
+    },
+    "michelle.fortunella": {
+      "username": "michelle.fortunella",
+      "email": "michellefortunellaa@gmail.com",
+      "full_name": "Michelle Fortunella S",
+      "role": "staff",
+      "campus": "denpasar",
+      "active": true
+    },
+    "jimmy.taroreh": {
+      "username": "jimmy.taroreh",
+      "email": "jimmy.taroreh@futures.church",
+      "full_name": "Jimmy Taroreh",
+      "role": "campus_pastor",
+      "campus": "langowan",
+      "active": true
+    },
+    "desy.lumingkewas": {
+      "username": "desy.lumingkewas",
+      "email": "deisy.lumingkewas@futures.church",
+      "full_name": "Desy Lumingkewas",
+      "role": "campus_pastor",
+      "campus": "langowan",
+      "active": true
+    },
+    "deisy.lumingkewas.admin": {
+      "username": "deisy.lumingkewas.admin",
+      "email": "deisysteivra@gmail.com",
+      "full_name": "Deisy Lumingkewas",
+      "role": "staff",
+      "campus": "langowan",
+      "active": true
+    },
+    "samuel.darmanto": {
+      "username": "samuel.darmanto",
+      "email": "samuel.darmanto@futures.church",
+      "full_name": "Samuel Darmanto",
+      "role": "campus_pastor",
+      "campus": "samarinda",
+      "active": true
+    },
+    "christoper.obaja": {
+      "username": "christoper.obaja",
+      "email": "christoperkharismaobaja@gmail.com",
+      "full_name": "Christoper Obaja",
+      "role": "staff",
+      "campus": "samarinda",
+      "active": true
+    },
+    "ocha.prayu": {
+      "username": "ocha.prayu",
+      "email": "ochabunprayu@gmail.com",
+      "full_name": "Ocha Bun Prayu",
+      "role": "staff",
+      "campus": "samarinda",
+      "active": true
+    },
+    "adi.lande": {
+      "username": "adi.lande",
+      "email": "adi.lande@futures.church",
+      "full_name": "Adi Ehut Lande",
+      "role": "campus_pastor",
+      "campus": "solo",
+      "active": true
+    },
+    "lala.lande": {
+      "username": "lala.lande",
+      "email": "lala.lande@futures.church",
+      "full_name": "Lala Nokita Dewi",
+      "role": "campus_pastor",
+      "campus": "solo",
+      "active": true
+    },
+    "adi.lande.cemani": {
+      "username": "adi.lande.cemani",
+      "email": "adi.lande@futures.church",
+      "full_name": "Adi Ehut Lande",
+      "role": "campus_pastor",
+      "campus": "cemani",
+      "active": true
+    },
+    "lala.lande.cemani": {
+      "username": "lala.lande.cemani",
+      "email": "lala.lande@futures.church",
+      "full_name": "Lala Nokita Dewi",
+      "role": "campus_pastor",
+      "campus": "cemani",
+      "active": true
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "created": "2026-01-21",
+    "region": "Indonesia",
+    "default_password": "futures2025",
+    "password_note": "All users have default password 'futures2025' - should be changed on first login"
+  }
+}
+

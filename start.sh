@@ -60,6 +60,15 @@ else
   echo "⚠️  Indonesian campus seeding failed or skipped - continuing with server startup"
 fi
 
+# Seed Indonesian users
+echo ""
+echo "👥 Seeding Indonesian users..."
+if python seed_indonesia_users.py; then
+  echo "✅ Indonesian users seeded successfully!"
+else
+  echo "⚠️  Indonesian user seeding failed or skipped - continuing with server startup"
+fi
+
 echo ""
 echo "=== Starting Python app ==="
 
