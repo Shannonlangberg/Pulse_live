@@ -10482,14 +10482,19 @@ def debug_routes():
 
 # PROFILE MANAGEMENT ROUTES - Moved here to ensure registration
 @app.route('/api/profile/change-password', methods=['POST', 'OPTIONS'])
-@login_required_json
 def profile_change_password():
     """Allow users to change their own password"""
-    logger.info(f"[PROFILE] Password change endpoint hit - method: {request.method}, user_id: {current_user.id if current_user.is_authenticated else 'none'}")
+    logger.info(f"[PROFILE] Password change endpoint hit - method: {request.method}, authenticated: {current_user.is_authenticated}")
     
     # Handle OPTIONS for CORS preflight
     if request.method == 'OPTIONS':
         return '', 200
+    
+    # Manual authentication check
+    if not current_user.is_authenticated:
+        logger.warning(f"[PROFILE] Unauthenticated password change attempt")
+        return jsonify({"error": "Authentication required"}), 401
+    
     try:
         data = request.get_json()
         current_password = data.get('current_password')
@@ -10503,6 +10508,7 @@ def profile_change_password():
         
         # Get user directly from database using current_user.id
         user_id = current_user.id
+        logger.info(f"[PROFILE] Changing password for user_id: {user_id}")
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute('SELECT id, username, password_hash FROM users WHERE id = ? AND active = 1', (user_id,))
@@ -10529,9 +10535,15 @@ def profile_change_password():
         return jsonify({"error": "Failed to change password"}), 500
 
 @app.route('/api/profile/update-email', methods=['POST'])
-@login_required_json
 def profile_update_email():
     """Allow users to update their email"""
+    logger.info(f"[PROFILE] Email update endpoint hit - authenticated: {current_user.is_authenticated}")
+    
+    # Manual authentication check
+    if not current_user.is_authenticated:
+        logger.warning(f"[PROFILE] Unauthenticated email update attempt")
+        return jsonify({"error": "Authentication required"}), 401
+    
     try:
         data = request.get_json()
         email = data.get('email', '').strip()
@@ -10541,6 +10553,7 @@ def profile_update_email():
         
         # Get user directly from database using current_user.id
         user_id = current_user.id
+        logger.info(f"[PROFILE] Updating email for user_id: {user_id}")
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute('SELECT id FROM users WHERE id = ? AND active = 1', (user_id,))
