@@ -10513,6 +10513,53 @@ def debug_routes():
             "error": str(e)
         })
 
+@app.route('/api/emergency/reset-password', methods=['POST'])
+def emergency_reset_password():
+    """Emergency password reset endpoint - USE WITH CAUTION"""
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        new_password = data.get('new_password')
+        emergency_key = data.get('emergency_key')
+        
+        # Check emergency key (set in environment)
+        expected_key = os.environ.get('EMERGENCY_RESET_KEY', 'futures-emergency-2025')
+        if emergency_key != expected_key:
+            logger.warning(f"[EMERGENCY] Invalid emergency key attempt for user: {username}")
+            return jsonify({"error": "Invalid emergency key"}), 403
+        
+        if not username or not new_password:
+            return jsonify({"error": "Username and new_password required"}), 400
+        
+        # Get user from database
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, username, email FROM users WHERE username = ?', (username,))
+        user_row = cursor.fetchone()
+        
+        if not user_row:
+            return jsonify({"error": "User not found"}), 404
+        
+        user_id, username, email = user_row
+        logger.info(f"[EMERGENCY] Resetting password for user: {username} (ID: {user_id})")
+        
+        # Update password
+        password_hash = generate_password_hash(new_password)
+        cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (password_hash, user_id))
+        conn.commit()
+        
+        logger.info(f"[EMERGENCY] ✅ Password reset successfully for user: {username}")
+        return jsonify({
+            "success": True,
+            "message": f"Password reset successfully for {username}",
+            "username": username,
+            "email": email
+        })
+        
+    except Exception as e:
+        logger.error(f"[EMERGENCY] Error resetting password: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
 # PROFILE MANAGEMENT ROUTES - Moved here to ensure registration
 @app.route('/api/profile/change-password', methods=['POST', 'OPTIONS'])
 def profile_change_password():
