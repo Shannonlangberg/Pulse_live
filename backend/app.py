@@ -10501,21 +10501,26 @@ def profile_change_password():
         if len(new_password) < 6:
             return jsonify({"error": "Password must be at least 6 characters"}), 400
         
-        users_data = load_users_database()
-        user_id = str(session.get('user_id'))
-        user = users_data.get('users', {}).get(user_id)
+        # Get user directly from database using user_id
+        user_id = session.get('user_id')
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, username, password_hash FROM users WHERE id = ? AND active = 1', (user_id,))
+        user_row = cursor.fetchone()
         
-        if not user:
+        if not user_row:
             return jsonify({"error": "User not found"}), 404
         
         # Verify current password
-        if not check_password_hash(user.get('password_hash', ''), current_password):
+        if not check_password_hash(user_row[2], current_password):
             return jsonify({"error": "Current password is incorrect"}), 401
         
-        # Update password
-        user['password_hash'] = generate_password_hash(new_password)
-        save_users_database(users_data)
+        # Update password in database
+        new_password_hash = generate_password_hash(new_password)
+        cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_password_hash, user_id))
+        conn.commit()
         
+        logger.info(f"[PROFILE] Password changed successfully for user_id: {user_id}")
         return jsonify({"success": True, "message": "Password changed successfully"})
     except Exception as e:
         logger.error(f"Change password error: {e}")
@@ -10532,17 +10537,21 @@ def profile_update_email():
         if not email or '@' not in email:
             return jsonify({"error": "Invalid email address"}), 400
         
-        users_data = load_users_database()
-        user_id = str(session.get('user_id'))
-        user = users_data.get('users', {}).get(user_id)
+        # Get user directly from database using user_id
+        user_id = session.get('user_id')
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('SELECT id FROM users WHERE id = ? AND active = 1', (user_id,))
+        user_row = cursor.fetchone()
         
-        if not user:
+        if not user_row:
             return jsonify({"error": "User not found"}), 404
         
-        # Update email
-        user['email'] = email
-        save_users_database(users_data)
+        # Update email in database
+        cursor.execute('UPDATE users SET email = ? WHERE id = ?', (email, user_id))
+        conn.commit()
         
+        logger.info(f"[PROFILE] Email updated successfully for user_id: {user_id}")
         return jsonify({"success": True, "message": "Email updated successfully"})
     except Exception as e:
         logger.error(f"Update email error: {e}")
