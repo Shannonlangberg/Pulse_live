@@ -1315,8 +1315,8 @@ app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file upload (f
 # This is safe because we're using HTTPS in production and checking origins with CORS
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Changed from 'Lax' to fix POST request cookie issues
 # In production (Railway with HTTPS), cookies with SameSite=None MUST be Secure
-# Detect if we're on HTTPS by checking if we're not on localhost
-is_production = os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('RAILWAY_BRANCH') or 'localhost' not in os.environ.get('HOST', 'localhost')
+# Detect if we're in production by checking for Railway environment variables
+is_production = bool(os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('RAILWAY_BRANCH'))
 app.config['SESSION_COOKIE_SECURE'] = is_production or os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_NAME'] = 'session'
