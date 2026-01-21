@@ -10354,14 +10354,24 @@ def health_check():
             "timestamp": datetime.now(timezone.utc).isoformat()
         }), 500
 
-@app.route('/api/debug/auth')
+@app.route('/api/debug/auth', methods=['GET', 'POST'])
 def debug_auth():
     """Debug authentication status"""
     return jsonify({
+        "method": request.method,
         "is_authenticated": current_user.is_authenticated,
         "user_id": current_user.get_id() if current_user.is_authenticated else None,
         "username": current_user.username if current_user.is_authenticated else None,
-        "role": current_user.role if current_user.is_authenticated else None
+        "role": current_user.role if current_user.is_authenticated else None,
+        "session_keys": list(session.keys()),
+        "session_user_id": session.get('_user_id'),
+        "cookies": list(request.cookies.keys()),
+        "has_session_cookie": 'session' in request.cookies,
+        "cookie_config": {
+            "samesite": app.config.get('SESSION_COOKIE_SAMESITE'),
+            "secure": app.config.get('SESSION_COOKIE_SECURE'),
+            "httponly": app.config.get('SESSION_COOKIE_HTTPONLY')
+        }
     })
 
 @app.route('/api/debug/sheets')
