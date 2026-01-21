@@ -614,7 +614,8 @@ const LogStats = () => {
                       key={uniqueKey} 
                       className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-white/20 shadow-lg hover:shadow-xl hover:border-blue-500/50 transition-all duration-300 cursor-pointer group" 
                       onClick={() => {
-                        handleEditFromRecent(entry);
+                        // Fix: Use index to get the current entry from state to avoid stale closure
+                        handleEditFromRecent(recentEntries[index]);
                       }}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
