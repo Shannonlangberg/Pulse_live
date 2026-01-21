@@ -20,7 +20,34 @@ const DatabaseViewer = () => {
   const [showFinanceEditModal, setShowFinanceEditModal] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [userCampus, setUserCampus] = useState(null);
   const navigate = useNavigate();
+
+  // Fetch user session to get role and campus
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const response = await fetch('/api/session', {
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        const data = await response.json();
+        if (data.authenticated) {
+          setUserRole(data.role || 'user');
+          setUserCampus(data.campus || 'all_campuses');
+          
+          // Auto-set campus filter for campus pastors
+          if (data.role === 'campus_pastor' && data.campus && data.campus !== 'all_campuses') {
+            setCampusFilter(data.campus);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching session:', err);
+      }
+    };
+    fetchSession();
+  }, []);
 
   // Load campuses for filter
   useEffect(() => {
@@ -365,7 +392,11 @@ const DatabaseViewer = () => {
               <select
                 value={campusFilter}
                 onChange={(e) => setCampusFilter(e.target.value)}
-                className="w-full bg-slate-800 text-white border border-slate-600 rounded-lg px-4 py-2"
+                disabled={userRole === 'campus_pastor'}
+                className={`w-full bg-slate-800 text-white border border-slate-600 rounded-lg px-4 py-2 ${
+                  userRole === 'campus_pastor' ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                title={userRole === 'campus_pastor' ? 'You can only view your own campus' : ''}
               >
                 <option value="">All Campuses</option>
                 {campuses.map(campus => (
@@ -374,6 +405,9 @@ const DatabaseViewer = () => {
                   </option>
                 ))}
               </select>
+              {userRole === 'campus_pastor' && (
+                <p className="text-slate-400 text-xs mt-1">Campus filtered to your campus only</p>
+              )}
             </div>
             
             <div>

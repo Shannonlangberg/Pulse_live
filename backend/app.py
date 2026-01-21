@@ -12841,6 +12841,14 @@ def get_database_viewer():
         end_date_str = request.args.get('end_date', '')
         limit = int(request.args.get('limit', 100))  # Default to last 100 records
         
+        # Campus pastors can only see their own campus - force filter
+        user_campus = getattr(current_user, 'campus', None)
+        if user_role == 'campus_pastor' and user_campus and user_campus != 'all_campuses':
+            # Override campus filter for campus pastors
+            campus_filter = user_campus
+            print(f"[DATABASE_VIEWER] Campus pastor detected - forcing filter to their campus: {campus_filter}")
+            logger.info(f"[DATABASE_VIEWER] Campus pastor detected - forcing filter to their campus: {campus_filter}")
+        
         print(f"[DATABASE_VIEWER] Fetching records with filters: campus={campus_filter}, start={start_date_str}, end={end_date_str}, limit={limit}")
         logger.info(f"[DATABASE_VIEWER] Fetching records with filters: campus={campus_filter}, start={start_date_str}, end={end_date_str}, limit={limit}")
         
@@ -12852,6 +12860,9 @@ def get_database_viewer():
             campus_obj = CampusV2.query.filter_by(campus_id=campus_filter).first()
             if campus_obj:
                 query = query.filter(AttendanceRecord.campus_id == campus_obj.id)
+            else:
+                print(f"[DATABASE_VIEWER] Warning: Campus not found for campus_id: {campus_filter}")
+                logger.warning(f"[DATABASE_VIEWER] Warning: Campus not found for campus_id: {campus_filter}")
         
         if start_date_str:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
@@ -12975,6 +12986,14 @@ def export_database_viewer_csv():
         start_date_str = request.args.get('start_date', '')
         end_date_str = request.args.get('end_date', '')
         
+        # Campus pastors can only see their own campus - force filter
+        user_campus = getattr(current_user, 'campus', None)
+        if user_role == 'campus_pastor' and user_campus and user_campus != 'all_campuses':
+            # Override campus filter for campus pastors
+            campus_filter = user_campus
+            print(f"[EXPORT_CSV] Campus pastor detected - forcing filter to their campus: {campus_filter}")
+            logger.info(f"[EXPORT_CSV] Campus pastor detected - forcing filter to their campus: {campus_filter}")
+        
         # Build query (same logic as database_viewer)
         query = AttendanceRecord.query
         
@@ -12982,6 +13001,9 @@ def export_database_viewer_csv():
             campus_obj = CampusV2.query.filter_by(campus_id=campus_filter).first()
             if campus_obj:
                 query = query.filter(AttendanceRecord.campus_id == campus_obj.id)
+            else:
+                print(f"[EXPORT_CSV] Warning: Campus not found for campus_id: {campus_filter}")
+                logger.warning(f"[EXPORT_CSV] Warning: Campus not found for campus_id: {campus_filter}")
         
         if start_date_str:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
