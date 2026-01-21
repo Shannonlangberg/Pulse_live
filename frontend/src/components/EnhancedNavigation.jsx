@@ -108,7 +108,7 @@ const SETTINGS_ITEMS = [
     name: 'Database Viewer', 
     href: '/database-viewer', 
     icon: TableCellsIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor'],
     featureKey: 'database_viewer'
   },
   { 

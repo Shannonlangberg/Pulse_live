@@ -13,6 +13,9 @@ const DatabaseViewer = () => {
   const [campuses, setCampuses] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedRecord, setEditedRecord] = useState(null);
+  const [savingRecord, setSavingRecord] = useState(false);
   const [editingFinanceRecord, setEditingFinanceRecord] = useState(null);
   const [showFinanceEditModal, setShowFinanceEditModal] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -186,6 +189,41 @@ const DatabaseViewer = () => {
       }
     } catch (err) {
       alert('Error updating record: ' + err.message);
+    }
+  };
+
+  const handleSaveRecord = async () => {
+    if (!editedRecord || !selectedRecord) return;
+    
+    setSavingRecord(true);
+    try {
+      const response = await fetch(`/api/attendance_records/${selectedRecord.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(editedRecord)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        alert('Record updated successfully!');
+        // Update the record in the list
+        setRecords(prev => prev.map(r => 
+          r.id === selectedRecord.id ? {...r, ...editedRecord, synced_to_sheets: false} : r
+        ));
+        // Update selected record
+        setSelectedRecord({...selectedRecord, ...editedRecord, synced_to_sheets: false});
+        setIsEditing(false);
+      } else {
+        const error = await response.json();
+        alert('Failed to update record: ' + (error.error || response.statusText));
+      }
+    } catch (err) {
+      alert('Error updating record: ' + err.message);
+    } finally {
+      setSavingRecord(false);
     }
   };
 
@@ -477,6 +515,8 @@ const DatabaseViewer = () => {
                             <button
                               onClick={() => {
                                 setSelectedRecord(record);
+                                setEditedRecord({...record});
+                                setIsEditing(false);
                                 setShowDetailsModal(true);
                               }}
                               className="text-blue-400 hover:text-blue-300 text-sm"
@@ -617,20 +657,37 @@ const DatabaseViewer = () => {
             {/* Header */}
             <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex items-center justify-between border-b border-white/20">
               <div>
-                <h2 className="text-2xl font-bold text-white">Attendance Record Details</h2>
+                <h2 className="text-2xl font-bold text-white">
+                  {isEditing ? '✏️ Edit Attendance Record' : 'Attendance Record Details'}
+                </h2>
                 <p className="text-blue-100 text-sm mt-1">
                   {selectedRecord.campus} - {selectedRecord.date}
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  setShowDetailsModal(false);
-                  setSelectedRecord(null);
-                }}
-                className="text-white hover:text-red-300 transition-colors text-2xl"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-3">
+                {!isEditing ? (
+                  <button
+                    onClick={() => {
+                      setEditedRecord({...selectedRecord});
+                      setIsEditing(true);
+                    }}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all text-sm font-semibold"
+                  >
+                    ✏️ Edit
+                  </button>
+                ) : null}
+                <button
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    setSelectedRecord(null);
+                    setEditedRecord(null);
+                    setIsEditing(false);
+                  }}
+                  className="text-white hover:text-red-300 transition-colors text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Content */}
@@ -674,19 +731,55 @@ const DatabaseViewer = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
                     <p className="text-slate-300 text-xs mb-1">Total Attendance</p>
-                    <p className="text-white text-2xl font-bold">{selectedRecord.total_attendance || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.total_attendance || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, total_attendance: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white text-2xl font-bold">{selectedRecord.total_attendance || 0}</p>
+                    )}
                   </div>
                   <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-3">
                     <p className="text-slate-300 text-xs mb-1">Total People in Campus</p>
-                    <p className="text-white text-2xl font-bold">{selectedRecord.total_people_in_campus || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.total_people_in_campus || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, total_people_in_campus: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white text-2xl font-bold">{selectedRecord.total_people_in_campus || 0}</p>
+                    )}
                   </div>
                   <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-3">
                     <p className="text-slate-300 text-xs mb-1">Kids Attendance</p>
-                    <p className="text-white text-2xl font-bold">{selectedRecord.kids_attendance || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.kids_attendance || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, kids_attendance: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white text-2xl font-bold">{selectedRecord.kids_attendance || 0}</p>
+                    )}
                   </div>
                   <div className="bg-orange-500/20 border border-orange-500/30 rounded-lg p-3">
                     <p className="text-slate-300 text-xs mb-1">Youth Attendance</p>
-                    <p className="text-white text-2xl font-bold">{selectedRecord.youth_attendance || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.youth_attendance || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, youth_attendance: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white text-2xl font-bold">{selectedRecord.youth_attendance || 0}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -736,19 +829,55 @@ const DatabaseViewer = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Kids Leaders</p>
-                    <p className="text-white font-semibold">{selectedRecord.kids_leaders || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.kids_leaders || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, kids_leaders: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.kids_leaders || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">New Kids</p>
-                    <p className="text-white font-semibold">{selectedRecord.new_kids || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.new_kids || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, new_kids: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.new_kids || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Kids Salvations</p>
-                    <p className="text-white font-semibold">{selectedRecord.new_kids_salvations || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.new_kids_salvations || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, new_kids_salvations: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.new_kids_salvations || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Packs Out</p>
-                    <p className="text-white font-semibold">{selectedRecord.packs_out || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.packs_out || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, packs_out: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.packs_out || 0}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -761,15 +890,42 @@ const DatabaseViewer = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Youth Leaders</p>
-                    <p className="text-white font-semibold">{selectedRecord.youth_leaders || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.youth_leaders || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, youth_leaders: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.youth_leaders || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Youth Salvations</p>
-                    <p className="text-white font-semibold">{selectedRecord.youth_salvations || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.youth_salvations || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, youth_salvations: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.youth_salvations || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Youth New People</p>
-                    <p className="text-white font-semibold">{selectedRecord.youth_new_people || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.youth_new_people || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, youth_new_people: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.youth_new_people || 0}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -782,27 +938,94 @@ const DatabaseViewer = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">First Time Visitors</p>
-                    <p className="text-white font-semibold">{selectedRecord.first_time_visitors || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.first_time_visitors || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, first_time_visitors: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.first_time_visitors || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Visitors</p>
-                    <p className="text-white font-semibold">{selectedRecord.visitors || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.visitors || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, visitors: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.visitors || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Hands Up</p>
-                    <p className="text-white font-semibold">{selectedRecord.hands_up || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.hands_up || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, hands_up: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.hands_up || 0}</p>
+                    )}
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-3">
+                    <p className="text-slate-400 text-xs mb-1">Cards Returned</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.cards_back || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, cards_back: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.cards_back || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">First Time Christians</p>
-                    <p className="text-white font-semibold">{selectedRecord.first_time_christians || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.first_time_christians || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, first_time_christians: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.first_time_christians || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Rededications</p>
-                    <p className="text-white font-semibold">{selectedRecord.rededications || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.rededications || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, rededications: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.rededications || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Salvation Cards</p>
-                    <p className="text-white font-semibold">{selectedRecord.salvation_cards_returned || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.salvation_cards_returned || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, salvation_cards_returned: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.salvation_cards_returned || 0}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -815,19 +1038,55 @@ const DatabaseViewer = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Baptisms</p>
-                    <p className="text-white font-semibold">{selectedRecord.baptisms || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.baptisms || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, baptisms: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.baptisms || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Child Dedications</p>
-                    <p className="text-white font-semibold">{selectedRecord.child_dedications || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.child_dedications || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, child_dedications: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.child_dedications || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Connect Groups</p>
-                    <p className="text-white font-semibold">{selectedRecord.connect_groups || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.connect_groups || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, connect_groups: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.connect_groups || 0}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Dream Team</p>
-                    <p className="text-white font-semibold">{selectedRecord.dream_team || 0}</p>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedRecord?.dream_team || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, dream_team: parseInt(e.target.value) || 0})}
+                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.dream_team || 0}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -839,7 +1098,20 @@ const DatabaseViewer = () => {
                 </h3>
                 <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
                   <p className="text-slate-300 text-sm mb-1">Tithe</p>
-                  <p className="text-white text-3xl font-bold">${(selectedRecord.tithe || 0).toFixed(2)}</p>
+                  {isEditing ? (
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white text-2xl">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editedRecord?.tithe || 0}
+                        onChange={(e) => setEditedRecord({...editedRecord, tithe: parseFloat(e.target.value) || 0})}
+                        className="w-full pl-8 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-3xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-white text-3xl font-bold">${(selectedRecord.tithe || 0).toFixed(2)}</p>
+                  )}
                 </div>
               </div>
 
@@ -866,16 +1138,47 @@ const DatabaseViewer = () => {
             </div>
 
             {/* Footer */}
-            <div className="sticky bottom-0 bg-slate-900 border-t border-white/20 px-6 py-4 flex justify-end">
-              <button
-                onClick={() => {
-                  setShowDetailsModal(false);
-                  setSelectedRecord(null);
-                }}
-                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
-              >
-                Close
-              </button>
+            <div className="sticky bottom-0 bg-slate-900 border-t border-white/20 px-6 py-4 flex justify-end gap-3">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditedRecord({...selectedRecord});
+                      setIsEditing(false);
+                    }}
+                    disabled={savingRecord}
+                    className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveRecord}
+                    disabled={savingRecord}
+                    className="px-6 py-2 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {savingRecord ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      '💾 Save Changes'
+                    )}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    setSelectedRecord(null);
+                    setEditedRecord(null);
+                    setIsEditing(false);
+                  }}
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
+                >
+                  Close
+                </button>
+              )}
             </div>
           </div>
         </div>

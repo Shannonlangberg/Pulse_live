@@ -12826,7 +12826,7 @@ def get_database_viewer():
         logger.info(f"[DATABASE_VIEWER] User role: {user_role}, custom_perms: {custom_perms}")
         
         # Check if user has access via role or custom permissions
-        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']
+        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor']
         has_role_access = user_role in allowed_roles
         has_custom_access = rbac_manager.has_feature_access(user_role, 'database_viewer', custom_permissions=custom_perms)
         
@@ -12962,7 +12962,7 @@ def export_database_viewer_csv():
         custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
         
         # Check if user has access via role or custom permissions
-        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']
+        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor']
         has_role_access = user_role in allowed_roles
         has_custom_access = rbac_manager.has_feature_access(user_role, 'database_viewer', custom_permissions=custom_perms)
         
@@ -13120,6 +13120,130 @@ def delete_attendance_record(record_id):
         logger.error(f"[DELETE_RECORD] Error: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({"error": f"Failed to delete record: {str(e)}"}), 500
+
+@app.route('/api/attendance_records/<int:record_id>', methods=['PUT'])
+@login_required
+def update_attendance_record(record_id):
+    """Update an attendance record - Admin, senior leadership, or campus_pastor for their campus"""
+    try:
+        from models import AttendanceRecord, CampusV2
+        import json
+        
+        # Check user role
+        user_role = getattr(current_user, 'role', 'member')
+        user_campus = getattr(current_user, 'campus', None)
+        
+        print(f"[UPDATE_RECORD] User role: {user_role}, attempting to update record {record_id}")
+        logger.info(f"[UPDATE_RECORD] User role: {user_role}, record_id: {record_id}")
+        
+        # Check permissions - admins/leadership can edit any, campus_pastor can edit their campus only
+        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor']
+        
+        if user_role not in allowed_roles:
+            print(f"[UPDATE_RECORD] Access denied for role: {user_role}")
+            return jsonify({"error": "Access denied - insufficient permissions"}), 403
+        
+        # Find the record
+        record = AttendanceRecord.query.get(record_id)
+        
+        if not record:
+            print(f"[UPDATE_RECORD] Record {record_id} not found")
+            return jsonify({"error": "Record not found"}), 404
+        
+        # Campus pastors can only edit their own campus records
+        if user_role == 'campus_pastor':
+            campus_obj = CampusV2.query.get(record.campus_id)
+            if not campus_obj or campus_obj.campus_id != user_campus:
+                print(f"[UPDATE_RECORD] Campus pastor access denied - user campus: {user_campus}, record campus: {campus_obj.campus_id if campus_obj else 'unknown'}")
+                return jsonify({"error": "Access denied - you can only edit records for your campus"}), 403
+        
+        # Get update data from request
+        data = request.get_json()
+        
+        # Update fields (similar to quick_input)
+        if 'total_attendance' in data:
+            record.total_attendance = int(data.get('total_attendance', 0) or 0)
+        if 'total_people_in_campus' in data:
+            record.total_people_in_campus = int(data.get('total_people_in_campus', 0) or 0)
+        if 'kids_attendance' in data:
+            record.kids_attendance = int(data.get('kids_attendance', 0) or 0)
+        if 'kids_leaders' in data:
+            record.kids_leaders = int(data.get('kids_leaders', 0) or 0)
+        if 'new_kids' in data:
+            record.new_kids = int(data.get('new_kids', 0) or 0)
+        if 'new_kids_salvations' in data:
+            record.new_kids_salvations = int(data.get('new_kids_salvations', 0) or 0)
+        if 'packs_out' in data:
+            record.packs_out = int(data.get('packs_out', 0) or 0)
+        if 'youth_attendance' in data:
+            record.youth_attendance = int(data.get('youth_attendance', 0) or 0)
+        if 'youth_salvations' in data:
+            record.youth_salvations = int(data.get('youth_salvations', 0) or 0)
+        if 'youth_new_people' in data:
+            record.youth_new_people = int(data.get('youth_new_people', 0) or 0)
+        if 'youth_leaders' in data:
+            record.youth_leaders = int(data.get('youth_leaders', 0) or 0)
+        if 'first_time_visitors' in data:
+            record.first_time_visitors = int(data.get('first_time_visitors', 0) or 0)
+        if 'visitors' in data:
+            record.visitors = int(data.get('visitors', 0) or 0)
+        if 'hands_up' in data:
+            record.hands_up = int(data.get('hands_up', 0) or 0)
+        if 'cards_back' in data:
+            record.cards_back = int(data.get('cards_back', 0) or 0)
+        if 'first_time_christians' in data:
+            record.first_time_christians = int(data.get('first_time_christians', 0) or 0)
+        if 'rededications' in data:
+            record.rededications = int(data.get('rededications', 0) or 0)
+        if 'salvation_cards_returned' in data:
+            record.salvation_cards_returned = int(data.get('salvation_cards_returned', 0) or 0)
+        if 'baptisms' in data:
+            record.baptisms = int(data.get('baptisms', 0) or 0)
+        if 'child_dedications' in data:
+            record.child_dedications = int(data.get('child_dedications', 0) or 0)
+        if 'connect_groups' in data:
+            record.connect_groups = int(data.get('connect_groups', 0) or 0)
+        if 'dream_team' in data:
+            record.dream_team = int(data.get('dream_team', 0) or 0)
+        if 'tithe' in data:
+            record.tithe = float(data.get('tithe', 0) or 0)
+        if 'adult_service_breakdown' in data:
+            record.adult_service_breakdown = json.dumps(data['adult_service_breakdown']) if data.get('adult_service_breakdown') else None
+        if 'kids_service_breakdown' in data:
+            record.kids_service_breakdown = json.dumps(data['kids_service_breakdown']) if data.get('kids_service_breakdown') else None
+        if 'notes' in data:
+            record.notes = data.get('notes')
+        
+        # Mark as not synced since it was updated
+        record.synced_to_sheets = False
+        
+        # Save changes
+        db.session.commit()
+        
+        print(f"[UPDATE_RECORD] Successfully updated record {record_id}")
+        logger.info(f"[UPDATE_RECORD] Successfully updated record {record_id}")
+        
+        # Return updated record data
+        campus = CampusV2.query.get(record.campus_id)
+        return jsonify({
+            "success": True,
+            "message": "Record updated successfully",
+            "record": {
+                'id': record.id,
+                'date': record.date.strftime('%Y-%m-%d'),
+                'campus': campus.display_name if campus else f"Unknown (ID: {record.campus_id})",
+                'total_attendance': record.total_attendance,
+                'kids_attendance': record.kids_attendance,
+                'youth_attendance': record.youth_attendance,
+                'synced_to_sheets': record.synced_to_sheets
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"[UPDATE_RECORD] Error: {e}")
+        logger.error(f"[UPDATE_RECORD] Error: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({"error": f"Failed to update record: {str(e)}"}), 500
 
 @app.route('/api/recent_entries', methods=['GET'])
 @login_required
@@ -15208,7 +15332,15 @@ def update_user_permissions(user_id):
         
         # Update custom permissions
         import json
-        permissions_json = json.dumps(permissions) if permissions else None
+        # Ensure empty dict is saved as '{}' not None, and preserve false values
+        if not permissions:
+            permissions_json = '{}'
+        else:
+            # Use json.dumps with ensure_ascii=False to properly handle all values including False
+            permissions_json = json.dumps(permissions, ensure_ascii=False)
+        
+        logger.info(f"[ROLE_MANAGER] Updating permissions for user_id={user_id}: {permissions_json}")
+        print(f"[ROLE_MANAGER] Updating permissions for user_id={user_id}: {permissions_json}")
         
         # Try to update custom_permissions, but handle if column doesn't exist yet
         try:
@@ -15218,6 +15350,14 @@ def update_user_permissions(user_id):
                 WHERE id = ?
             ''', (permissions_json, user_id))
             conn.commit()
+            
+            # Verify the save worked
+            cursor.execute('SELECT custom_permissions FROM users WHERE id = ?', (user_id,))
+            saved_row = cursor.fetchone()
+            if saved_row:
+                saved_perms = saved_row[0]
+                logger.info(f"[ROLE_MANAGER] Verified save - saved_permissions={saved_perms}")
+                print(f"[ROLE_MANAGER] Verified save - saved_permissions={saved_perms}")
         except Exception as e:
             # If column doesn't exist, try to add it first
             try:
@@ -15234,13 +15374,26 @@ def update_user_permissions(user_id):
                 logger.error(f"Error updating permissions (column may not exist): {e2}")
                 return jsonify({'error': 'Failed to update permissions. Migration may be needed.'}), 500
         
+        # Fetch the saved permissions to verify
+        cursor.execute('SELECT custom_permissions FROM users WHERE id = ?', (user_id,))
+        verify_row = cursor.fetchone()
+        saved_permissions_verified = {}
+        if verify_row and verify_row[0]:
+            try:
+                saved_permissions_verified = json.loads(verify_row[0]) if isinstance(verify_row[0], str) else verify_row[0]
+            except:
+                saved_permissions_verified = {}
+        
         conn.close()
         
-        logger.info(f"Updated permissions for user ID: {user_id}")
+        logger.info(f"[ROLE_MANAGER] ✅ Successfully updated permissions for user_id={user_id}. Saved: {saved_permissions_verified}")
+        print(f"[ROLE_MANAGER] ✅ Successfully updated permissions for user_id={user_id}. Saved: {saved_permissions_verified}")
+        
         return jsonify({
             'success': True,
             'message': 'Permissions updated successfully',
-            'permissions': permissions
+            'permissions': saved_permissions_verified,  # Return what was actually saved
+            'requested_permissions': permissions  # Also return what was requested for comparison
         })
     except Exception as e:
         logger.error(f"Error updating user permissions: {e}", exc_info=True)

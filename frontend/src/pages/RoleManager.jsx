@@ -357,8 +357,22 @@ const RoleManager = () => {
       const perms = {};
       const original = {};
       data.users.forEach(user => {
-        perms[user.id] = user.custom_permissions || {};
-        original[user.id] = JSON.parse(JSON.stringify(user.custom_permissions || {}));
+        // Ensure custom_permissions is always an object, not null or undefined
+        let userPerms = user.custom_permissions;
+        if (!userPerms || typeof userPerms !== 'object') {
+          userPerms = {};
+        }
+        // Handle if it's a string (shouldn't happen but be safe)
+        if (typeof userPerms === 'string') {
+          try {
+            userPerms = JSON.parse(userPerms);
+          } catch {
+            userPerms = {};
+          }
+        }
+        perms[user.id] = userPerms;
+        original[user.id] = JSON.parse(JSON.stringify(userPerms));
+        console.log(`[RoleManager] Loaded permissions for ${user.full_name || user.username}:`, userPerms);
       });
       setPermissions(perms);
       setOriginalPermissions(original);
@@ -377,9 +391,31 @@ const RoleManager = () => {
         newPerms[userId] = {};
       }
       
-      // Toggle the permission
-      const currentValue = newPerms[userId][feature];
-      newPerms[userId][feature] = currentValue !== true;
+      // Get the effective current value (custom permission or role default)
+      const effectiveValue = getPermissionValue(userId, feature);
+      
+      // If there's already a custom permission set, toggle it
+      // If not, we need to set the opposite of the role default
+      const hasCustomPermission = newPerms[userId].hasOwnProperty(feature);
+      
+      if (hasCustomPermission) {
+        // Toggle existing custom permission
+        newPerms[userId][feature] = !effectiveValue;
+      } else {
+        // Set custom permission to opposite of role default
+        newPerms[userId][feature] = !effectiveValue;
+      }
+      
+      // If setting to the same as role default, remove the custom permission
+      const user = users.find(u => u.id === userId);
+      const roleDefault = user && roleDefaults[user.role] ? roleDefaults[user.role][feature] === true : false;
+      if (newPerms[userId][feature] === roleDefault) {
+        delete newPerms[userId][feature];
+        // Clean up empty objects
+        if (Object.keys(newPerms[userId]).length === 0) {
+          delete newPerms[userId];
+        }
+      }
       
       // Check if there are changes
       const hasChanges = JSON.stringify(newPerms) !== JSON.stringify(originalPermissions);
@@ -402,6 +438,8 @@ const RoleManager = () => {
         
         // Only save if permissions changed
         if (JSON.stringify(userPerms) !== JSON.stringify(originalPerms)) {
+          console.log(`[RoleManager] Saving permissions for ${user.full_name || user.username}:`, userPerms);
+          
           const response = await fetch(`/api/users/${user.id}/permissions`, {
             method: 'POST',
             headers: {
@@ -412,14 +450,22 @@ const RoleManager = () => {
           });
 
           if (!response.ok) {
-            throw new Error(`Failed to save permissions for ${user.full_name || user.username}`);
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`Failed to save permissions for ${user.full_name || user.username}: ${errorData.error || response.statusText}`);
           }
+          
+          const result = await response.json();
+          console.log(`[RoleManager] Successfully saved permissions for ${user.full_name || user.username}:`, result);
         }
       });
 
       await Promise.all(savePromises);
 
-      // Update original permissions
+      // Reload users to get the latest permissions from database
+      console.log('[RoleManager] Reloading users after save...');
+      await loadUsers();
+      
+      // Update original permissions to match what was just saved
       setOriginalPermissions(JSON.parse(JSON.stringify(permissions)));
       setHasChanges(false);
       setSuccess('✅ Permissions saved successfully! Users must REFRESH their browser (Cmd/Ctrl + Shift + R) to see changes.');
