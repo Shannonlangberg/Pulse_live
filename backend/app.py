@@ -7227,25 +7227,33 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 
                 print(f"[DASHBOARD YTD] Found {len(ytd_records)} YTD records for chart")
                 
-                # Build monthly aggregates for YTD
-                ytd_monthly = {}
+                # Build weekly aggregates for YTD (week-by-week instead of monthly)
+                ytd_weekly = {}
                 for record in ytd_records:
-                    month_key = record.date.strftime('%Y-%m')
-                    if month_key not in ytd_monthly:
-                        ytd_monthly[month_key] = {
+                    # Calculate week number and year (ISO week)
+                    # Get the Monday of the week for this date
+                    record_date = record.date
+                    days_since_monday = record_date.weekday()  # Monday is 0
+                    week_start = record_date - timedelta(days=days_since_monday)
+                    week_key = week_start.strftime('%Y-W%V')  # Format: 2026-W05
+                    
+                    if week_key not in ytd_weekly:
+                        ytd_weekly[week_key] = {
                             'attendance': 0,
                             'new_people': 0,
                             'new_christians': 0,
-                            'count': 0
+                            'count': 0,
+                            'week_start': week_start,
+                            'week_end': week_start + timedelta(days=6)
                         }
-                    ytd_monthly[month_key]['attendance'] += record.total_attendance or 0
-                    ytd_monthly[month_key]['new_people'] += (record.first_time_visitors or 0) + (record.visitors or 0)
-                    ytd_monthly[month_key]['new_christians'] += (record.first_time_christians or 0) + (record.rededications or 0)
-                    ytd_monthly[month_key]['count'] += 1
+                    ytd_weekly[week_key]['attendance'] += record.total_attendance or 0
+                    ytd_weekly[week_key]['new_people'] += (record.first_time_visitors or 0) + (record.visitors or 0)
+                    ytd_weekly[week_key]['new_christians'] += (record.first_time_christians or 0) + (record.rededications or 0)
+                    ytd_weekly[week_key]['count'] += 1
                 
-                print(f"[DASHBOARD YTD] Monthly aggregates: {list(ytd_monthly.keys())}")
+                print(f"[DASHBOARD YTD] Weekly aggregates: {len(ytd_weekly)} weeks")
                 
-                # Build chart_data for Year-To-Date view
+                # Build chart_data for Year-To-Date view (weekly)
                 chart_data = {
                     'labels': [],
                     'attendance': [],
@@ -7259,24 +7267,44 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     'tithe_labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
                 }
                 
-                # Populate chart with YTD data (January through current month)
+                # Populate chart with YTD data (week by week from January 1st to today)
+                # Start from the first Monday of the year (or Jan 1st if it's a Monday)
+                current_week_start = ytd_start
+                # Find the Monday of the week containing Jan 1st
+                days_since_monday = current_week_start.weekday()
+                if days_since_monday > 0:
+                    current_week_start = current_week_start - timedelta(days=days_since_monday)
                 
-                current_date = ytd_start.replace(day=1)
-                end_month = now.replace(day=1)
+                # Get today's date and find the Monday of this week
+                today = now.date()
+                days_since_monday_today = today.weekday()
+                last_week_start = today - timedelta(days=days_since_monday_today)
                 
-                while current_date <= end_month:
-                    month_key = current_date.strftime('%Y-%m')
-                    month_name = current_date.strftime('%b %Y')
-                    chart_data['labels'].append(month_name)
+                # Iterate week by week
+                while current_week_start <= last_week_start:
+                    week_key = current_week_start.strftime('%Y-W%V')
                     
-                    # Get data for this month from ytd_monthly (not monthly_trends!)
-                    month_data = ytd_monthly.get(month_key, {'attendance': 0, 'new_people': 0, 'new_christians': 0, 'count': 0})
+                    # Create label: "Week X, Month" or "MMM DD" format
+                    month_name = current_week_start.strftime('%b')
+                    week_num = current_week_start.isocalendar()[1]  # ISO week number
+                    week_label = f"{month_name} W{week_num}"
+                    # Alternative: Show date range like "Jan 1-7"
+                    week_end_date = current_week_start + timedelta(days=6)
+                    if current_week_start.month == week_end_date.month:
+                        week_label = f"{current_week_start.strftime('%b %d')}-{week_end_date.strftime('%d')}"
+                    else:
+                        week_label = f"{current_week_start.strftime('%b %d')}-{week_end_date.strftime('%b %d')}"
                     
-                    # Calculate average per service
-                    count = month_data['count'] or 1
-                    attendance_val = month_data['attendance'] / count if month_data['count'] > 0 else 0
-                    new_people_val = month_data['new_people'] / count if month_data['count'] > 0 else 0
-                    new_christians_val = month_data['new_christians'] / count if month_data['count'] > 0 else 0
+                    chart_data['labels'].append(week_label)
+                    
+                    # Get data for this week from ytd_weekly
+                    week_data = ytd_weekly.get(week_key, {'attendance': 0, 'new_people': 0, 'new_christians': 0, 'count': 0})
+                    
+                    # Calculate average per service for this week
+                    count = week_data['count'] or 1
+                    attendance_val = week_data['attendance'] / count if week_data['count'] > 0 else 0
+                    new_people_val = week_data['new_people'] / count if week_data['count'] > 0 else 0
+                    new_christians_val = week_data['new_christians'] / count if week_data['count'] > 0 else 0
                     
                     chart_data['attendance'].append(attendance_val)
                     chart_data['new_people'].append(new_people_val)
@@ -7284,10 +7312,10 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     chart_data['youth'].append(0)  # TODO: Add youth breakdown if needed
                     chart_data['kids'].append(0)  # TODO: Add kids breakdown if needed
                     
-                    # Move to next month
-                    current_date = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+                    # Move to next week (add 7 days)
+                    current_week_start = current_week_start + timedelta(days=7)
                 
-                print(f"[DASHBOARD] Built chart_data with {len(chart_data['labels'])} months: {chart_data['labels']}")
+                print(f"[DASHBOARD] Built chart_data with {len(chart_data['labels'])} weeks: {chart_data['labels']}")
                 print(f"[DASHBOARD] Chart attendance values: {chart_data['attendance']}")
                 
                 return {
