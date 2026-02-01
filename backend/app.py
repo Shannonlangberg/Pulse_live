@@ -11152,127 +11152,120 @@ def get_stats():
             # Force campus filter to user's campus
             campus_filter = current_user.campus
         
-        # Try to get data from Google Sheets first, fallback to local data
-        if sheet:
-            try:
-                rows = safe_sheets_request(sheet.get_all_records)
-                data_source = "Google Sheets"
-            except Exception as e:
-                logger.warning(f"Google Sheets failed, using local data: {e}")
-                rows = load_local_data()
-                data_source = "Local Data (Google Sheets failed)"
-        else:
-            rows = load_local_data()
-            data_source = "Local Data (Google Sheets not available)"
-        logger.info(f"Retrieved {len(rows)} total rows from {data_source}")
-        # Load any link-logged rows from memory (if you store them)
-        # If you have a function to get link-logged rows, add them to rows here
-        # rows += get_link_logged_rows()
-        if not rows:
-            logger.warning("No rows found in Google Sheets")
-            return jsonify({"stats": [], "encouragements": []})
-        # Filter by campus if specified
-        if campus_filter:
-            # Helper for sorting rows by timestamp (available to both branches)
-            def get_row_timestamp(row):
-                import re
-                from datetime import datetime
-                ts = ''
-                if isinstance(row, dict):
-                    ts = row.get('Timestamp', '') or row.get('Date', '')
-                elif isinstance(row, (list, tuple)):
-                    ts = row[0] if len(row) > 0 else ''
-                try:
-                    match = re.match(r'(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}:\d{2}:\d{2}))?', ts)
-                    if match:
-                        date_part = match.group(1)
-                        time_part = match.group(2) or '00:00:00'
-                        return datetime.strptime(f'{date_part} {time_part}', '%Y-%m-%d %H:%M:%S')
-                except Exception:
-                    pass
-                return datetime.min
-            filtered_rows = []
-            for row in rows:
-                row_campus = str(row.get('Campus', '')).strip().lower()
-                if row_campus == campus_filter.lower():
-                    # Support both column name formats
-                    total_attendance = row.get('Total Attendance', '') or row.get('Total People in Campus', '')
-                    if total_attendance and str(total_attendance).strip():
-                        filtered_rows.append(row)
-            filtered_rows.sort(key=get_row_timestamp, reverse=True)
-            most_recent = filtered_rows[0] if filtered_rows else {}
-            
-            # Helper function to get value with fallback column names
-            def get_stat(primary, fallback=None):
-                if isinstance(most_recent, dict):
-                    val = most_recent.get(primary, 0)
-                    if not val and fallback:
-                        val = most_recent.get(fallback, 0)
-                    return val
-                return 0
-            
-            stats_for_frontend = {
-                'Total Attendance': get_stat('Total Attendance', 'Total People in Campus'),
-                'total_attendance': get_stat('Total Attendance', 'Total People in Campus'),
-                'New People': get_stat('New People', 'First Time Visitors'),
-                'new_people': get_stat('New People', 'First Time Visitors'),
-                'New Christians': get_stat('New Christians', 'First Time Christians'),
-                'new_christians': get_stat('New Christians', 'First Time Christians'),
-                'Youth Attendance': get_stat('Youth Attendance'),
-                'youth_attendance': get_stat('Youth Attendance'),
-                'Kids Total': get_stat('Kids Total'),
-                'kids_total': get_stat('Kids Total'),
-                'Connect Groups': get_stat('Connect Groups'),
-                'connect_groups': get_stat('Connect Groups')
-            }
-            encouragements = []
-            encouragement = most_recent.get("Encouragement", "") if isinstance(most_recent, dict) else ''
-            if encouragement:
-                if " | " in encouragement:
-                    encouragements.extend(encouragement.split(" | "))
-                else:
-                    encouragements.append(encouragement)
-            logger.info(f"Returning stats for {campus_filter}: {stats_for_frontend}")
-            return jsonify({
-                "stats": stats_for_frontend,
-                "encouragements": encouragements
-            })
-        else:
-            # No campus filter - return the 5 most recent rows overall
-            valid_rows = [row for row in rows if (row.get('Total Attendance', '') if isinstance(row, dict) else False) and str(row.get('Total Attendance', '') if isinstance(row, dict) else '').strip()]
-            valid_rows.sort(key=get_row_timestamp, reverse=True)
-            recent_stats = valid_rows[:5] if valid_rows else []
-            stats_for_frontend = []
-            for row in recent_stats:
-                stats_for_frontend.append({
-                    'Total Attendance': row.get('Total Attendance', 0) if isinstance(row, dict) else 0,
-                    'total_attendance': row.get('Total Attendance', 0) if isinstance(row, dict) else 0,
-                    'New People': row.get('New People', 0) if isinstance(row, dict) else 0,
-                    'new_people': row.get('New People', 0) if isinstance(row, dict) else 0,
-                    'New Christians': row.get('New Christians', 0) if isinstance(row, dict) else 0,
-                    'new_christians': row.get('New Christians', 0) if isinstance(row, dict) else 0,
-                    'Youth Attendance': row.get('Youth Attendance', 0) if isinstance(row, dict) else 0,
-                    'youth_attendance': row.get('Youth Attendance', 0) if isinstance(row, dict) else 0,
-                    'Kids Total': row.get('Kids Total', 0) if isinstance(row, dict) else 0,
-                    'kids_total': row.get('Kids Total', 0) if isinstance(row, dict) else 0,
-                    'Connect Groups': row.get('Connect Groups', 0) if isinstance(row, dict) else 0,
-                    'connect_groups': row.get('Connect Groups', 0) if isinstance(row, dict) else 0
-                })
-            encouragements = []
-            for row in recent_stats:
-                encouragement = row.get("Encouragement", "") if isinstance(row, dict) else ''
-                if encouragement:
-                    if " | " in encouragement:
-                        encouragements.extend(encouragement.split(" | "))
+        # ============================================================
+        # USE DATABASE AS PRIMARY SOURCE (like /api/recent_entries)
+        # ============================================================
+        from models import AttendanceRecord, CampusV2
+        
+        try:
+            # Get most recent record(s) from database
+            if campus_filter:
+                # Find campus by campus_id (e.g., 'samarinda', 'adelaide_city')
+                campus_obj = CampusV2.query.filter(
+                    (CampusV2.campus_id == campus_filter) | 
+                    (CampusV2.id == campus_filter) |
+                    (CampusV2.display_name == campus_filter)
+                ).first()
+                
+                if not campus_obj:
+                    logger.warning(f"[STATS] Campus '{campus_filter}' not found in database")
+                    return jsonify({"stats": {}, "encouragements": []})
+                
+                # Get most recent record for this campus
+                most_recent = AttendanceRecord.query.filter_by(
+                    campus_id=campus_obj.id
+                ).order_by(AttendanceRecord.date.desc()).first()
+                
+                if not most_recent:
+                    logger.info(f"[STATS] No records found for campus '{campus_filter}'")
+                    return jsonify({"stats": {}, "encouragements": []})
+                
+                # Convert database record to frontend format
+                stats_for_frontend = {
+                    'Total Attendance': most_recent.total_attendance or 0,
+                    'total_attendance': most_recent.total_attendance or 0,
+                    'New People': (most_recent.first_time_visitors or 0) + (most_recent.visitors or 0),
+                    'new_people': (most_recent.first_time_visitors or 0) + (most_recent.visitors or 0),
+                    'New Christians': (most_recent.first_time_christians or 0) + (most_recent.rededications or 0),
+                    'new_christians': (most_recent.first_time_christians or 0) + (most_recent.rededications or 0),
+                    'Youth Attendance': most_recent.youth_attendance or 0,
+                    'youth_attendance': most_recent.youth_attendance or 0,
+                    'Kids Total': most_recent.kids_attendance or 0,
+                    'kids_total': most_recent.kids_attendance or 0,
+                    'Connect Groups': most_recent.connect_groups or 0,
+                    'connect_groups': most_recent.connect_groups or 0
+                }
+                
+                encouragements = []
+                if most_recent.notes:
+                    # Parse notes for encouragements (if stored in notes field)
+                    notes_text = most_recent.notes
+                    if " | " in notes_text:
+                        encouragements.extend(notes_text.split(" | "))
                     else:
-                        encouragements.append(encouragement)
-            logger.info(f"Returning {len(recent_stats)} stats overall (no campus filter)")
-            return jsonify({
-                "stats": stats_for_frontend,
-                "encouragements": encouragements
-            })
+                        encouragements.append(notes_text)
+                
+                logger.info(f"[STATS] Returning stats for {campus_filter} from database: {stats_for_frontend}")
+                return jsonify({
+                    "stats": stats_for_frontend,
+                    "encouragements": encouragements
+                })
+            else:
+                # No campus filter - return the 5 most recent records overall
+                recent_records = AttendanceRecord.query.order_by(
+                    AttendanceRecord.date.desc()
+                ).limit(5).all()
+                
+                if not recent_records:
+                    logger.info("[STATS] No records found in database")
+                    return jsonify({"stats": [], "encouragements": []})
+                
+                stats_for_frontend = []
+                encouragements = []
+                
+                for record in recent_records:
+                    campus_obj = CampusV2.query.get(record.campus_id)
+                    campus_name = campus_obj.display_name if campus_obj else 'Unknown'
+                    
+                    stats_for_frontend.append({
+                        'Total Attendance': record.total_attendance or 0,
+                        'total_attendance': record.total_attendance or 0,
+                        'New People': (record.first_time_visitors or 0) + (record.visitors or 0),
+                        'new_people': (record.first_time_visitors or 0) + (record.visitors or 0),
+                        'New Christians': (record.first_time_christians or 0) + (record.rededications or 0),
+                        'new_christians': (record.first_time_christians or 0) + (record.rededications or 0),
+                        'Youth Attendance': record.youth_attendance or 0,
+                        'youth_attendance': record.youth_attendance or 0,
+                        'Kids Total': record.kids_attendance or 0,
+                        'kids_total': record.kids_attendance or 0,
+                        'Connect Groups': record.connect_groups or 0,
+                        'connect_groups': record.connect_groups or 0,
+                        'Campus': campus_name
+                    })
+                    
+                    if record.notes:
+                        if " | " in record.notes:
+                            encouragements.extend(record.notes.split(" | "))
+                        else:
+                            encouragements.append(record.notes)
+                
+                logger.info(f"[STATS] Returning {len(recent_records)} stats overall from database (no campus filter)")
+                return jsonify({
+                    "stats": stats_for_frontend,
+                    "encouragements": encouragements
+                })
+                
+        except Exception as db_error:
+            logger.error(f"[STATS] Database error: {db_error}")
+            import traceback
+            logger.error(f"[STATS] Traceback: {traceback.format_exc()}")
+            # Fallback to empty response rather than Google Sheets (which doesn't have Indonesian data)
+            return jsonify({"stats": [] if not campus_filter else {}, "encouragements": []})
+            
     except Exception as e:
         logger.error(f"Failed to get stats: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"error": "Failed to retrieve stats"}), 500
 
 # Add a decorator to log endpoint and request data
