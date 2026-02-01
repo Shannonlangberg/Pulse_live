@@ -7235,7 +7235,9 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     record_date = record.date
                     days_since_monday = record_date.weekday()  # Monday is 0
                     week_start = record_date - timedelta(days=days_since_monday)
-                    week_key = week_start.strftime('%Y-W%V')  # Format: 2026-W05
+                    # Use ISO week format: YYYY-Www (e.g., 2026-W05)
+                    year, week_num, _ = record_date.isocalendar()
+                    week_key = f"{year}-W{week_num:02d}"
                     
                     if week_key not in ytd_weekly:
                         ytd_weekly[week_key] = {
@@ -7269,26 +7271,25 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 
                 # Populate chart with YTD data (week by week from January 1st to today)
                 # Start from the first Monday of the year (or Jan 1st if it's a Monday)
-                current_week_start = ytd_start
+                ytd_start_date = ytd_start.date() if isinstance(ytd_start, datetime) else ytd_start
+                current_week_start = ytd_start_date
                 # Find the Monday of the week containing Jan 1st
                 days_since_monday = current_week_start.weekday()
                 if days_since_monday > 0:
                     current_week_start = current_week_start - timedelta(days=days_since_monday)
                 
                 # Get today's date and find the Monday of this week
-                today = now.date()
+                today = now.date() if isinstance(now, datetime) else now
                 days_since_monday_today = today.weekday()
                 last_week_start = today - timedelta(days=days_since_monday_today)
                 
                 # Iterate week by week
                 while current_week_start <= last_week_start:
-                    week_key = current_week_start.strftime('%Y-W%V')
+                    # Use ISO week format to match aggregation
+                    year, week_num, _ = current_week_start.isocalendar()
+                    week_key = f"{year}-W{week_num:02d}"
                     
-                    # Create label: "Week X, Month" or "MMM DD" format
-                    month_name = current_week_start.strftime('%b')
-                    week_num = current_week_start.isocalendar()[1]  # ISO week number
-                    week_label = f"{month_name} W{week_num}"
-                    # Alternative: Show date range like "Jan 1-7"
+                    # Create label: Show date range like "Jan 1-7"
                     week_end_date = current_week_start + timedelta(days=6)
                     if current_week_start.month == week_end_date.month:
                         week_label = f"{current_week_start.strftime('%b %d')}-{week_end_date.strftime('%d')}"
