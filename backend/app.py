@@ -15025,7 +15025,17 @@ def get_regional_dashboard_data():
             AttendanceRecord.date <= ytd_end
         ).all()
         
-        print(f"[REGIONAL_DASHBOARD YTD] Found {len(ytd_records)} YTD records for chart")
+        print(f"[REGIONAL_DASHBOARD YTD] Found {len(ytd_records)} YTD records for chart (region_id={region_id}, date range: {ytd_start.date()} to {ytd_end.date()})")
+        
+        # Debug: Check records for Jan 18 specifically
+        jan_18_records = [r for r in ytd_records if r.date == date(2026, 1, 18)]
+        if jan_18_records:
+            total_jan_18 = sum(r.total_attendance or 0 for r in jan_18_records)
+            print(f"[REGIONAL_DASHBOARD YTD] Jan 18 records: {len(jan_18_records)} records, total attendance: {total_jan_18}")
+            for r in jan_18_records:
+                campus = CampusV2.query.get(r.campus_id)
+                campus_name = campus.display_name if campus else f"Campus_{r.campus_id}"
+                print(f"[REGIONAL_DASHBOARD YTD]   - {campus_name}: {r.total_attendance}")
         
         # Build weekly aggregates for YTD (week-by-week instead of monthly)
         ytd_weekly = {}
@@ -15045,14 +15055,27 @@ def get_regional_dashboard_data():
                     'new_christians': 0,
                     'count': 0,
                     'week_start': week_start,
-                    'week_end': week_start + timedelta(days=6)
+                    'week_end': week_start + timedelta(days=6),
+                    'dates': []  # Track which dates are in this week for debugging
                 }
             ytd_weekly[week_key]['attendance'] += record.total_attendance or 0
             ytd_weekly[week_key]['new_people'] += (record.first_time_visitors or 0) + (record.visitors or 0)
             ytd_weekly[week_key]['new_christians'] += (record.first_time_christians or 0) + (record.rededications or 0)
             ytd_weekly[week_key]['count'] += 1
+            if record_date not in ytd_weekly[week_key]['dates']:
+                ytd_weekly[week_key]['dates'].append(record_date)
+        
+        # Debug: Print week aggregates for Jan 18th week
+        jan_18 = date(2026, 1, 18)
+        jan_18_week_key = f"{jan_18.isocalendar()[0]}-W{jan_18.isocalendar()[1]:02d}"
+        if jan_18_week_key in ytd_weekly:
+            week_info = ytd_weekly[jan_18_week_key]
+            print(f"[REGIONAL_DASHBOARD YTD] Week {jan_18_week_key} (Jan 18 week): attendance={week_info['attendance']}, count={week_info['count']}, dates={week_info['dates']}")
         
         print(f"[REGIONAL_DASHBOARD YTD] Weekly aggregates: {len(ytd_weekly)} weeks")
+        # Print all weeks for debugging
+        for week_key, week_data in sorted(ytd_weekly.items()):
+            print(f"[REGIONAL_DASHBOARD YTD] Week {week_key}: attendance={week_data['attendance']}, count={week_data['count']}, dates={sorted(week_data['dates'])}")
         
         # Build chart_data for Year-To-Date view (weekly)
         chart_data = {
