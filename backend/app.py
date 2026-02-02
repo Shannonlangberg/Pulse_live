@@ -14994,6 +14994,7 @@ def get_regional_dashboard_data():
         total_kids = sum(r.kids_attendance or 0 for r in records)
         total_kids_leaders = sum(r.kids_leaders or 0 for r in records)
         total_youth = sum(r.youth_attendance or 0 for r in records)
+        total_youth_leaders = sum(r.youth_leaders or 0 for r in records)
         
         # CRITICAL FIX: Ensure kids are included in total_attendance for Sunday Attendance
         # Some older records might not have kids included in total_attendance
@@ -15031,8 +15032,14 @@ def get_regional_dashboard_data():
         print(f"[REGIONAL_DASHBOARD]   adults_and_saints_total: {adults_and_saints_total}")
         print(f"[REGIONAL_DASHBOARD]   total_attendance (corrected with kids): {total_attendance}")
         print(f"[REGIONAL_DASHBOARD]   total_youth: {total_youth}")
+        print(f"[REGIONAL_DASHBOARD]   total_youth_leaders: {total_youth_leaders}")
+        print(f"[REGIONAL_DASHBOARD]   total_youth_with_leaders (for Weekend): {total_youth + total_youth_leaders}")
         print(f"[REGIONAL_DASHBOARD]   Records without kids in total_attendance: {records_without_kids} of {len(records)}")
         print(f"[REGIONAL_DASHBOARD]   Difference (kids added if missing): {total_attendance - raw_total_attendance}")
+        
+        # Weekend Attendance = Sunday Attendance + Youth + Youth Leaders
+        # So we need to include youth_leaders in the total_youth value returned
+        total_youth_with_leaders = total_youth + total_youth_leaders
         # Salvations - break down by type
         total_adult_salvations = sum(r.first_time_christians or 0 for r in records)
         total_rededications = sum(r.rededications or 0 for r in records)
@@ -15236,7 +15243,9 @@ def get_regional_dashboard_data():
                 'avg_kids': round(avg_kids, 1),
                 'total_kids_leaders': total_kids_leaders,
                 'avg_kids_leaders': round(avg_kids_leaders, 1),
-                'total_youth': total_youth,
+                'total_youth': total_youth_with_leaders,  # Include youth_leaders for Weekend Attendance
+                'total_youth_attendance': total_youth,  # Youth attendance only (without leaders)
+                'total_youth_leaders': total_youth_leaders,  # Youth leaders separately
                 'avg_youth': round(avg_youth, 1),
                 'total_salvations': total_salvations,
                 'first_time_christians': total_adult_salvations,  # Adult salvations
