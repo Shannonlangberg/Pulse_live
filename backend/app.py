@@ -7157,7 +7157,8 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     monthly_trends[month_key]['count'] += 1
                 
                 # Calculate derived stats
-                stats['new_people'] = stats['first_time_visitors'] + stats['visitors']
+                # FIX: Include youth_new_people in total new_people count
+                stats['new_people'] = stats['first_time_visitors'] + stats['visitors'] + stats['youth_new_people']
                 stats['new_christians'] = stats['first_time_christians'] + stats['rededications']
                 
                 # Debug logging for kids totals
@@ -7172,6 +7173,9 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 stats['avg_attendance'] = stats['total_attendance'] / entry_count
                 stats['avg_kids_attendance'] = stats['kids_attendance'] / entry_count
                 stats['avg_kids_leaders'] = stats['kids_leaders'] / entry_count
+                # FIX: Include youth leaders in youth_attendance for weekend totals
+                # Store both: youth_attendance (with leaders) for weekend total, and separate youth_leaders for display
+                stats['youth_attendance'] = stats['youth_attendance'] + stats['youth_leaders']  # Include leaders for weekend total
                 stats['avg_youth_attendance'] = stats['youth_attendance'] / entry_count
                 stats['avg_tithe'] = stats['tithe'] / entry_count
                 stats['avg_connect_groups'] = stats['connect_groups'] / entry_count
