@@ -676,9 +676,10 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             <div 
               className="group relative bg-gradient-to-br from-orange-500/20 to-orange-600/20 backdrop-blur-sm rounded-2xl p-6 border border-orange-400/20 shadow-2xl hover:shadow-orange-500/25 transition-all duration-500 hover:scale-105 cursor-pointer"
               onClick={() => openModal('new-people', { 
-                total: data.stats?.new_people || 0,
+                total: data.stats?.new_people || 0,  // Now includes youth_new_people from backend
                 firstTime: data.stats?.first_time_visitors || 0,
                 visiting: data.stats?.visitors || 0,
+                youthNP: data.stats?.youth_new_people || 0,  // Add youth NP for display
                 infoGathered: data.stats?.information_gathered || 0,
                 packsOut: data.stats?.packs_out || 0,
                 campus: campusName 
@@ -1428,7 +1429,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                     <div className="text-4xl font-bold text-orange-400 mb-2">
                       {modalData.total.toLocaleString()}
                     </div>
-                    <p className="text-white/60">Total new people this period</p>
+                    <p className="text-white/60">Total new people this period (includes Youth NP)</p>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1460,6 +1461,15 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                       </div>
                       <p className="text-white/60">New people packs handed out</p>
                     </div>
+                    {modalData.youthNP !== undefined && modalData.youthNP > 0 && (
+                      <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+                        <h3 className="text-xl font-bold text-white mb-4">Youth New People</h3>
+                        <div className="text-4xl font-bold text-indigo-400 mb-2">
+                          {modalData.youthNP.toLocaleString()}
+                        </div>
+                        <p className="text-white/60">New youth this period (included in total)</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1535,7 +1545,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                     <div className="text-4xl font-bold text-indigo-400 mb-2">
                       {modalData.attendance.toLocaleString()}
                     </div>
-                    <p className="text-white/60">Average youth attendance this period</p>
+                    <p className="text-white/60">Total youth + leaders (average per service)</p>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1544,7 +1554,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                       <div className="text-4xl font-bold text-indigo-400 mb-2">
                         {modalData.attendance.toLocaleString()}
                       </div>
-                      <p className="text-white/60">Average young people in attendance</p>
+                      <p className="text-white/60">Total youth + leaders (average per service)</p>
                     </div>
                     <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                       <h3 className="text-xl font-bold text-white mb-4">Youth Leaders</h3>
