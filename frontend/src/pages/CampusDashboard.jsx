@@ -474,6 +474,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                   onChange={(e) => setDateFilter(e.target.value)}
                   className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400/50 transition-all duration-300"
                 >
+                  <option value="last_weekend" className="bg-slate-800 text-white">Last Weekend</option>
                   <option value="last_7_days" className="bg-slate-800 text-white">Last 7 Days</option>
                   <option value="last_30_days" className="bg-slate-800 text-white">Last 30 Days</option>
                   <option value="last_3_months" className="bg-slate-800 text-white">Last 3 Months</option>
