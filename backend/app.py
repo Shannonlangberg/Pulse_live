@@ -13037,6 +13037,7 @@ def get_database_viewer():
             return jsonify({"error": "Access denied - insufficient permissions"}), 403
         
         # Get filters from query params
+        region_filter = request.args.get('region', '')
         campus_filter = request.args.get('campus', '')
         start_date_str = request.args.get('start_date', '')
         end_date_str = request.args.get('end_date', '')
@@ -13050,13 +13051,21 @@ def get_database_viewer():
             print(f"[DATABASE_VIEWER] Campus pastor detected - forcing filter to their campus: {campus_filter}")
             logger.info(f"[DATABASE_VIEWER] Campus pastor detected - forcing filter to their campus: {campus_filter}")
         
-        print(f"[DATABASE_VIEWER] Fetching records with filters: campus={campus_filter}, start={start_date_str}, end={end_date_str}, limit={limit}")
-        logger.info(f"[DATABASE_VIEWER] Fetching records with filters: campus={campus_filter}, start={start_date_str}, end={end_date_str}, limit={limit}")
+        print(f"[DATABASE_VIEWER] Fetching records with filters: region={region_filter}, campus={campus_filter}, start={start_date_str}, end={end_date_str}, limit={limit}")
+        logger.info(f"[DATABASE_VIEWER] Fetching records with filters: region={region_filter}, campus={campus_filter}, start={start_date_str}, end={end_date_str}, limit={limit}")
         
         # Build query
         query = AttendanceRecord.query
         
         # Apply filters
+        if region_filter:
+            region_obj = Region.query.filter_by(code=region_filter, active=True).first()
+            if region_obj:
+                query = query.filter(AttendanceRecord.region_id == region_obj.id)
+            else:
+                print(f"[DATABASE_VIEWER] Warning: Region not found for code: {region_filter}")
+                logger.warning(f"[DATABASE_VIEWER] Warning: Region not found for code: {region_filter}")
+        
         if campus_filter:
             campus_obj = CampusV2.query.filter_by(campus_id=campus_filter).first()
             if campus_obj:
@@ -13184,6 +13193,7 @@ def export_database_viewer_csv():
             return jsonify({"error": "Access denied - insufficient permissions"}), 403
         
         # Get filters from query params (same as database_viewer)
+        region_filter = request.args.get('region', '')
         campus_filter = request.args.get('campus', '')
         start_date_str = request.args.get('start_date', '')
         end_date_str = request.args.get('end_date', '')
@@ -13198,6 +13208,14 @@ def export_database_viewer_csv():
         
         # Build query (same logic as database_viewer)
         query = AttendanceRecord.query
+        
+        if region_filter:
+            region_obj = Region.query.filter_by(code=region_filter, active=True).first()
+            if region_obj:
+                query = query.filter(AttendanceRecord.region_id == region_obj.id)
+            else:
+                print(f"[EXPORT_CSV] Warning: Region not found for code: {region_filter}")
+                logger.warning(f"[EXPORT_CSV] Warning: Region not found for code: {region_filter}")
         
         if campus_filter:
             campus_obj = CampusV2.query.filter_by(campus_id=campus_filter).first()

@@ -8,9 +8,11 @@ const DatabaseViewer = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [campusFilter, setCampusFilter] = useState('');
+  const [regionFilter, setRegionFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [campuses, setCampuses] = useState([]);
+  const [regions, setRegions] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -49,7 +51,7 @@ const DatabaseViewer = () => {
     fetchSession();
   }, []);
 
-  // Load campuses for filter
+  // Load campuses and regions for filter
   useEffect(() => {
     fetch('/api/v2/campuses', { credentials: 'include' })
       .then(res => res.json())
@@ -59,6 +61,15 @@ const DatabaseViewer = () => {
         }
       })
       .catch(err => console.error('Error loading campuses:', err));
+    
+    fetch('/api/v2/regions', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.regions) {
+          setRegions(data.regions.filter(r => r.active));
+        }
+      })
+      .catch(err => console.error('Error loading regions:', err));
   }, []);
 
   // Load attendance database records
@@ -131,7 +142,7 @@ const DatabaseViewer = () => {
     } else if (activeTab === 'finance') {
       loadFinanceRecords();
     }
-  }, [activeTab]);
+  }, [activeTab, regionFilter, campusFilter, startDate, endDate]);
 
   const handleRefresh = () => {
     if (activeTab === 'attendance') {
@@ -386,7 +397,23 @@ const DatabaseViewer = () => {
         {/* Filters */}
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mb-6 border border-white/20">
           <h3 className="text-white font-semibold mb-4">Filters</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div>
+              <label className="text-slate-300 text-sm mb-2 block">Region</label>
+              <select
+                value={regionFilter}
+                onChange={(e) => setRegionFilter(e.target.value)}
+                className="w-full bg-slate-800 text-white border border-slate-600 rounded-lg px-4 py-2"
+              >
+                <option value="">All Regions</option>
+                {regions.map(region => (
+                  <option key={region.id} value={region.code}>
+                    {region.display_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
             <div>
               <label className="text-slate-300 text-sm mb-2 block">Campus</label>
               <select
