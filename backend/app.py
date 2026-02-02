@@ -14977,7 +14977,12 @@ def get_regional_dashboard_data():
         total_kids = sum(r.kids_attendance or 0 for r in records)
         total_kids_leaders = sum(r.kids_leaders or 0 for r in records)
         total_youth = sum(r.youth_attendance or 0 for r in records)
-        total_salvations = sum((r.first_time_christians or 0) + (r.rededications or 0) for r in records)
+        # Salvations - break down by type
+        total_adult_salvations = sum(r.first_time_christians or 0 for r in records)
+        total_rededications = sum(r.rededications or 0 for r in records)
+        total_youth_salvations = sum(r.youth_salvations or 0 for r in records)
+        total_kids_salvations = sum(r.new_kids_salvations or 0 for r in records)
+        total_salvations = total_adult_salvations + total_rededications + total_youth_salvations + total_kids_salvations
         total_baptisms = sum(r.baptisms or 0 for r in records)
         total_visitors = sum(r.first_time_visitors or 0 for r in records)
         total_giving = sum(float(r.tithe or 0) for r in records)
@@ -15163,6 +15168,10 @@ def get_regional_dashboard_data():
                 'total_youth': total_youth,
                 'avg_youth': round(avg_youth, 1),
                 'total_salvations': total_salvations,
+                'first_time_christians': total_adult_salvations,  # Adult salvations
+                'rededications': total_rededications,
+                'youth_salvations': total_youth_salvations,  # Youth salvations
+                'new_kids_salvations': total_kids_salvations,  # Kids salvations
                 'total_baptisms': total_baptisms,
                 'total_visitors': total_visitors,
                 'total_giving': round(total_giving, 2),

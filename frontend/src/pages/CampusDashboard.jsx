@@ -154,10 +154,10 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             avg_youth_attendance: result.stats?.avg_youth || 0,  // Average for single campuses
             avg_connect_groups: 0,
             avg_dream_team: 0,
-            first_time_christians: result.stats?.total_salvations || 0,
-            youth_salvations: 0,
-            new_kids_salvations: 0,
-            rededications: 0,
+            first_time_christians: result.stats?.first_time_christians || 0,  // Adult salvations
+            youth_salvations: result.stats?.youth_salvations || 0,  // Youth salvations
+            new_kids_salvations: result.stats?.new_kids_salvations || 0,  // Kids salvations
+            rededications: result.stats?.rededications || 0,  // Rededications
             baptisms: result.stats?.total_baptisms || 0,
             child_dedications: 0,
             new_people: result.stats?.total_visitors || 0,
@@ -235,7 +235,10 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
         avg_kids_leaders: result.stats?.avg_kids_leaders || 0,
         youth_attendance: result.stats?.total_youth || 0,  // Total youth for rollups
         avg_youth_attendance: result.stats?.avg_youth || 0,  // Average for single campuses
-        first_time_christians: result.stats?.total_salvations || 0,
+        first_time_christians: result.stats?.first_time_christians || 0,  // Adult salvations
+        youth_salvations: result.stats?.youth_salvations || 0,  // Youth salvations
+        new_kids_salvations: result.stats?.new_kids_salvations || 0,  // Kids salvations
+        rededications: result.stats?.rededications || 0,  // Rededications
         baptisms: result.stats?.total_baptisms || 0,
         new_people: result.stats?.total_visitors || 0,
         first_time_visitors: result.stats?.total_visitors || 0,
