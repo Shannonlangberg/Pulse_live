@@ -11274,7 +11274,7 @@ def get_stats():
                     if " | " in notes_text:
                         encouragements.extend(notes_text.split(" | "))
                 else:
-                        encouragements.append(notes_text)
+                    encouragements.append(notes_text)
                 
                 logger.info(f"[STATS] Returning stats for {campus_filter} from database: {stats_for_frontend}")
             return jsonify({
