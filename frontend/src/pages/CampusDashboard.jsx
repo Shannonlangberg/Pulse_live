@@ -740,6 +740,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 leaders: data.stats?.youth_leaders || 0,
                 salvations: data.stats?.youth_salvations || 0,
                 newPeople: data.stats?.youth_new_people || 0,
+                saints: saintsAttendance,
                 campus: campusName 
               })}
             >
@@ -1565,6 +1566,13 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                         {modalData.newPeople.toLocaleString()}
                       </div>
                       <p className="text-white/60">Total new youth this period</p>
+                    </div>
+                    <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+                      <h3 className="text-xl font-bold text-white mb-4">Saints</h3>
+                      <div className="text-4xl font-bold text-amber-400 mb-2">
+                        {modalData.saints?.toLocaleString() || 0}
+                      </div>
+                      <p className="text-white/60">Average saints attendance this period</p>
                     </div>
                   </div>
                 </div>

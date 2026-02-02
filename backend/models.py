@@ -3329,6 +3329,9 @@ class AttendanceRecord(db.Model):
     rededications = db.Column(db.Integer, default=0)
     salvation_cards_returned = db.Column(db.Integer, default=0)
     
+    # Saints (senior/elderly ministry attendance)
+    saints = db.Column(db.Integer, default=0)
+    
     # Milestones
     baptisms = db.Column(db.Integer, default=0)
     child_dedications = db.Column(db.Integer, default=0)

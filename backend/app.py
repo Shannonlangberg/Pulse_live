@@ -980,6 +980,7 @@ def save_attendance_record(data, user_id=None):
         # CALCULATE Total Attendance = Service Times + Saints + Kids + Kids Leaders (exclude Youth for Sundays)
         adult_total = sum(adult_breakdown.values()) if adult_breakdown else 0
         saints = int(data.get('Saints', 0) or 0)
+        record.saints = saints  # Store saints separately in database
         total_attendance_calculated = adult_total + saints + record.kids_attendance + record.kids_leaders
         record.total_attendance = total_attendance_calculated
         
@@ -11272,7 +11273,7 @@ def get_stats():
                     "stats": stats_for_frontend,
                     "encouragements": encouragements
                 })
-        else:
+            else:
                 # No campus filter - return the 5 most recent records overall
                 recent_records = AttendanceRecord.query.order_by(
                     AttendanceRecord.date.desc()
@@ -11282,7 +11283,7 @@ def get_stats():
                     logger.info("[STATS] No records found in database")
                     return jsonify({"stats": [], "encouragements": []})
                 
-            stats_for_frontend = []
+                stats_for_frontend = []
                 encouragements = []
                 
                 for record in recent_records:
@@ -13124,6 +13125,7 @@ def get_database_viewer():
                 'connect_groups': record.connect_groups,
                 'dream_team': record.dream_team,
                 'packs_out': record.packs_out,
+                'saints': record.saints or 0,
                 'tithe': float(record.tithe) if record.tithe else 0.0,
                 'synced_to_sheets': record.synced_to_sheets,
                 'created_at': record.created_at.isoformat() if record.created_at else None,
@@ -14047,6 +14049,7 @@ def save_attendance_record(data, user_id=None):
         # CALCULATE Total Attendance = Service Times + Saints + Kids + Kids Leaders (exclude Youth for Sundays)
         adult_total = sum(adult_breakdown.values()) if adult_breakdown else 0
         saints = int(data.get('Saints', 0) or 0)
+        record.saints = saints  # Store saints separately in database
         total_attendance_calculated = adult_total + saints + record.kids_attendance + record.kids_leaders
         record.total_attendance = total_attendance_calculated
         
