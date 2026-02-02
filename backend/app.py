@@ -14988,19 +14988,51 @@ def get_regional_dashboard_data():
             print(f"[REGIONAL_DASHBOARD] Campus: {campus.display_name} (ID: {campus.id}, campus_id: {campus.campus_id})")
         
         # Aggregate statistics
-        total_attendance = sum(r.total_attendance or 0 for r in records)
+        # First, sum raw values from database
+        raw_total_attendance = sum(r.total_attendance or 0 for r in records)
         total_people_in_campus = sum(r.total_people_in_campus or 0 for r in records)
         total_kids = sum(r.kids_attendance or 0 for r in records)
         total_kids_leaders = sum(r.kids_leaders or 0 for r in records)
         total_youth = sum(r.youth_attendance or 0 for r in records)
         
+        # CRITICAL FIX: Ensure kids are included in total_attendance for Sunday Attendance
+        # Some older records might not have kids included in total_attendance
+        # Sunday Attendance = Adults + Saints + Kids + Kids Leaders (but NOT Youth)
+        # 
+        # Strategy: Recalculate Sunday Attendance by ensuring kids are always included
+        # For each record, calculate: adults+saints = max(0, total_attendance - kids - kids_leaders)
+        # This handles both cases:
+        #   - If kids are included: we subtract them to get adults+saints, then add back
+        #   - If kids are NOT included: total_attendance < kids, so max(0, ...) = 0, and we use total_attendance as adults+saints
+        adults_and_saints_total = 0
+        records_without_kids = 0
+        for r in records:
+            record_kids = (r.kids_attendance or 0) + (r.kids_leaders or 0)
+            record_total = r.total_attendance or 0
+            # Calculate adults+saints
+            if record_total < record_kids:
+                # Kids are definitely NOT included (impossible for total < kids if kids are included)
+                adults_and_saints_total += record_total
+                records_without_kids += 1
+            else:
+                # Kids might be included, subtract to get adults+saints
+                # If kids are included: correct calculation
+                # If kids are NOT included but total > kids: we'll undercount slightly, but it's safer
+                adults_and_saints_total += max(0, record_total - record_kids)
+        
+        # Now add back total kids to get correct Sunday Attendance
+        total_attendance = adults_and_saints_total + total_kids + total_kids_leaders
+        
         # Debug: Show totals breakdown
         print(f"[REGIONAL_DASHBOARD] Aggregated totals:")
-        print(f"[REGIONAL_DASHBOARD]   total_attendance: {total_attendance}")
+        print(f"[REGIONAL_DASHBOARD]   raw_total_attendance (from DB): {raw_total_attendance}")
         print(f"[REGIONAL_DASHBOARD]   total_kids: {total_kids}")
         print(f"[REGIONAL_DASHBOARD]   total_kids_leaders: {total_kids_leaders}")
+        print(f"[REGIONAL_DASHBOARD]   adults_and_saints_total: {adults_and_saints_total}")
+        print(f"[REGIONAL_DASHBOARD]   total_attendance (corrected with kids): {total_attendance}")
         print(f"[REGIONAL_DASHBOARD]   total_youth: {total_youth}")
-        print(f"[REGIONAL_DASHBOARD]   Adults (attendance - kids - kids_leaders): {total_attendance - total_kids - total_kids_leaders}")
+        print(f"[REGIONAL_DASHBOARD]   Records without kids in total_attendance: {records_without_kids} of {len(records)}")
+        print(f"[REGIONAL_DASHBOARD]   Difference (kids added if missing): {total_attendance - raw_total_attendance}")
         # Salvations - break down by type
         total_adult_salvations = sum(r.first_time_christians or 0 for r in records)
         total_rededications = sum(r.rededications or 0 for r in records)
@@ -15087,7 +15119,22 @@ def get_regional_dashboard_data():
                     'week_end': week_start + timedelta(days=6),
                     'dates': []  # Track which dates are in this week for debugging
                 }
-            ytd_weekly[week_key]['attendance'] += record.total_attendance or 0
+            
+            # Ensure kids are included in attendance for weekly aggregation
+            # Recalculate Sunday Attendance = (adults+saints) + (kids + kids_leaders)
+            record_kids = (record.kids_attendance or 0) + (record.kids_leaders or 0)
+            record_total = record.total_attendance or 0
+            # Calculate adults+saints
+            if record_total < record_kids:
+                # Kids are definitely NOT included
+                adults_and_saints = record_total
+            else:
+                # Kids might be included, subtract to get adults+saints
+                adults_and_saints = max(0, record_total - record_kids)
+            # Sunday Attendance = adults+saints + kids (always include kids)
+            corrected_attendance = adults_and_saints + record_kids
+            
+            ytd_weekly[week_key]['attendance'] += corrected_attendance
             ytd_weekly[week_key]['new_people'] += (record.first_time_visitors or 0) + (record.visitors or 0)
             ytd_weekly[week_key]['new_christians'] += (record.first_time_christians or 0) + (record.rededications or 0)
             ytd_weekly[week_key]['count'] += 1
