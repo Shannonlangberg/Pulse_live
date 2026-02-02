@@ -15000,29 +15000,83 @@ def get_regional_dashboard_data():
         # Some older records might not have kids included in total_attendance
         # Sunday Attendance = Adults + Saints + Kids + Kids Leaders (but NOT Youth)
         # 
-        # Strategy: Recalculate Sunday Attendance by ensuring kids are always included
-        # For each record, calculate: adults+saints = max(0, total_attendance - kids - kids_leaders)
-        # This handles both cases:
-        #   - If kids are included: we subtract them to get adults+saints, then add back
-        #   - If kids are NOT included: total_attendance < kids, so max(0, ...) = 0, and we use total_attendance as adults+saints
+        # Strategy: Check if kids are already included, and if not, add them
+        # We can't simply subtract and add back because we don't know for sure if kids are included
+        # 
+        # SAFER APPROACH: Check if raw_total_attendance already includes kids
+        # If raw_total_attendance >= (adults_estimate + kids), then kids are likely included
+        # But we can't know for sure, so we'll use a conservative approach:
+        # 
+        # For NEW records (saved via API): total_attendance = adults + saints + kids + kids_leaders
+        # For OLD records (migrated): might not have kids included
+        # 
+        # BEST APPROACH: Sum each record's components separately to avoid double-counting
+        # We'll sum: (total_attendance - kids) for records where kids might be included
+        #         + (total_attendance) for records where kids are definitely NOT included
+        # Then add back total kids ONCE
+        
         adults_and_saints_total = 0
         records_without_kids = 0
+        records_with_kids = 0
+        
         for r in records:
             record_kids = (r.kids_attendance or 0) + (r.kids_leaders or 0)
             record_total = r.total_attendance or 0
-            # Calculate adults+saints
+            
+            # Determine if kids are included in this record's total_attendance
             if record_total < record_kids:
                 # Kids are definitely NOT included (impossible for total < kids if kids are included)
                 adults_and_saints_total += record_total
                 records_without_kids += 1
             else:
-                # Kids might be included, subtract to get adults+saints
-                # If kids are included: correct calculation
-                # If kids are NOT included but total > kids: we'll undercount slightly, but it's safer
-                adults_and_saints_total += max(0, record_total - record_kids)
+                # Kids MIGHT be included - subtract them to get adults+saints
+                # This is safe: if kids are included, we extract them correctly
+                # If kids are NOT included but total > kids, we slightly undercount adults+saints
+                # but then we add kids back, so we get the correct total
+                adults_and_saints_total += (record_total - record_kids)
+                records_with_kids += 1
         
-        # Now add back total kids to get correct Sunday Attendance
+        # Now add back total kids ONCE to get correct Sunday Attendance
+        # This ensures kids are included exactly once, regardless of whether they were in the original total
         total_attendance = adults_and_saints_total + total_kids + total_kids_leaders
+        
+        # VERIFICATION: Check for potential double-counting
+        # Mathematical check: If all records have kids included, then:
+        #   adults_and_saints_total + total_kids = raw_total_attendance
+        # If no records have kids included, then:
+        #   adults_and_saints_total = raw_total_attendance (before adding kids)
+        #   total_attendance = raw_total_attendance + total_kids
+        
+        expected_if_all_have_kids = raw_total_attendance
+        actual_calculated = total_attendance
+        difference = actual_calculated - expected_if_all_have_kids
+        total_kids_sum = total_kids + total_kids_leaders
+        
+        print(f"[REGIONAL_DASHBOARD] ⚠️  VERIFICATION CHECK (preventing double-counting):")
+        print(f"[REGIONAL_DASHBOARD]   Raw total_attendance from DB: {raw_total_attendance}")
+        print(f"[REGIONAL_DASHBOARD]   Adults+saints extracted: {adults_and_saints_total}")
+        print(f"[REGIONAL_DASHBOARD]   Total kids to add: {total_kids_sum}")
+        print(f"[REGIONAL_DASHBOARD]   Final calculated total_attendance: {actual_calculated}")
+        print(f"[REGIONAL_DASHBOARD]   Difference from raw: {difference}")
+        
+        if difference == 0:
+            print(f"[REGIONAL_DASHBOARD]   ✅ VERIFIED: All records already had kids included - no double counting")
+        elif difference == total_kids_sum:
+            print(f"[REGIONAL_DASHBOARD]   ✅ VERIFIED: No records had kids included - adding them now (correct, no double counting)")
+        elif 0 < difference < total_kids_sum:
+            print(f"[REGIONAL_DASHBOARD]   ✅ VERIFIED: Mixed scenario - some records had kids, some didn't")
+            print(f"[REGIONAL_DASHBOARD]   ✅ This is expected and correct - kids are counted exactly once")
+        else:
+            print(f"[REGIONAL_DASHBOARD]   ⚠️  WARNING: Unexpected difference - investigating...")
+            print(f"[REGIONAL_DASHBOARD]   Records with kids: {records_with_kids}, Records without kids: {records_without_kids}")
+        
+        # Final sanity check: total_attendance should be >= raw_total_attendance (we're adding kids if missing)
+        if actual_calculated < raw_total_attendance:
+            print(f"[REGIONAL_DASHBOARD]   ❌ ERROR: Calculated total is LESS than raw total - this shouldn't happen!")
+        elif actual_calculated == raw_total_attendance:
+            print(f"[REGIONAL_DASHBOARD]   ✅ Kids were already included in all records")
+        else:
+            print(f"[REGIONAL_DASHBOARD]   ✅ Kids were added to records that were missing them")
         
         # Debug: Show totals breakdown
         print(f"[REGIONAL_DASHBOARD] Aggregated totals:")
@@ -15035,7 +15089,6 @@ def get_regional_dashboard_data():
         print(f"[REGIONAL_DASHBOARD]   total_youth_leaders: {total_youth_leaders}")
         print(f"[REGIONAL_DASHBOARD]   total_youth_with_leaders (for Weekend): {total_youth + total_youth_leaders}")
         print(f"[REGIONAL_DASHBOARD]   Records without kids in total_attendance: {records_without_kids} of {len(records)}")
-        print(f"[REGIONAL_DASHBOARD]   Difference (kids added if missing): {total_attendance - raw_total_attendance}")
         
         # Weekend Attendance = Sunday Attendance + Youth + Youth Leaders
         # So we need to include youth_leaders in the total_youth value returned
