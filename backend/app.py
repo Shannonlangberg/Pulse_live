@@ -11222,7 +11222,7 @@ def get_stats():
         
         try:
             # Get most recent record(s) from database
-            if campus_filter:
+        if campus_filter:
                 # Find campus by campus_id (e.g., 'samarinda', 'adelaide_city')
                 campus_obj = CampusV2.query.filter(
                     (CampusV2.campus_id == campus_filter) | 
@@ -11244,7 +11244,7 @@ def get_stats():
                     return jsonify({"stats": {}, "encouragements": []})
                 
                 # Convert database record to frontend format
-                stats_for_frontend = {
+            stats_for_frontend = {
                     'Total Attendance': most_recent.total_attendance or 0,
                     'total_attendance': most_recent.total_attendance or 0,
                     'New People': (most_recent.first_time_visitors or 0) + (most_recent.visitors or 0),
@@ -11259,21 +11259,21 @@ def get_stats():
                     'connect_groups': most_recent.connect_groups or 0
                 }
                 
-                encouragements = []
+            encouragements = []
                 if most_recent.notes:
                     # Parse notes for encouragements (if stored in notes field)
                     notes_text = most_recent.notes
                     if " | " in notes_text:
                         encouragements.extend(notes_text.split(" | "))
-                    else:
+                else:
                         encouragements.append(notes_text)
                 
                 logger.info(f"[STATS] Returning stats for {campus_filter} from database: {stats_for_frontend}")
-                return jsonify({
-                    "stats": stats_for_frontend,
-                    "encouragements": encouragements
-                })
-            else:
+            return jsonify({
+                "stats": stats_for_frontend,
+                "encouragements": encouragements
+            })
+        else:
                 # No campus filter - return the 5 most recent records overall
                 recent_records = AttendanceRecord.query.order_by(
                     AttendanceRecord.date.desc()
@@ -11283,7 +11283,7 @@ def get_stats():
                     logger.info("[STATS] No records found in database")
                     return jsonify({"stats": [], "encouragements": []})
                 
-                stats_for_frontend = []
+            stats_for_frontend = []
                 encouragements = []
                 
                 for record in recent_records:
@@ -11317,6 +11317,9 @@ def get_stats():
                 "stats": stats_for_frontend,
                 "encouragements": encouragements
             })
+        except Exception as e:
+            logger.error(f"[STATS] Error retrieving stats from database: {e}")
+            return jsonify({"stats": {}, "encouragements": [], "error": str(e)}), 500
                 
         except Exception as db_error:
             logger.error(f"[STATS] Database error: {db_error}")
