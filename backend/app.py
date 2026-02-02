@@ -11284,12 +11284,12 @@ def get_stats():
         else:
             # No campus filter - return the 5 most recent records overall
             recent_records = AttendanceRecord.query.order_by(
-                    AttendanceRecord.date.desc()
-                ).limit(5).all()
+                AttendanceRecord.date.desc()
+            ).limit(5).all()
                 
-                if not recent_records:
-                    logger.info("[STATS] No records found in database")
-                    return jsonify({"stats": [], "encouragements": []})
+            if not recent_records:
+                logger.info("[STATS] No records found in database")
+                return jsonify({"stats": [], "encouragements": []})
                 
             stats_for_frontend = []
                 encouragements = []
