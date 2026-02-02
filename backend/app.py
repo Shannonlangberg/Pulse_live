@@ -11259,13 +11259,13 @@ def get_stats():
                     'connect_groups': most_recent.connect_groups or 0
                 }
                 
-            encouragements = []
+                encouragements = []
                 if most_recent.notes:
                     # Parse notes for encouragements (if stored in notes field)
                     notes_text = most_recent.notes
                     if " | " in notes_text:
                         encouragements.extend(notes_text.split(" | "))
-                else:
+                    else:
                         encouragements.append(notes_text)
                 
                 logger.info(f"[STATS] Returning stats for {campus_filter} from database: {stats_for_frontend}")
