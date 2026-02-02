@@ -11243,7 +11243,7 @@ def get_stats():
                     return jsonify({"stats": {}, "encouragements": []})
                 
                 # Convert database record to frontend format
-            stats_for_frontend = {
+                stats_for_frontend = {
                     'Total Attendance': most_recent.total_attendance or 0,
                     'total_attendance': most_recent.total_attendance or 0,
                     'New People': (most_recent.first_time_visitors or 0) + (most_recent.visitors or 0),
@@ -11258,20 +11258,20 @@ def get_stats():
                     'connect_groups': most_recent.connect_groups or 0
                 }
                 
-            encouragements = []
+                encouragements = []
                 if most_recent.notes:
                     # Parse notes for encouragements (if stored in notes field)
                     notes_text = most_recent.notes
                     if " | " in notes_text:
                         encouragements.extend(notes_text.split(" | "))
-                else:
+                    else:
                         encouragements.append(notes_text)
                 
                 logger.info(f"[STATS] Returning stats for {campus_filter} from database: {stats_for_frontend}")
-            return jsonify({
-                "stats": stats_for_frontend,
-                "encouragements": encouragements
-            })
+                return jsonify({
+                    "stats": stats_for_frontend,
+                    "encouragements": encouragements
+                })
         else:
                 # No campus filter - return the 5 most recent records overall
                 recent_records = AttendanceRecord.query.order_by(
