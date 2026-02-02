@@ -11314,9 +11314,9 @@ def get_stats():
                 
                 logger.info(f"[STATS] Returning {len(recent_records)} stats overall from database (no campus filter)")
                 return jsonify({
-                "stats": stats_for_frontend,
-                "encouragements": encouragements
-            })
+                    "stats": stats_for_frontend,
+                    "encouragements": encouragements
+                })
         except Exception as db_error:
             logger.error(f"[STATS] Database error: {db_error}")
             import traceback
