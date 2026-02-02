@@ -153,13 +153,14 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             youth_attendance: result.stats?.total_youth || 0,  // Total youth for rollups
             avg_youth_attendance: result.stats?.avg_youth || 0,  // Average for single campuses
             avg_connect_groups: 0,
-            avg_dream_team: 0,
+            avg_dream_team: result.stats?.avg_dream_team || 0,
+            dream_team: result.stats?.total_dream_team || 0,  // Total dream team for regional
             first_time_christians: result.stats?.first_time_christians || 0,  // Adult salvations
             youth_salvations: result.stats?.youth_salvations || 0,  // Youth salvations
             new_kids_salvations: result.stats?.new_kids_salvations || 0,  // Kids salvations
             rededications: result.stats?.rededications || 0,  // Rededications
             baptisms: result.stats?.total_baptisms || 0,
-            child_dedications: 0,
+            child_dedications: result.stats?.total_child_dedications || 0,
             new_people: result.stats?.total_visitors || 0,
             first_time_visitors: result.stats?.total_visitors || 0,
             visitors: 0,
@@ -533,7 +534,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             <div className="w-1 h-12 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full"></div>
             <div>
               <h2 className="text-3xl font-bold text-white">
-                Campus Overview
+                {isRollup ? 'Ministry Overview' : 'Campus Overview'}
               </h2>
               <p className="text-white/60 text-lg">
                 {isRollup ? 'All campuses combined' : `${campusName} ministry metrics`}
@@ -542,32 +543,48 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {/* Campus Overview */}
+            {/* Campus/Ministry Overview */}
             <div 
               className="group relative bg-gradient-to-br from-[#62B4FF]/20 to-[#5D1FEC]/20 backdrop-blur-sm rounded-2xl p-6 border border-[#62B4FF]/20 shadow-2xl hover:shadow-[#62B4FF]/25 transition-all duration-500 hover:scale-105 cursor-pointer"
               onClick={() => openModal('campus-overview', { 
-                total: totalPeople,
-                dreamTeam: Math.round(data.stats?.avg_dream_team || 0),
+                total: isRollup ? (data.stats?.dream_team || 0) : totalPeople,
+                dreamTeam: isRollup ? (data.stats?.dream_team || 0) : Math.round(data.stats?.avg_dream_team || 0),
                 baptisms: data.stats?.baptisms || 0,
                 childDedications: data.stats?.child_dedications || 0,
-                campus: campusName 
+                campus: campusName,
+                isRollup: isRollup
               })}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-[#62B4FF]/10 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <div className="relative">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 bg-[#62B4FF]/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                    <span className="text-2xl">🏢</span>
+                    <span className="text-2xl">{isRollup ? '⛪' : '🏢'}</span>
                   </div>
                   <div className="text-[#62B4FF] text-sm font-semibold">Overview</div>
                 </div>
-                <h3 className="text-white/80 text-sm font-medium mb-2">Campus Overview</h3>
-                <div className="text-4xl font-bold text-white mb-2">
-                  {Math.round(totalPeople).toLocaleString()}
-                </div>
-                <p className="text-[#62B4FF]/80 text-sm">
-                  Average registered people
-                </p>
+                <h3 className="text-white/80 text-sm font-medium mb-2">
+                  {isRollup ? 'Ministry Overview' : 'Campus Overview'}
+                </h3>
+                {isRollup ? (
+                  <>
+                    <div className="text-4xl font-bold text-white mb-2">
+                      {(data.stats?.dream_team || 0).toLocaleString()}
+                    </div>
+                    <p className="text-[#62B4FF]/80 text-sm">
+                      People served (Dream Team)
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-4xl font-bold text-white mb-2">
+                      {Math.round(totalPeople).toLocaleString()}
+                    </div>
+                    <p className="text-[#62B4FF]/80 text-sm">
+                      Average registered people
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1149,11 +1166,24 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
               {modalType === 'campus-overview' && (
                 <div className="space-y-6">
                   <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
-                    <h3 className="text-xl font-bold text-white mb-4">Campus Overview</h3>
-                    <div className="text-4xl font-bold text-[#62B4FF] mb-2">
-                      {modalData.total.toLocaleString()}
-                    </div>
-                    <p className="text-white/60">Total on database in {modalData.campus}</p>
+                    <h3 className="text-xl font-bold text-white mb-4">
+                      {modalData.isRollup ? 'Ministry Overview' : 'Campus Overview'}
+                    </h3>
+                    {modalData.isRollup ? (
+                      <>
+                        <div className="text-4xl font-bold text-[#62B4FF] mb-2">
+                          {modalData.dreamTeam.toLocaleString()}
+                        </div>
+                        <p className="text-white/60">Total people served (Dream Team) across all campuses</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-4xl font-bold text-[#62B4FF] mb-2">
+                          {modalData.total.toLocaleString()}
+                        </div>
+                        <p className="text-white/60">Total on database in {modalData.campus}</p>
+                      </>
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1162,7 +1192,9 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                       <div className="text-4xl font-bold text-[#FF8432] mb-2">
                         {modalData.dreamTeam.toLocaleString()}
                       </div>
-                      <p className="text-white/60">Average volunteers serving this period</p>
+                      <p className="text-white/60">
+                        {modalData.isRollup ? 'Total people served this period' : 'Average volunteers serving this period'}
+                      </p>
                     </div>
                     <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                       <h3 className="text-xl font-bold text-white mb-4">Baptisms</h3>
