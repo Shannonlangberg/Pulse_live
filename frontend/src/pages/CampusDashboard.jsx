@@ -1191,13 +1191,48 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                     </div>
                     <p className="text-white/60">
                       {isRollup 
-                        ? 'Average attendance across all campuses (adults + kids + kids leaders + saints + seniors, excluding youth)' 
+                        ? 'Total attendance across all campuses (adults + kids + kids leaders + saints, excluding youth)' 
                         : 'Average per service: Adults + Kids (incl. leaders) + Saints + Seniors (No Youth - Youth is Friday)'}
                     </p>
                     <p className="text-white/50 text-sm mt-2">
                       Adults: {(modalData?.adults ?? sundayAdultAttendance).toLocaleString()} • Kids (incl. leaders): {(modalData?.kids ?? kidsTotalForSunday).toLocaleString()} • Saints: {(modalData?.saints ?? saintsAttendance).toLocaleString()}{(modalData?.seniors ?? seniorsAttendance) > 0 && ` • Seniors: ${(modalData?.seniors ?? seniorsAttendance).toLocaleString()}`}
                     </p>
                   </div>
+                  
+                  {isRollup && data?.campuses && data.campuses.length > 0 && (
+                    <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+                      <h3 className="text-xl font-bold text-white mb-4">Campus Breakdown</h3>
+                      <div className="space-y-3">
+                        {data.campuses.map((campus, index) => (
+                          <div key={index} className="p-4 bg-white/5 rounded-xl border border-white/10">
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="text-lg font-semibold text-white">{campus.campus_name}</div>
+                              <div className="text-2xl font-bold text-purple-400">
+                                {Math.round(campus.total_attendance || 0).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-white/10">
+                              <div>
+                                <div className="text-xs text-white/50 mb-1">Adults + Saints</div>
+                                <div className="text-sm font-semibold text-blue-400">
+                                  {Math.round((campus.total_attendance || 0) - (campus.total_kids_with_leaders || 0)).toLocaleString()}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-white/50 mb-1">Kids (incl. leaders)</div>
+                                <div className="text-sm font-semibold text-pink-400">
+                                  {Math.round(campus.total_kids_with_leaders || 0).toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-xs text-white/40 mt-2">
+                              {campus.record_count || 0} services
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   {!isRollup && (() => {
                     // Only show service breakdown for individual campuses, not rollup views
@@ -1481,8 +1516,45 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                     <div className="text-4xl font-bold text-pink-400 mb-2">
                       {(modalData.attendance + modalData.leaders).toLocaleString()}
                     </div>
-                    <p className="text-white/60">{modalData.attendance} kids + {modalData.leaders} leaders</p>
+                    <p className="text-white/60">
+                      {isRollup ? `Total kids + leaders across all campuses` : `${modalData.attendance} kids + ${modalData.leaders} leaders`}
+                    </p>
                   </div>
+                  
+                  {isRollup && data?.campuses && data.campuses.length > 0 && (
+                    <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+                      <h3 className="text-xl font-bold text-white mb-4">Campus Breakdown</h3>
+                      <div className="space-y-3">
+                        {data.campuses.map((campus, index) => (
+                          <div key={index} className="p-4 bg-white/5 rounded-xl border border-white/10">
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="text-lg font-semibold text-white">{campus.campus_name}</div>
+                              <div className="text-2xl font-bold text-pink-400">
+                                {Math.round(campus.total_kids_with_leaders || 0).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-white/10">
+                              <div>
+                                <div className="text-xs text-white/50 mb-1">Kids</div>
+                                <div className="text-sm font-semibold text-pink-400">
+                                  {Math.round(campus.total_kids || 0).toLocaleString()}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-white/50 mb-1">Leaders</div>
+                                <div className="text-sm font-semibold text-cyan-400">
+                                  {Math.round(campus.total_kids_leaders || 0).toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-xs text-white/40 mt-2">
+                              {campus.record_count || 0} services
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
@@ -1490,7 +1562,9 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                       <div className="text-4xl font-bold text-pink-400 mb-2">
                         {modalData.attendance.toLocaleString()}
                       </div>
-                      <p className="text-white/60">Average children in attendance</p>
+                      <p className="text-white/60">
+                        {isRollup ? 'Total kids' : 'Average children in attendance'}
+                      </p>
                     </div>
                     <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                       <h3 className="text-xl font-bold text-white mb-4">Kids Leaders</h3>
@@ -1515,7 +1589,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                     </div>
                   </div>
                   
-                  {modalData.kidsServiceBreakdown && Object.keys(modalData.kidsServiceBreakdown).length > 0 && (
+                  {!isRollup && modalData.kidsServiceBreakdown && Object.keys(modalData.kidsServiceBreakdown).length > 0 && (
                     <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                       <h3 className="text-xl font-bold text-white mb-4">Kids by Service Time</h3>
                       <div className="space-y-4">
@@ -1545,8 +1619,45 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                     <div className="text-4xl font-bold text-indigo-400 mb-2">
                       {modalData.attendance.toLocaleString()}
                     </div>
-                    <p className="text-white/60">Total youth + leaders (average per service)</p>
+                    <p className="text-white/60">
+                      {isRollup ? 'Total youth + leaders across all campuses' : 'Total youth + leaders (average per service)'}
+                    </p>
                   </div>
+                  
+                  {isRollup && data?.campuses && data.campuses.length > 0 && (
+                    <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+                      <h3 className="text-xl font-bold text-white mb-4">Campus Breakdown</h3>
+                      <div className="space-y-3">
+                        {data.campuses.map((campus, index) => (
+                          <div key={index} className="p-4 bg-white/5 rounded-xl border border-white/10">
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="text-lg font-semibold text-white">{campus.campus_name}</div>
+                              <div className="text-2xl font-bold text-indigo-400">
+                                {Math.round(campus.total_youth || 0).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-white/10">
+                              <div>
+                                <div className="text-xs text-white/50 mb-1">Youth</div>
+                                <div className="text-sm font-semibold text-indigo-400">
+                                  {Math.round(campus.total_youth_attendance || 0).toLocaleString()}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-white/50 mb-1">Leaders</div>
+                                <div className="text-sm font-semibold text-cyan-400">
+                                  {Math.round(campus.total_youth_leaders || 0).toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-xs text-white/40 mt-2">
+                              {campus.record_count || 0} services
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
@@ -1554,7 +1665,9 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                       <div className="text-4xl font-bold text-indigo-400 mb-2">
                         {modalData.attendance.toLocaleString()}
                       </div>
-                      <p className="text-white/60">Total youth + leaders (average per service)</p>
+                      <p className="text-white/60">
+                        {isRollup ? 'Total youth + leaders' : 'Total youth + leaders (average per service)'}
+                      </p>
                     </div>
                     <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                       <h3 className="text-xl font-bold text-white mb-4">Youth Leaders</h3>

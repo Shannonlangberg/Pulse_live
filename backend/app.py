@@ -15173,20 +15173,62 @@ def get_regional_dashboard_data():
         # Calculate week_count for display purposes (unique dates)
         week_count = max(1, len(set(r.date for r in records)))
         
-        # Get campus breakdown
+        # Get campus breakdown with detailed stats
         campus_stats = []
         for campus in campuses:
             campus_records = [r for r in records if r.campus_id == campus.id]
             if campus_records:
-                campus_total = sum(r.total_attendance or 0 for r in campus_records)
+                # Calculate Sunday attendance (adults + saints + kids + kids_leaders, but NOT youth)
+                campus_total = 0
+                campus_kids = 0
+                campus_kids_leaders = 0
+                campus_youth = 0
+                campus_youth_leaders = 0
+                campus_saints = 0
+                
+                for r in campus_records:
+                    # Calculate Sunday attendance (same logic as regional total)
+                    record_kids = (r.kids_attendance or 0) + (r.kids_leaders or 0)
+                    record_total = r.total_attendance or 0
+                    
+                    # Determine if kids are included in this record's total_attendance
+                    if record_total < record_kids:
+                        # Kids are definitely NOT included
+                        adults_and_saints = record_total
+                    else:
+                        # Kids might be included, subtract to get adults+saints
+                        adults_and_saints = max(0, record_total - record_kids)
+                    
+                    # Sunday Attendance = adults+saints + kids (always include kids)
+                    corrected_attendance = adults_and_saints + record_kids
+                    campus_total += corrected_attendance
+                    
+                    campus_kids += (r.kids_attendance or 0)
+                    campus_kids_leaders += (r.kids_leaders or 0)
+                    campus_youth += (r.youth_attendance or 0)
+                    campus_youth_leaders += (r.youth_leaders or 0)
+                    campus_saints += (r.saints or 0)
+                
                 # Average per service (record), not per unique date
-                campus_avg = campus_total / len(campus_records) if campus_records else 0
+                record_count = len(campus_records)
+                campus_avg = campus_total / record_count if record_count > 0 else 0
                 campus_stats.append({
                     'campus_id': campus.campus_id,
                     'campus_name': campus.display_name,
-                    'total_attendance': campus_total,
+                    'total_attendance': campus_total,  # Sunday attendance (adults + kids + kids_leaders + saints)
                     'avg_attendance': round(campus_avg, 1),
-                    'record_count': len(campus_records)
+                    'total_kids': campus_kids,
+                    'total_kids_leaders': campus_kids_leaders,
+                    'total_kids_with_leaders': campus_kids + campus_kids_leaders,
+                    'avg_kids': round(campus_kids / record_count, 1) if record_count > 0 else 0,
+                    'avg_kids_leaders': round(campus_kids_leaders / record_count, 1) if record_count > 0 else 0,
+                    'total_youth': campus_youth + campus_youth_leaders,  # Youth + leaders
+                    'total_youth_attendance': campus_youth,  # Youth only
+                    'total_youth_leaders': campus_youth_leaders,
+                    'avg_youth': round((campus_youth + campus_youth_leaders) / record_count, 1) if record_count > 0 else 0,
+                    'total_saints': campus_saints,
+                    'avg_saints': round(campus_saints / record_count, 1) if record_count > 0 else 0,
+                    'record_count': record_count
                 })
         
         # Sort campuses by total attendance
