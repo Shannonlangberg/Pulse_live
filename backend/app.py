@@ -11256,7 +11256,7 @@ def get_stats():
                     return jsonify({"stats": {}, "encouragements": []})
                 
                 # Convert database record to frontend format
-            stats_for_frontend = {
+                stats_for_frontend = {
                     'Total Attendance': most_recent.total_attendance or 0,
                     'total_attendance': most_recent.total_attendance or 0,
                     'New People': (most_recent.first_time_visitors or 0) + (most_recent.visitors or 0),
@@ -11277,58 +11277,58 @@ def get_stats():
                     notes_text = most_recent.notes
                     if " | " in notes_text:
                         encouragements.extend(notes_text.split(" | "))
-                else:
-                    encouragements.append(notes_text)
+                    else:
+                        encouragements.append(notes_text)
                 
                 logger.info(f"[STATS] Returning stats for {campus_filter} from database: {stats_for_frontend}")
                 return jsonify({
                     "stats": stats_for_frontend,
                     "encouragements": encouragements
                 })
-        else:
-            # No campus filter - return the 5 most recent records overall
-            recent_records = AttendanceRecord.query.order_by(
-                AttendanceRecord.date.desc()
-            ).limit(5).all()
+            else:
+                # No campus filter - return the 5 most recent records overall
+                recent_records = AttendanceRecord.query.order_by(
+                    AttendanceRecord.date.desc()
+                ).limit(5).all()
                 
-            if not recent_records:
-                logger.info("[STATS] No records found in database")
-                return jsonify({"stats": [], "encouragements": []})
+                if not recent_records:
+                    logger.info("[STATS] No records found in database")
+                    return jsonify({"stats": [], "encouragements": []})
                 
-            stats_for_frontend = []
-            encouragements = []
+                stats_for_frontend = []
+                encouragements = []
                 
-            for record in recent_records:
-                campus_obj = CampusV2.query.get(record.campus_id)
-                campus_name = campus_obj.display_name if campus_obj else 'Unknown'
-                
-                stats_for_frontend.append({
-                    'Total Attendance': record.total_attendance or 0,
-                    'total_attendance': record.total_attendance or 0,
-                    'New People': (record.first_time_visitors or 0) + (record.visitors or 0),
-                    'new_people': (record.first_time_visitors or 0) + (record.visitors or 0),
-                    'New Christians': (record.first_time_christians or 0) + (record.rededications or 0),
-                    'new_christians': (record.first_time_christians or 0) + (record.rededications or 0),
-                    'Youth Attendance': record.youth_attendance or 0,
-                    'youth_attendance': record.youth_attendance or 0,
-                    'Kids Total': record.kids_attendance or 0,
-                    'kids_total': record.kids_attendance or 0,
-                    'Connect Groups': record.connect_groups or 0,
-                    'connect_groups': record.connect_groups or 0,
-                    'Campus': campus_name
-                })
+                for record in recent_records:
+                    campus_obj = CampusV2.query.get(record.campus_id)
+                    campus_name = campus_obj.display_name if campus_obj else 'Unknown'
                     
-                if record.notes:
-                    if " | " in record.notes:
-                        encouragements.extend(record.notes.split(" | "))
-                    else:
-                        encouragements.append(record.notes)
-            
-            logger.info(f"[STATS] Returning {len(recent_records)} stats overall from database (no campus filter)")
-            return jsonify({
-                "stats": stats_for_frontend,
-                "encouragements": encouragements
-            })
+                    stats_for_frontend.append({
+                        'Total Attendance': record.total_attendance or 0,
+                        'total_attendance': record.total_attendance or 0,
+                        'New People': (record.first_time_visitors or 0) + (record.visitors or 0),
+                        'new_people': (record.first_time_visitors or 0) + (record.visitors or 0),
+                        'New Christians': (record.first_time_christians or 0) + (record.rededications or 0),
+                        'new_christians': (record.first_time_christians or 0) + (record.rededications or 0),
+                        'Youth Attendance': record.youth_attendance or 0,
+                        'youth_attendance': record.youth_attendance or 0,
+                        'Kids Total': record.kids_attendance or 0,
+                        'kids_total': record.kids_attendance or 0,
+                        'Connect Groups': record.connect_groups or 0,
+                        'connect_groups': record.connect_groups or 0,
+                        'Campus': campus_name
+                    })
+                    
+                    if record.notes:
+                        if " | " in record.notes:
+                            encouragements.extend(record.notes.split(" | "))
+                        else:
+                            encouragements.append(record.notes)
+                
+                logger.info(f"[STATS] Returning {len(recent_records)} stats overall from database (no campus filter)")
+                return jsonify({
+                    "stats": stats_for_frontend,
+                    "encouragements": encouragements
+                })
         except Exception as db_error:
             logger.error(f"[STATS] Database error: {db_error}")
             import traceback
@@ -15156,6 +15156,9 @@ def get_regional_dashboard_data():
         total_salvations = total_adult_salvations + total_rededications + total_youth_salvations + total_kids_salvations
         total_baptisms = sum(r.baptisms or 0 for r in records)
         total_visitors = sum(r.first_time_visitors or 0 for r in records)
+        total_youth_new_people = sum(r.youth_new_people or 0 for r in records)
+        # FIX: Include youth_new_people in total new_people count
+        total_new_people = total_visitors + sum(r.visitors or 0 for r in records) + total_youth_new_people
         total_giving = sum(float(r.tithe or 0) for r in records)
         
         # Calculate averages - use number of records (services) not unique dates
@@ -15352,6 +15355,7 @@ def get_regional_dashboard_data():
                 'total_kids_leaders': total_kids_leaders,
                 'avg_kids_leaders': round(avg_kids_leaders, 1),
                 'total_youth': total_youth_with_leaders,  # Include youth_leaders for Weekend Attendance
+                'youth_attendance': total_youth_with_leaders,  # Include youth_leaders for frontend consistency
                 'total_youth_attendance': total_youth,  # Youth attendance only (without leaders)
                 'total_youth_leaders': total_youth_leaders,  # Youth leaders separately
                 'avg_youth': round(avg_youth, 1),
@@ -15359,9 +15363,11 @@ def get_regional_dashboard_data():
                 'first_time_christians': total_adult_salvations,  # Adult salvations
                 'rededications': total_rededications,
                 'youth_salvations': total_youth_salvations,  # Youth salvations
+                'youth_new_people': total_youth_new_people,  # Youth new people
                 'new_kids_salvations': total_kids_salvations,  # Kids salvations
                 'total_baptisms': total_baptisms,
                 'total_visitors': total_visitors,
+                'new_people': total_new_people,  # Total new people (includes youth_new_people)
                 'total_giving': round(total_giving, 2),
                 'avg_weekly_giving': round(avg_giving, 2),
                 'week_count': week_count,
