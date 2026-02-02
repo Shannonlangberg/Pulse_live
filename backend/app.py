@@ -11277,7 +11277,7 @@ def get_stats():
                     encouragements.append(notes_text)
                 
                 logger.info(f"[STATS] Returning stats for {campus_filter} from database: {stats_for_frontend}")
-            return jsonify({
+                return jsonify({
                 "stats": stats_for_frontend,
                 "encouragements": encouragements
             })
