@@ -11244,7 +11244,7 @@ def get_stats():
                     return jsonify({"stats": {}, "encouragements": []})
                 
                 # Convert database record to frontend format
-            stats_for_frontend = {
+                stats_for_frontend = {
                     'Total Attendance': most_recent.total_attendance or 0,
                     'total_attendance': most_recent.total_attendance or 0,
                     'New People': (most_recent.first_time_visitors or 0) + (most_recent.visitors or 0),
@@ -11283,7 +11283,7 @@ def get_stats():
                     logger.info("[STATS] No records found in database")
                     return jsonify({"stats": [], "encouragements": []})
                 
-            stats_for_frontend = []
+                stats_for_frontend = []
                 encouragements = []
                 
                 for record in recent_records:
