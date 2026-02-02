@@ -11317,10 +11317,6 @@ def get_stats():
                 "stats": stats_for_frontend,
                 "encouragements": encouragements
             })
-        except Exception as e:
-            logger.error(f"[STATS] Error retrieving stats from database: {e}")
-            return jsonify({"stats": {}, "encouragements": [], "error": str(e)}), 500
-                
         except Exception as db_error:
             logger.error(f"[STATS] Database error: {db_error}")
             import traceback
