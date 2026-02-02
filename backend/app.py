@@ -7301,11 +7301,19 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     # Get data for this week from ytd_weekly
                     week_data = ytd_weekly.get(week_key, {'attendance': 0, 'new_people': 0, 'new_christians': 0, 'count': 0})
                     
-                    # Calculate average per service for this week
-                    count = week_data['count'] or 1
-                    attendance_val = week_data['attendance'] / count if week_data['count'] > 0 else 0
-                    new_people_val = week_data['new_people'] / count if week_data['count'] > 0 else 0
-                    new_christians_val = week_data['new_christians'] / count if week_data['count'] > 0 else 0
+                    # For multi-campus views (australia, all_campuses), show TOTAL attendance (not average)
+                    # For single campus, show average per service
+                    if campus in ['all_campuses', 'australia', 'usa']:
+                        # Regional/multi-campus: show total attendance across all campuses
+                        attendance_val = week_data['attendance'] if week_data['count'] > 0 else 0
+                        new_people_val = week_data['new_people'] if week_data['count'] > 0 else 0
+                        new_christians_val = week_data['new_christians'] if week_data['count'] > 0 else 0
+                    else:
+                        # Single campus: show average per service
+                        count = week_data['count'] or 1
+                        attendance_val = week_data['attendance'] / count if week_data['count'] > 0 else 0
+                        new_people_val = week_data['new_people'] / count if week_data['count'] > 0 else 0
+                        new_christians_val = week_data['new_christians'] / count if week_data['count'] > 0 else 0
                     
                     chart_data['attendance'].append(attendance_val)
                     chart_data['new_people'].append(new_people_val)
@@ -15091,11 +15099,11 @@ def get_regional_dashboard_data():
             # Get data for this week from ytd_weekly
             week_data = ytd_weekly.get(week_key, {'attendance': 0, 'new_people': 0, 'new_christians': 0, 'count': 0})
             
-            # Calculate average per service for this week
-            count = week_data['count'] or 1
-            attendance_val = week_data['attendance'] / count if week_data['count'] > 0 else 0
-            new_people_val = week_data['new_people'] / count if week_data['count'] > 0 else 0
-            new_christians_val = week_data['new_christians'] / count if week_data['count'] > 0 else 0
+            # For regional dashboard, show TOTAL attendance across all campuses (not average)
+            # This gives the true regional attendance for the week
+            attendance_val = week_data['attendance'] if week_data['count'] > 0 else 0
+            new_people_val = week_data['new_people'] if week_data['count'] > 0 else 0
+            new_christians_val = week_data['new_christians'] if week_data['count'] > 0 else 0
             
             chart_data['attendance'].append(attendance_val)
             chart_data['new_people'].append(new_people_val)
