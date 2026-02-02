@@ -513,6 +513,7 @@ const DatabaseViewer = () => {
                         <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Attendance</th>
                         <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Kids</th>
                         <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Youth</th>
+                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Saints</th>
                         <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">New People</th>
                         <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Salvations</th>
                         <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Tithe</th>
@@ -528,6 +529,7 @@ const DatabaseViewer = () => {
                         <td className="px-4 py-3 text-right text-white font-semibold">{record.total_attendance}</td>
                         <td className="px-4 py-3 text-right text-slate-300">{record.kids_attendance}</td>
                         <td className="px-4 py-3 text-right text-slate-300">{record.youth_attendance}</td>
+                        <td className="px-4 py-3 text-right text-slate-300">{record.saints || 0}</td>
                         <td className="px-4 py-3 text-right text-slate-300">
                           {(record.first_time_visitors || 0) + (record.visitors || 0)}
                         </td>
