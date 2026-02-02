@@ -13236,7 +13236,7 @@ def export_database_viewer_csv():
             'Youth Attendance', 'Youth Leaders', 'Youth Salvations', 'Youth New People',
             'First Time Visitors', 'Visitors', 'New People', 'Hands Up', 'Cards Returned',
             'First Time Christians', 'Rededications', 'New Christians', 'Salvation Cards Returned',
-            'Baptisms', 'Child Dedications', 'Connect Groups', 'Dream Team', 'Packs Out',
+            'Saints', 'Baptisms', 'Child Dedications', 'Connect Groups', 'Dream Team', 'Packs Out',
             'Tithe', 'Synced to Sheets', 'Created At', 'Updated At'
         ])
         
@@ -13272,6 +13272,7 @@ def export_database_viewer_csv():
                 record.rededications or 0,
                 new_christians,
                 record.salvation_cards_returned or 0,
+                record.saints or 0,
                 record.baptisms or 0,
                 record.child_dedications or 0,
                 record.connect_groups or 0,
