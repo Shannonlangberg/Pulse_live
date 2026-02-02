@@ -14956,6 +14956,22 @@ def get_regional_dashboard_data():
         print(f"[REGIONAL_DASHBOARD] Date range: {start_date} to {end_date}")
         print(f"[REGIONAL_DASHBOARD] Found {len(records)} attendance records for region_id={region_id}")
         
+        # Debug: Show breakdown by date and campus
+        if records:
+            from collections import defaultdict
+            date_breakdown = defaultdict(lambda: {'count': 0, 'total_attendance': 0, 'campuses': set()})
+            for r in records:
+                date_breakdown[r.date]['count'] += 1
+                date_breakdown[r.date]['total_attendance'] += (r.total_attendance or 0)
+                campus = CampusV2.query.get(r.campus_id)
+                if campus:
+                    date_breakdown[r.date]['campuses'].add(campus.display_name)
+            
+            print(f"[REGIONAL_DASHBOARD] Breakdown by date:")
+            for date_key in sorted(date_breakdown.keys()):
+                info = date_breakdown[date_key]
+                print(f"[REGIONAL_DASHBOARD]   {date_key}: {info['count']} records, total_attendance={info['total_attendance']}, campuses={sorted(info['campuses'])}")
+        
         # If no records, check if ANY records exist in the table
         if len(records) == 0:
             total_records = AttendanceRecord.query.count()
@@ -14977,6 +14993,14 @@ def get_regional_dashboard_data():
         total_kids = sum(r.kids_attendance or 0 for r in records)
         total_kids_leaders = sum(r.kids_leaders or 0 for r in records)
         total_youth = sum(r.youth_attendance or 0 for r in records)
+        
+        # Debug: Show totals breakdown
+        print(f"[REGIONAL_DASHBOARD] Aggregated totals:")
+        print(f"[REGIONAL_DASHBOARD]   total_attendance: {total_attendance}")
+        print(f"[REGIONAL_DASHBOARD]   total_kids: {total_kids}")
+        print(f"[REGIONAL_DASHBOARD]   total_kids_leaders: {total_kids_leaders}")
+        print(f"[REGIONAL_DASHBOARD]   total_youth: {total_youth}")
+        print(f"[REGIONAL_DASHBOARD]   Adults (attendance - kids - kids_leaders): {total_attendance - total_kids - total_kids_leaders}")
         # Salvations - break down by type
         total_adult_salvations = sum(r.first_time_christians or 0 for r in records)
         total_rededications = sum(r.rededications or 0 for r in records)
