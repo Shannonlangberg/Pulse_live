@@ -175,7 +175,8 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
           region: result.region,
           campuses: result.campuses || [],
           date_range: result.date_range || {},
-          week_count: weekCount
+          week_count: weekCount,
+          chart_data: result.chart_data || null  // Include chart_data from regional endpoint
         };
         
         setData(normalizedData);
@@ -242,7 +243,8 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
       service_breakdown: {},
       region: result.region,
       campuses: result.campuses || [],
-      date_range: result.date_range || {}
+      date_range: result.date_range || {},
+      chart_data: result.chart_data || null  // Include chart_data from regional endpoint
     };
   };
 
