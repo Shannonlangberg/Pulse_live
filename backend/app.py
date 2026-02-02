@@ -11301,20 +11301,20 @@ def get_stats():
             for record in recent_records:
                 campus_obj = CampusV2.query.get(record.campus_id)
                 campus_name = campus_obj.display_name if campus_obj else 'Unknown'
-                    
-                    stats_for_frontend.append({
-                        'Total Attendance': record.total_attendance or 0,
-                        'total_attendance': record.total_attendance or 0,
-                        'New People': (record.first_time_visitors or 0) + (record.visitors or 0),
-                        'new_people': (record.first_time_visitors or 0) + (record.visitors or 0),
-                        'New Christians': (record.first_time_christians or 0) + (record.rededications or 0),
-                        'new_christians': (record.first_time_christians or 0) + (record.rededications or 0),
-                        'Youth Attendance': record.youth_attendance or 0,
-                        'youth_attendance': record.youth_attendance or 0,
-                        'Kids Total': record.kids_attendance or 0,
-                        'kids_total': record.kids_attendance or 0,
-                        'Connect Groups': record.connect_groups or 0,
-                        'connect_groups': record.connect_groups or 0,
+                    'Total Attendance': record.total_attendance or 0,
+                    'total_attendance': record.total_attendance or 0,
+                    'New People': (record.first_time_visitors or 0) + (record.visitors or 0),
+                    'new_people': (record.first_time_visitors or 0) + (record.visitors or 0),
+                    'New Christians': (record.first_time_christians or 0) + (record.rededications or 0),
+                    'new_christians': (record.first_time_christians or 0) + (record.rededications or 0),
+                    'Youth Attendance': record.youth_attendance or 0,
+                    'youth_attendance': record.youth_attendance or 0,
+                    'Kids Total': record.kids_attendance or 0,
+                    'kids_total': record.kids_attendance or 0,
+                    'Connect Groups': record.connect_groups or 0,
+                    'connect_groups': record.connect_groups or 0,
+                    'Campus': campus_name
+                    })
                         'Campus': campus_name
                     })
                     
