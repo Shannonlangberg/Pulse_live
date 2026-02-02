@@ -15157,6 +15157,7 @@ def get_regional_dashboard_data():
         total_baptisms = sum(r.baptisms or 0 for r in records)
         total_child_dedications = sum(r.child_dedications or 0 for r in records)
         total_dream_team = sum(r.dream_team or 0 for r in records)
+        total_connect_groups = sum(r.connect_groups or 0 for r in records)
         total_visitors = sum(r.first_time_visitors or 0 for r in records)
         total_youth_new_people = sum(r.youth_new_people or 0 for r in records)
         # FIX: Include youth_new_people in total new_people count
@@ -15230,6 +15231,7 @@ def get_regional_dashboard_data():
                     'avg_youth': round((campus_youth + campus_youth_leaders) / record_count, 1) if record_count > 0 else 0,
                     'total_saints': campus_saints,
                     'avg_saints': round(campus_saints / record_count, 1) if record_count > 0 else 0,
+                    'total_connect_groups': sum(r.connect_groups or 0 for r in campus_records),
                     'record_count': record_count
                 })
         
@@ -15413,6 +15415,8 @@ def get_regional_dashboard_data():
                 'total_child_dedications': total_child_dedications,
                 'total_dream_team': total_dream_team,
                 'avg_dream_team': round(total_dream_team / record_count, 1) if record_count > 0 else 0,
+                'total_connect_groups': total_connect_groups,
+                'avg_connect_groups': round(total_connect_groups / record_count, 1) if record_count > 0 else 0,
                 'total_visitors': total_visitors,
                 'new_people': total_new_people,  # Total new people (includes youth_new_people)
                 'total_giving': round(total_giving, 2),

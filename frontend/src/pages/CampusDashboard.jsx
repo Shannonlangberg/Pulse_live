@@ -152,7 +152,8 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             avg_kids_leaders: result.stats?.avg_kids_leaders || 0,
             youth_attendance: result.stats?.total_youth || 0,  // Total youth for rollups
             avg_youth_attendance: result.stats?.avg_youth || 0,  // Average for single campuses
-            avg_connect_groups: 0,
+            avg_connect_groups: result.stats?.avg_connect_groups || 0,
+            connect_groups: result.stats?.total_connect_groups || 0,  // Total connect groups for regional
             avg_dream_team: result.stats?.avg_dream_team || 0,
             dream_team: result.stats?.total_dream_team || 0,  // Total dream team for regional
             first_time_christians: result.stats?.first_time_christians || 0,  // Adult salvations
@@ -812,10 +813,11 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             <div 
               className="group relative bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 backdrop-blur-sm rounded-2xl p-6 border border-cyan-400/20 shadow-2xl hover:shadow-cyan-500/25 transition-all duration-500 hover:scale-105 cursor-pointer"
               onClick={() => openModal('connect-groups', { 
-                total: Math.round(data.stats?.avg_connect_groups || 0),
+                total: isRollup ? (data.stats?.connect_groups || 0) : Math.round(data.stats?.avg_connect_groups || 0),
                 percentage: connectGroupPercentage,
                 sundayAttendance: sundayAdultAttendance,
-                campus: campusName 
+                campus: campusName,
+                isRollup: isRollup
               })}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -828,8 +830,13 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 </div>
                 <h3 className="text-white/80 text-sm font-medium mb-2">Total Number of Connect Groups</h3>
                 <div className="text-4xl font-bold text-white mb-2">
-                  {Math.round(data.stats?.avg_connect_groups || 0).toLocaleString()}
+                  {isRollup 
+                    ? (data.stats?.connect_groups || 0).toLocaleString()
+                    : Math.round(data.stats?.avg_connect_groups || 0).toLocaleString()}
                 </div>
+                <p className="text-cyan-200/80 text-sm">
+                  {isRollup ? 'Active connect groups' : 'Average per service'}
+                </p>
               </div>
             </div>
           </div>
@@ -1773,6 +1780,46 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                       <p className="text-white/60">Text giving</p>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {modalType === 'connect-groups' && (
+                <div className="space-y-6">
+                  <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+                    <h3 className="text-xl font-bold text-white mb-4">Connect Groups Overview</h3>
+                    <div className="text-4xl font-bold text-cyan-400 mb-2">
+                      {modalData.total.toLocaleString()}
+                    </div>
+                    <p className="text-white/60">
+                      {modalData.isRollup ? 'Total active connect groups across all campuses' : 'Average connect groups per service'}
+                    </p>
+                    {modalData.percentage > 0 && (
+                      <p className="text-white/50 text-sm mt-2">
+                        {modalData.percentage}% of Sunday attendance
+                      </p>
+                    )}
+                  </div>
+                  
+                  {modalData.isRollup && data?.campuses && data.campuses.length > 0 && (
+                    <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+                      <h3 className="text-xl font-bold text-white mb-4">Campus Breakdown</h3>
+                      <div className="space-y-3">
+                        {data.campuses.map((campus, index) => (
+                          <div key={index} className="p-4 bg-white/5 rounded-xl border border-white/10">
+                            <div className="flex justify-between items-center">
+                              <div className="text-lg font-semibold text-white">{campus.campus_name}</div>
+                              <div className="text-2xl font-bold text-cyan-400">
+                                {Math.round(campus.total_connect_groups || 0).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="text-xs text-white/40 mt-2">
+                              {campus.record_count || 0} services
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
