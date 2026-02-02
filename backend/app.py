@@ -11278,12 +11278,12 @@ def get_stats():
                 
                 logger.info(f"[STATS] Returning stats for {campus_filter} from database: {stats_for_frontend}")
                 return jsonify({
-                "stats": stats_for_frontend,
-                "encouragements": encouragements
-            })
+                    "stats": stats_for_frontend,
+                    "encouragements": encouragements
+                })
         else:
-                # No campus filter - return the 5 most recent records overall
-                recent_records = AttendanceRecord.query.order_by(
+            # No campus filter - return the 5 most recent records overall
+            recent_records = AttendanceRecord.query.order_by(
                     AttendanceRecord.date.desc()
                 ).limit(5).all()
                 
