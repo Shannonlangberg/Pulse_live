@@ -11267,7 +11267,7 @@ def get_stats():
                     'connect_groups': most_recent.connect_groups or 0
                 }
                 
-            encouragements = []
+                encouragements = []
                 if most_recent.notes:
                     # Parse notes for encouragements (if stored in notes field)
                     notes_text = most_recent.notes
