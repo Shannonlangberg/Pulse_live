@@ -11309,11 +11309,11 @@ def get_stats():
                     if record.notes:
                         if " | " in record.notes:
                             encouragements.extend(record.notes.split(" | "))
-                    else:
+                        else:
                             encouragements.append(record.notes)
                 
                 logger.info(f"[STATS] Returning {len(recent_records)} stats overall from database (no campus filter)")
-            return jsonify({
+                return jsonify({
                 "stats": stats_for_frontend,
                 "encouragements": encouragements
             })
