@@ -150,7 +150,8 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             avg_kids_attendance: result.stats?.avg_kids || 0,
             kids_leaders: result.stats?.total_kids_leaders || 0,
             avg_kids_leaders: result.stats?.avg_kids_leaders || 0,
-            avg_youth_attendance: result.stats?.avg_youth || 0,
+            youth_attendance: result.stats?.total_youth || 0,  // Total youth for rollups
+            avg_youth_attendance: result.stats?.avg_youth || 0,  // Average for single campuses
             avg_connect_groups: 0,
             avg_dream_team: 0,
             first_time_christians: result.stats?.total_salvations || 0,
@@ -232,7 +233,8 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
         avg_kids_attendance: result.stats?.avg_kids || 0,
         kids_leaders: result.stats?.total_kids_leaders || 0,
         avg_kids_leaders: result.stats?.avg_kids_leaders || 0,
-        avg_youth_attendance: result.stats?.avg_youth || 0,
+        youth_attendance: result.stats?.total_youth || 0,  // Total youth for rollups
+        avg_youth_attendance: result.stats?.avg_youth || 0,  // Average for single campuses
         first_time_christians: result.stats?.total_salvations || 0,
         baptisms: result.stats?.total_baptisms || 0,
         new_people: result.stats?.total_visitors || 0,
@@ -406,7 +408,8 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
   
   // Individual components for modal display (these are for breakdown purposes only, not for calculation)
   const sundayAdultAttendance = Math.round(sundayAttendanceFromServices > 0 ? sundayAttendanceFromServices : (isRollup ? (data.stats?.total_attendance || 0) : (data.stats?.avg_attendance || 0)));
-  const youthAttendance = Math.round(data.stats?.avg_youth_attendance || 0);
+  // For rollup (Australia overview): use total youth_attendance, not average
+  const youthAttendance = Math.round(isRollup ? (data.stats?.youth_attendance || 0) : (data.stats?.avg_youth_attendance || 0));
   // For rollup (Australia overview): use total kids_attendance, not average
   const kidsAttendance = Math.round(isRollup ? (data.stats?.kids_attendance || 0) : (data.stats?.avg_kids_attendance || 0));
   const kidsLeaders = Math.round(isRollup ? (data.stats?.kids_leaders || 0) : (data.stats?.avg_kids_leaders || 0));
