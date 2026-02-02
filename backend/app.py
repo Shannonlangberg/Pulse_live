@@ -6586,9 +6586,9 @@ def calculate_date_range(date_filter, custom_start_date, custom_end_date, now):
     print(f"[DEBUG] calculate_date_range called with: date_filter={date_filter}, custom_start_date={custom_start_date}, custom_end_date={custom_end_date}")
     try:
         if date_filter == 'last_weekend':
-            # Find the most recent weekend (Friday youth, Saturday, Sunday)
-            # Include Friday for youth services, Saturday, and Sunday
-            # Friday is weekday 4, Saturday is 5, Sunday is 6 (Monday=0)
+            # Find the most recent weekend (Friday-Tuesday)
+            # Include Friday (youth night), Saturday, Sunday, Monday, Tuesday (late submissions)
+            # Friday is weekday 4, Saturday is 5, Sunday is 6, Monday is 0, Tuesday is 1
             today = now.date() if isinstance(now, datetime) else now
             days_since_saturday = (today.weekday() + 2) % 7  # Days since last Saturday
             if days_since_saturday == 0:
@@ -6597,9 +6597,11 @@ def calculate_date_range(date_filter, custom_start_date, custom_end_date, now):
             last_saturday = today - timedelta(days=days_since_saturday)
             last_friday = last_saturday - timedelta(days=1)  # Friday (youth night)
             last_sunday = last_saturday + timedelta(days=1)
+            last_monday = last_sunday + timedelta(days=1)  # Monday (late submissions)
+            last_tuesday = last_monday + timedelta(days=1)  # Tuesday (late submissions)
             start_date = datetime.combine(last_friday, datetime.min.time())  # Start from Friday
-            end_date = datetime.combine(last_sunday, datetime.max.time())
-            print(f"[DEBUG] last_weekend: Friday={last_friday}, Saturday={last_saturday}, Sunday={last_sunday}")
+            end_date = datetime.combine(last_tuesday, datetime.max.time())  # End Tuesday night
+            print(f"[DEBUG] last_weekend: Friday={last_friday} to Tuesday={last_tuesday}")
         elif date_filter == 'last_7_days':
             start_date = now - timedelta(days=7)
             end_date = now
@@ -6930,9 +6932,9 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
         now = datetime.now()
         end_date = now.date()
         if date_filter == 'last_weekend':
-            # Find the most recent weekend (Friday youth, Saturday, Sunday)
-            # Include Friday for youth services, Saturday, and Sunday
-            # Friday is weekday 4, Saturday is 5, Sunday is 6 (Monday=0)
+            # Find the most recent weekend (Friday-Tuesday)
+            # Include Friday (youth night), Saturday, Sunday, Monday, Tuesday (late submissions)
+            # Friday is weekday 4, Saturday is 5, Sunday is 6, Monday is 0, Tuesday is 1
             days_since_saturday = (end_date.weekday() + 2) % 7  # Days since last Saturday
             if days_since_saturday == 0:
                 # Today is Saturday, go back to last Saturday
@@ -6940,9 +6942,11 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
             last_saturday = end_date - timedelta(days=days_since_saturday)
             last_friday = last_saturday - timedelta(days=1)  # Friday (youth night)
             last_sunday = last_saturday + timedelta(days=1)
+            last_monday = last_sunday + timedelta(days=1)  # Monday (late submissions)
+            last_tuesday = last_monday + timedelta(days=1)  # Tuesday (late submissions)
             start_date = last_friday  # Start from Friday
-            end_date = last_sunday
-            print(f"[DASHBOARD] last_weekend: Friday={last_friday}, Saturday={last_saturday}, Sunday={last_sunday}")
+            end_date = last_tuesday  # End Tuesday
+            print(f"[DASHBOARD] last_weekend: Friday={last_friday} to Tuesday={last_tuesday}")
         elif date_filter == 'last_7_days':
             start_date = end_date - timedelta(days=7)
         elif date_filter == 'last_30_days':
@@ -14962,9 +14966,9 @@ def get_regional_dashboard_data():
         # Calculate date range
         end_date = datetime.now().date()
         if date_filter == 'last_weekend':
-            # Find the most recent weekend (Friday youth, Saturday, Sunday)
-            # Include Friday for youth services, Saturday, and Sunday
-            # Friday is weekday 4, Saturday is 5, Sunday is 6 (Monday=0)
+            # Find the most recent weekend (Friday-Tuesday)
+            # Include Friday (youth night), Saturday, Sunday, Monday, Tuesday (late submissions)
+            # Friday is weekday 4, Saturday is 5, Sunday is 6, Monday is 0, Tuesday is 1
             days_since_saturday = (end_date.weekday() + 2) % 7  # Days since last Saturday
             if days_since_saturday == 0:
                 # Today is Saturday, go back to last Saturday
@@ -14972,9 +14976,11 @@ def get_regional_dashboard_data():
             last_saturday = end_date - timedelta(days=days_since_saturday)
             last_friday = last_saturday - timedelta(days=1)  # Friday (youth night)
             last_sunday = last_saturday + timedelta(days=1)
+            last_monday = last_sunday + timedelta(days=1)  # Monday (late submissions)
+            last_tuesday = last_monday + timedelta(days=1)  # Tuesday (late submissions)
             start_date = last_friday  # Start from Friday
-            end_date = last_sunday
-            print(f"[REGIONAL_DASHBOARD] last_weekend: Friday={last_friday}, Saturday={last_saturday}, Sunday={last_sunday}")
+            end_date = last_tuesday  # End Tuesday
+            print(f"[REGIONAL_DASHBOARD] last_weekend: Friday={last_friday} to Tuesday={last_tuesday}")
         elif date_filter == 'last_7_days':
             start_date = end_date - timedelta(days=7)
         elif date_filter == 'last_30_days':
