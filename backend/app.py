@@ -11301,6 +11301,8 @@ def get_stats():
             for record in recent_records:
                 campus_obj = CampusV2.query.get(record.campus_id)
                 campus_name = campus_obj.display_name if campus_obj else 'Unknown'
+                
+                stats_for_frontend.append({
                     'Total Attendance': record.total_attendance or 0,
                     'total_attendance': record.total_attendance or 0,
                     'New People': (record.first_time_visitors or 0) + (record.visitors or 0),
@@ -11314,9 +11316,7 @@ def get_stats():
                     'Connect Groups': record.connect_groups or 0,
                     'connect_groups': record.connect_groups or 0,
                     'Campus': campus_name
-                    })
-                        'Campus': campus_name
-                    })
+                })
                     
                 if record.notes:
                     if " | " in record.notes:
