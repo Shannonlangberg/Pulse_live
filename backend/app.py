@@ -6586,18 +6586,20 @@ def calculate_date_range(date_filter, custom_start_date, custom_end_date, now):
     print(f"[DEBUG] calculate_date_range called with: date_filter={date_filter}, custom_start_date={custom_start_date}, custom_end_date={custom_end_date}")
     try:
         if date_filter == 'last_weekend':
-            # Find the most recent Saturday (weekend just gone)
-            # Saturday is weekday 5 (Monday=0, Sunday=6)
+            # Find the most recent weekend (Friday youth, Saturday, Sunday)
+            # Include Friday for youth services, Saturday, and Sunday
+            # Friday is weekday 4, Saturday is 5, Sunday is 6 (Monday=0)
             today = now.date() if isinstance(now, datetime) else now
             days_since_saturday = (today.weekday() + 2) % 7  # Days since last Saturday
             if days_since_saturday == 0:
                 # Today is Saturday, go back to last Saturday
                 days_since_saturday = 7
             last_saturday = today - timedelta(days=days_since_saturday)
+            last_friday = last_saturday - timedelta(days=1)  # Friday (youth night)
             last_sunday = last_saturday + timedelta(days=1)
-            start_date = datetime.combine(last_saturday, datetime.min.time())
+            start_date = datetime.combine(last_friday, datetime.min.time())  # Start from Friday
             end_date = datetime.combine(last_sunday, datetime.max.time())
-            print(f"[DEBUG] last_weekend: Saturday={last_saturday}, Sunday={last_sunday}")
+            print(f"[DEBUG] last_weekend: Friday={last_friday}, Saturday={last_saturday}, Sunday={last_sunday}")
         elif date_filter == 'last_7_days':
             start_date = now - timedelta(days=7)
             end_date = now
@@ -6928,17 +6930,19 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
         now = datetime.now()
         end_date = now.date()
         if date_filter == 'last_weekend':
-            # Find the most recent Saturday (weekend just gone)
-            # Saturday is weekday 5 (Monday=0, Sunday=6)
+            # Find the most recent weekend (Friday youth, Saturday, Sunday)
+            # Include Friday for youth services, Saturday, and Sunday
+            # Friday is weekday 4, Saturday is 5, Sunday is 6 (Monday=0)
             days_since_saturday = (end_date.weekday() + 2) % 7  # Days since last Saturday
             if days_since_saturday == 0:
                 # Today is Saturday, go back to last Saturday
                 days_since_saturday = 7
             last_saturday = end_date - timedelta(days=days_since_saturday)
+            last_friday = last_saturday - timedelta(days=1)  # Friday (youth night)
             last_sunday = last_saturday + timedelta(days=1)
-            start_date = last_saturday
+            start_date = last_friday  # Start from Friday
             end_date = last_sunday
-            print(f"[DASHBOARD] last_weekend: Saturday={last_saturday}, Sunday={last_sunday}")
+            print(f"[DASHBOARD] last_weekend: Friday={last_friday}, Saturday={last_saturday}, Sunday={last_sunday}")
         elif date_filter == 'last_7_days':
             start_date = end_date - timedelta(days=7)
         elif date_filter == 'last_30_days':
@@ -11222,7 +11226,7 @@ def get_stats():
         
         try:
             # Get most recent record(s) from database
-            if campus_filter:
+        if campus_filter:
                 # Find campus by campus_id (e.g., 'samarinda', 'adelaide_city')
                 campus_obj = CampusV2.query.filter(
                     (CampusV2.campus_id == campus_filter) | 
@@ -11244,7 +11248,7 @@ def get_stats():
                     return jsonify({"stats": {}, "encouragements": []})
                 
                 # Convert database record to frontend format
-                stats_for_frontend = {
+            stats_for_frontend = {
                     'Total Attendance': most_recent.total_attendance or 0,
                     'total_attendance': most_recent.total_attendance or 0,
                     'New People': (most_recent.first_time_visitors or 0) + (most_recent.visitors or 0),
@@ -11259,21 +11263,21 @@ def get_stats():
                     'connect_groups': most_recent.connect_groups or 0
                 }
                 
-                encouragements = []
+            encouragements = []
                 if most_recent.notes:
                     # Parse notes for encouragements (if stored in notes field)
                     notes_text = most_recent.notes
                     if " | " in notes_text:
                         encouragements.extend(notes_text.split(" | "))
-                    else:
+                else:
                         encouragements.append(notes_text)
                 
                 logger.info(f"[STATS] Returning stats for {campus_filter} from database: {stats_for_frontend}")
-                return jsonify({
-                    "stats": stats_for_frontend,
-                    "encouragements": encouragements
-                })
-            else:
+            return jsonify({
+                "stats": stats_for_frontend,
+                "encouragements": encouragements
+            })
+        else:
                 # No campus filter - return the 5 most recent records overall
                 recent_records = AttendanceRecord.query.order_by(
                     AttendanceRecord.date.desc()
@@ -11283,14 +11287,14 @@ def get_stats():
                     logger.info("[STATS] No records found in database")
                     return jsonify({"stats": [], "encouragements": []})
                 
-                stats_for_frontend = []
+            stats_for_frontend = []
                 encouragements = []
                 
                 for record in recent_records:
                     campus_obj = CampusV2.query.get(record.campus_id)
                     campus_name = campus_obj.display_name if campus_obj else 'Unknown'
                     
-                    stats_for_frontend.append({
+                stats_for_frontend.append({
                         'Total Attendance': record.total_attendance or 0,
                         'total_attendance': record.total_attendance or 0,
                         'New People': (record.first_time_visitors or 0) + (record.visitors or 0),
@@ -11309,14 +11313,14 @@ def get_stats():
                     if record.notes:
                         if " | " in record.notes:
                             encouragements.extend(record.notes.split(" | "))
-                        else:
+                    else:
                             encouragements.append(record.notes)
                 
                 logger.info(f"[STATS] Returning {len(recent_records)} stats overall from database (no campus filter)")
-                return jsonify({
-                    "stats": stats_for_frontend,
-                    "encouragements": encouragements
-                })
+            return jsonify({
+                "stats": stats_for_frontend,
+                "encouragements": encouragements
+            })
         except Exception as db_error:
             logger.error(f"[STATS] Database error: {db_error}")
             import traceback
@@ -14958,17 +14962,19 @@ def get_regional_dashboard_data():
         # Calculate date range
         end_date = datetime.now().date()
         if date_filter == 'last_weekend':
-            # Find the most recent Saturday (weekend just gone)
-            # Saturday is weekday 5 (Monday=0, Sunday=6)
+            # Find the most recent weekend (Friday youth, Saturday, Sunday)
+            # Include Friday for youth services, Saturday, and Sunday
+            # Friday is weekday 4, Saturday is 5, Sunday is 6 (Monday=0)
             days_since_saturday = (end_date.weekday() + 2) % 7  # Days since last Saturday
             if days_since_saturday == 0:
                 # Today is Saturday, go back to last Saturday
                 days_since_saturday = 7
             last_saturday = end_date - timedelta(days=days_since_saturday)
+            last_friday = last_saturday - timedelta(days=1)  # Friday (youth night)
             last_sunday = last_saturday + timedelta(days=1)
-            start_date = last_saturday
+            start_date = last_friday  # Start from Friday
             end_date = last_sunday
-            print(f"[REGIONAL_DASHBOARD] last_weekend: Saturday={last_saturday}, Sunday={last_sunday}")
+            print(f"[REGIONAL_DASHBOARD] last_weekend: Friday={last_friday}, Saturday={last_saturday}, Sunday={last_sunday}")
         elif date_filter == 'last_7_days':
             start_date = end_date - timedelta(days=7)
         elif date_filter == 'last_30_days':
