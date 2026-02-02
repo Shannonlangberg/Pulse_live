@@ -11290,7 +11290,7 @@ def get_stats():
                     campus_obj = CampusV2.query.get(record.campus_id)
                     campus_name = campus_obj.display_name if campus_obj else 'Unknown'
                     
-                stats_for_frontend.append({
+                    stats_for_frontend.append({
                         'Total Attendance': record.total_attendance or 0,
                         'total_attendance': record.total_attendance or 0,
                         'New People': (record.first_time_visitors or 0) + (record.visitors or 0),
