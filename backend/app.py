@@ -11230,7 +11230,7 @@ def get_stats():
         
         try:
             # Get most recent record(s) from database
-        if campus_filter:
+            if campus_filter:
                 # Find campus by campus_id (e.g., 'samarinda', 'adelaide_city')
                 campus_obj = CampusV2.query.filter(
                     (CampusV2.campus_id == campus_filter) | 
