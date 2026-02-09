@@ -10833,6 +10833,156 @@ def sync_pending_records():
             "error": str(e)
         }), 500
 
+@app.route('/api/attendance/import-from-sheets', methods=['POST'])
+@login_required
+def import_from_sheets():
+    """Import attendance records from Google Sheet (uses GOOGLE_SHEET_IMPORT_NAME or GOOGLE_SHEET_NAME)"""
+    try:
+        from utils.rbac import rbac_manager
+        from datetime import datetime
+
+        # Permission check - same as database_viewer but exclude campus_pastor (import affects all campuses)
+        user_role = getattr(current_user, 'role', 'member')
+        custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']
+        has_role_access = user_role in allowed_roles
+        has_custom_access = rbac_manager.has_feature_access(user_role, 'database_viewer', custom_permissions=custom_perms)
+        if not (has_role_access or has_custom_access):
+            return jsonify({"error": "Access denied - insufficient permissions"}), 403
+
+        if not client:
+            return jsonify({
+                "success": False,
+                "error": "Google Sheets is not initialized. Check environment variables."
+            }), 400
+
+        sheet_name = os.getenv("GOOGLE_SHEET_IMPORT_NAME") or os.getenv("GOOGLE_SHEET_NAME", "Stats")
+        spreadsheet = client.open(sheet_name)
+        try:
+            worksheet = spreadsheet.worksheet("Stats")
+        except Exception:
+            worksheet = spreadsheet.get_worksheet(0)
+
+        all_rows = worksheet.get_all_records()
+        if not all_rows:
+            return jsonify({
+                "success": True,
+                "message": "No data to import",
+                "imported": 0,
+                "skipped": 0,
+                "errors": 0
+            })
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, display_name, campus_id, service_times, region_id FROM campuses_v2")
+        campuses_db = cursor.fetchall()
+        campus_lookup = {}
+        for cid, display_name, campus_code, service_times_json, region_id in campuses_db:
+            campus_lookup[display_name.lower()] = {
+                'id': cid, 'display_name': display_name, 'service_times': json.loads(service_times_json) if service_times_json else [],
+                'region_id': region_id
+            }
+            campus_lookup[campus_code.lower()] = campus_lookup[display_name.lower()]
+
+        def safe_int(val):
+            try:
+                return int(val) if val else 0
+            except:
+                return 0
+
+        imported = skipped = errors = 0
+        for row in all_rows:
+            try:
+                campus_name = row.get('Campus', '').strip().lower()
+                if not campus_name or campus_name not in campus_lookup:
+                    skipped += 1
+                    continue
+                campus_info = campus_lookup[campus_name]
+                campus_id = campus_info['id']
+                region_id = campus_info['region_id']
+                service_times = campus_info['service_times']
+
+                date_str = str(row.get('Date', '')).strip()
+                if not date_str:
+                    skipped += 1
+                    continue
+                try:
+                    date_val = datetime.strptime(date_str, '%Y-%m-%d').date()
+                except:
+                    try:
+                        date_val = datetime.strptime(date_str, '%m/%d/%Y').date()
+                    except:
+                        skipped += 1
+                        continue
+
+                cursor.execute("SELECT id FROM attendance_records WHERE campus_id = ? AND date = ?", (campus_id, date_val.isoformat()))
+                if cursor.fetchone():
+                    skipped += 1
+                    continue
+
+                adult_breakdown = {}
+                kids_breakdown = {}
+                for st in service_times:
+                    if st in row and row[st]:
+                        adult_breakdown[st] = int(row[st])
+                    kids_key = f'Kids {st}'
+                    if kids_key in row and row[kids_key]:
+                        kids_breakdown[kids_key] = int(row[kids_key])
+
+                cursor.execute("""
+                    INSERT INTO attendance_records (
+                        campus_id, region_id, date, total_attendance, total_people_in_campus,
+                        adult_service_breakdown, kids_service_breakdown,
+                        kids_attendance, kids_leaders, new_kids, new_kids_salvations, packs_out,
+                        youth_attendance, youth_salvations, youth_new_people, youth_leaders,
+                        first_time_visitors, visitors, hands_up, cards_back,
+                        first_time_christians, rededications, salvation_cards_returned,
+                        baptisms, child_dedications, connect_groups, dream_team, tithe,
+                        synced_to_sheets, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                """, (
+                    campus_id, region_id, date_val.isoformat(),
+                    safe_int(row.get('Total Attendance')), safe_int(row.get('Total People in Campus')),
+                    json.dumps(adult_breakdown) if adult_breakdown else None,
+                    json.dumps(kids_breakdown) if kids_breakdown else None,
+                    safe_int(row.get('Kids Attendance')), safe_int(row.get('Kids Leaders')),
+                    safe_int(row.get('New Kids')), safe_int(row.get('New Kids Salvations')),
+                    safe_int(row.get('Packs Out')),
+                    safe_int(row.get('Youth Attendance')), safe_int(row.get('Youth Salvations')),
+                    safe_int(row.get('Youth New People')), safe_int(row.get('Youth Leaders')),
+                    safe_int(row.get('First Time Visitors')), safe_int(row.get('Visitors')),
+                    safe_int(row.get('Hands up')), safe_int(row.get('Cards Back')),
+                    safe_int(row.get('First Time Christians')), safe_int(row.get('Rededications')),
+                    safe_int(row.get('Salvation Cards Returned')),
+                    safe_int(row.get('Baptisms')), safe_int(row.get('Child Dedications')),
+                    safe_int(row.get('Connect Groups')), safe_int(row.get('Dream Team')),
+                    float(row.get('Tithe', 0) or 0)
+                ))
+                imported += 1
+            except Exception as e:
+                errors += 1
+                logger.warning(f"[IMPORT_SHEETS] Row error: {e}")
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"[IMPORT_SHEETS] Imported {imported}, skipped {skipped}, errors {errors} from '{sheet_name}'")
+        return jsonify({
+            "success": True,
+            "message": f"Import completed: {imported} imported, {skipped} skipped, {errors} errors",
+            "imported": imported,
+            "skipped": skipped,
+            "errors": errors,
+            "sheet_name": sheet_name
+        })
+    except Exception as e:
+        logger.error(f"[IMPORT_SHEETS] Error: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 @app.route('/api/sync/all', methods=['POST'])
 @login_required
 def sync_all_records():

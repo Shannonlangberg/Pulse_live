@@ -22,6 +22,8 @@ const DatabaseViewer = () => {
   const [showFinanceEditModal, setShowFinanceEditModal] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [userCampus, setUserCampus] = useState(null);
   const navigate = useNavigate();
@@ -311,6 +313,45 @@ const DatabaseViewer = () => {
     }
   };
 
+  const handleImportFromSheets = async () => {
+    if (!confirm('This will import new records from your Google Sheet (e.g. 2025 Australia Key Stats) into the database. Existing records will be skipped. Continue?')) {
+      return;
+    }
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const response = await fetch('/api/attendance/import-from-sheets', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setImportResult({
+          success: true,
+          message: data.message,
+          imported: data.imported,
+          skipped: data.skipped,
+          errors: data.errors,
+          sheet_name: data.sheet_name
+        });
+        setTimeout(() => { loadRecords(); }, 1000);
+      } else {
+        setImportResult({
+          success: false,
+          message: data.error || 'Import failed'
+        });
+      }
+    } catch (err) {
+      setImportResult({
+        success: false,
+        message: 'Error: ' + err.message
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleExportCSV = async () => {
     try {
       const params = new URLSearchParams();
@@ -489,6 +530,22 @@ const DatabaseViewer = () => {
                       </>
                     )}
                   </button>
+                  <button
+                    onClick={handleImportFromSheets}
+                    disabled={importing}
+                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                  >
+                    {importing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Importing...
+                      </>
+                    ) : (
+                      <>
+                        📥 Import from Sheet
+                      </>
+                    )}
+                  </button>
                 </>
               )}
             </div>
@@ -657,6 +714,27 @@ const DatabaseViewer = () => {
             </>
           )}
         </div>
+
+        {/* Import Result Message */}
+        {importResult && (
+          <div className={`mb-6 p-4 rounded-xl border ${importResult.success ? 'bg-green-500/20 border-green-500/50' : 'bg-red-500/20 border-red-500/50'}`}>
+            <div className={`font-semibold ${importResult.success ? 'text-green-300' : 'text-red-300'}`}>
+              {importResult.success ? '✓' : '✗'} {importResult.message}
+            </div>
+            {importResult.success && importResult.imported !== undefined && (
+              <p className="text-slate-300 text-sm mt-1">
+                {importResult.imported} imported, {importResult.skipped} skipped, {importResult.errors} errors
+                {importResult.sheet_name && ` (from "${importResult.sheet_name}")`}
+              </p>
+            )}
+            <button
+              onClick={() => setImportResult(null)}
+              className="text-slate-400 hover:text-white text-sm mt-2"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Sync Result Message */}
         {syncResult && (

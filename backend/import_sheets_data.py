@@ -36,7 +36,8 @@ creds_file = os.path.join(os.path.dirname(__file__), 'credentials.json')
 creds = ServiceAccountCredentials.from_json_keyfile_name(creds_file, scope)
 client = gspread.authorize(creds)
 
-sheet_name = os.getenv("GOOGLE_SHEET_NAME", "Stats")
+# Use import-specific sheet if set, otherwise fall back to main Stats sheet
+sheet_name = os.getenv("GOOGLE_SHEET_IMPORT_NAME") or os.getenv("GOOGLE_SHEET_NAME", "Stats")
 spreadsheet = client.open(sheet_name)
 sheet = spreadsheet.worksheet("Stats")
 
