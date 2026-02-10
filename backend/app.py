@@ -10859,30 +10859,41 @@ def import_from_sheets():
         # Prefer spreadsheet ID (more reliable than name) - get from sheet URL: .../d/SHEET_ID/edit
         sheet_id = os.getenv("GOOGLE_SHEET_IMPORT_ID", "").strip()
         sheet_name = os.getenv("GOOGLE_SHEET_IMPORT_NAME") or os.getenv("GOOGLE_SHEET_NAME", "Stats")
+        def _is_sheets_access_error(e):
+            err_msg = str(e)
+            err_lower = err_msg.lower()
+            return (
+                "SpreadsheetNotFound" in type(e).__name__
+                or "APIError" in type(e).__name__
+                or "404" in err_lower
+                or "unable to open the file" in err_lower
+                or "page not found" in err_lower
+                or ("sorry" in err_lower and "open" in err_lower)  # Google "Sorry, unable to open..."
+            )
+
+        _hint = (
+            "1) Ensure GOOGLE_SHEET_IMPORT_ID is correct (copy from sheet URL between /d/ and /edit). "
+            "2) Share the sheet with churchgtp-service@churchgtp.iam.gserviceaccount.com as Editor."
+        )
+
         try:
             if sheet_id:
                 spreadsheet = client.open_by_key(sheet_id)
             else:
                 spreadsheet = client.open(sheet_name)
+            try:
+                worksheet = spreadsheet.worksheet("Stats")
+            except Exception:
+                worksheet = spreadsheet.get_worksheet(0)
+            # Use get_all_values + manual parsing to avoid "header row is not unique" error from get_all_records
+            all_values = worksheet.get_all_values()
         except Exception as e:
-            err_msg = str(e)
-            if "SpreadsheetNotFound" in type(e).__name__ or "404" in err_msg:
-                hint = " Use GOOGLE_SHEET_IMPORT_ID (spreadsheet ID from the sheet URL) instead - more reliable."
-                if not sheet_id:
-                    hint += f" Or ensure '{sheet_name}' is shared with the service account."
+            if _is_sheets_access_error(e):
                 return jsonify({
                     "success": False,
-                    "error": f"Could not find Google Sheet: {err_msg}.{hint}"
+                    "error": f"Could not access Google Sheet. {_hint}"
                 }), 400
             raise
-
-        try:
-            worksheet = spreadsheet.worksheet("Stats")
-        except Exception:
-            worksheet = spreadsheet.get_worksheet(0)
-
-        # Use get_all_values + manual parsing to avoid "header row is not unique" error from get_all_records
-        all_values = worksheet.get_all_values()
         if not all_values or len(all_values) < 2:
             return jsonify({
                 "success": True,
@@ -11020,9 +11031,22 @@ def import_from_sheets():
         })
     except Exception as e:
         logger.error(f"[IMPORT_SHEETS] Error: {e}", exc_info=True)
+        err_str = str(e)
+        err_lower = err_str.lower()
+        # Convert Google Sheets access errors to 400 with actionable message
+        if (
+            "APIError" in type(e).__name__
+            or "unable to open the file" in err_lower
+            or "page not found" in err_lower
+            or ("sorry" in err_lower and "open" in err_lower)
+        ):
+            return jsonify({
+                "success": False,
+                "error": "Could not access Google Sheet. 1) Ensure GOOGLE_SHEET_IMPORT_ID is correct (copy from sheet URL between /d/ and /edit). 2) Share the sheet with churchgtp-service@churchgtp.iam.gserviceaccount.com as Editor."
+            }), 400
         return jsonify({
             "success": False,
-            "error": str(e)
+            "error": err_str
         }), 500
 
 @app.route('/api/sync/all', methods=['POST'])
