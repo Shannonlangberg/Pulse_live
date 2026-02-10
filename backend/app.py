@@ -10856,14 +10856,56 @@ def import_from_sheets():
                 "error": "Google Sheets is not initialized. Check environment variables."
             }), 400
 
+        # Prefer spreadsheet ID (more reliable than name) - get from sheet URL: .../d/SHEET_ID/edit
+        sheet_id = os.getenv("GOOGLE_SHEET_IMPORT_ID", "").strip()
         sheet_name = os.getenv("GOOGLE_SHEET_IMPORT_NAME") or os.getenv("GOOGLE_SHEET_NAME", "Stats")
-        spreadsheet = client.open(sheet_name)
+        try:
+            if sheet_id:
+                spreadsheet = client.open_by_key(sheet_id)
+            else:
+                spreadsheet = client.open(sheet_name)
+        except Exception as e:
+            err_msg = str(e)
+            if "SpreadsheetNotFound" in type(e).__name__ or "404" in err_msg:
+                hint = " Use GOOGLE_SHEET_IMPORT_ID (spreadsheet ID from the sheet URL) instead - more reliable."
+                if not sheet_id:
+                    hint += f" Or ensure '{sheet_name}' is shared with the service account."
+                return jsonify({
+                    "success": False,
+                    "error": f"Could not find Google Sheet: {err_msg}.{hint}"
+                }), 400
+            raise
+
         try:
             worksheet = spreadsheet.worksheet("Stats")
         except Exception:
             worksheet = spreadsheet.get_worksheet(0)
 
-        all_rows = worksheet.get_all_records()
+        # Use get_all_values + manual parsing to avoid "header row is not unique" error from get_all_records
+        all_values = worksheet.get_all_values()
+        if not all_values or len(all_values) < 2:
+            return jsonify({
+                "success": True,
+                "message": "No data to import",
+                "imported": 0,
+                "skipped": 0,
+                "errors": 0
+            })
+        headers = all_values[0]
+        # Deduplicate headers for dict keys (gspread get_all_records fails on duplicates)
+        seen = {}
+        unique_headers = []
+        for h in headers:
+            h = (h or "").strip()
+            if h not in seen:
+                seen[h] = 1
+                unique_headers.append(h)
+            else:
+                unique_headers.append(f"{h}_{seen[h]}")
+                seen[h] += 1
+        all_rows = []
+        for row in all_values[1:]:
+            all_rows.append(dict(zip(unique_headers, (row + [""] * len(unique_headers))[:len(unique_headers)])))
         if not all_rows:
             return jsonify({
                 "success": True,
