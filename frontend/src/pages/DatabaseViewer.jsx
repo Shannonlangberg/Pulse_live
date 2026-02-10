@@ -438,7 +438,7 @@ const DatabaseViewer = () => {
         {/* Filters */}
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mb-6 border border-white/20">
           <h3 className="text-white font-semibold mb-4">Filters</h3>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <div>
               <label className="text-slate-300 text-sm mb-2 block">Region</label>
               <select
@@ -498,10 +498,10 @@ const DatabaseViewer = () => {
               />
             </div>
             
-            <div className="flex items-end gap-2">
+            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-white/10 md:col-span-4">
               <button
                 onClick={handleRefresh}
-                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold transition-all"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold transition-all"
               >
                 Apply Filters
               </button>
@@ -509,7 +509,7 @@ const DatabaseViewer = () => {
                 <>
                   <button
                     onClick={handleExportCSV}
-                    className="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                    className="bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg font-semibold transition-all flex items-center gap-2"
                     disabled={loading || records.length === 0}
                   >
                     📥 Export CSV
@@ -517,7 +517,7 @@ const DatabaseViewer = () => {
                   <button
                     onClick={handleSyncPending}
                     disabled={syncing}
-                    className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-green-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                    className="bg-green-500 hover:bg-green-600 disabled:bg-green-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-semibold transition-all flex items-center gap-2"
                   >
                     {syncing ? (
                       <>
@@ -525,15 +525,13 @@ const DatabaseViewer = () => {
                         Syncing...
                       </>
                     ) : (
-                      <>
-                        🔄 Sync Pending
-                      </>
+                      <>🔄 Sync Pending</>
                     )}
                   </button>
                   <button
                     onClick={handleImportFromSheets}
                     disabled={importing}
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                    className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-semibold transition-all flex items-center gap-2"
                   >
                     {importing ? (
                       <>
@@ -541,9 +539,7 @@ const DatabaseViewer = () => {
                         Importing...
                       </>
                     ) : (
-                      <>
-                        📥 Import from Sheet
-                      </>
+                      <>📥 Import from Sheet</>
                     )}
                   </button>
                 </>
