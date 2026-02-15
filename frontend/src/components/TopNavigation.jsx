@@ -88,14 +88,14 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       href: '/homepage-manager', 
       icon: MegaphoneIcon, 
       roles: ['superadmin', 'admin'],
-      featureKey: null
+      featureKey: 'homepage_manager'
     },
     { 
       name: 'Campuses', 
       href: '/campuses', 
       icon: BuildingOfficeIcon, 
       roles: ['superadmin', 'admin'],
-      featureKey: null  // Admin-only, cannot be overridden by custom permissions
+      featureKey: 'campus_management'
     },
     { 
       name: 'Beacons', 

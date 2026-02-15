@@ -10844,6 +10844,8 @@ def import_from_sheets():
         # Permission check - same as database_viewer but exclude campus_pastor (import affects all campuses)
         user_role = getattr(current_user, 'role', 'member')
         custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+        if custom_perms.get('database_viewer') is False:
+            return jsonify({"error": "Access denied - Database Viewer has been disabled for your account"}), 403
         allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']
         has_role_access = user_role in allowed_roles
         has_custom_access = rbac_manager.has_feature_access(user_role, 'database_viewer', custom_permissions=custom_perms)
@@ -12137,6 +12139,9 @@ def get_campuses_public():
 @admin_required
 def create_campus_api():
     """Create a new campus via API"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('campus_management') is False:
+        return jsonify({"error": "Access denied - Campuses management has been disabled for your account"}), 403
     if not request.is_json:
         return jsonify({"error": "Expected JSON request"}), 400
     
@@ -12194,6 +12199,9 @@ def create_campus_api():
 @admin_required
 def edit_campus_api(campus_id):
     """Edit an existing campus via API"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('campus_management') is False:
+        return jsonify({"error": "Access denied - Campuses management has been disabled for your account"}), 403
     if not request.is_json:
         return jsonify({"error": "Expected JSON request"}), 400
     
@@ -12238,6 +12246,9 @@ def edit_campus_api(campus_id):
 @admin_required
 def delete_campus_api(campus_id):
     """Delete a campus via API"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('campus_management') is False:
+        return jsonify({"error": "Access denied - Campuses management has been disabled for your account"}), 403
     # Load existing campuses
     campuses_db = load_campuses_database()
     
@@ -12764,8 +12775,12 @@ def get_regions():
 @app.route('/api/v2/campuses', methods=['GET'])
 @login_required
 def get_campuses_v2():
-    """Get all campuses with region information"""
+    """Get all campuses with region information (admin management - respect Role Manager)"""
     try:
+        if current_user.role in ['superadmin', 'admin']:
+            custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+            if custom_perms.get('campus_management') is False:
+                return jsonify({"error": "Access denied - Campuses management has been disabled for your account"}), 403
         conn = get_db()
         cursor = conn.cursor()
         
@@ -12821,6 +12836,9 @@ def get_campuses_v2():
 @admin_required
 def create_campus_v2():
     """Create a new campus"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('campus_management') is False:
+        return jsonify({"error": "Access denied - Campuses management has been disabled for your account"}), 403
     try:
         data = request.get_json()
         print(f"[CREATE_CAMPUS] Received data: {data}")
@@ -12889,6 +12907,9 @@ def create_campus_v2():
 @admin_required
 def update_campus_v2(campus_id):
     """Update an existing campus"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('campus_management') is False:
+        return jsonify({"error": "Access denied - Campuses management has been disabled for your account"}), 403
     try:
         data = request.get_json()
         
@@ -12936,6 +12957,9 @@ def update_campus_v2(campus_id):
 @admin_required
 def delete_campus_v2(campus_id):
     """Delete a campus"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('campus_management') is False:
+        return jsonify({"error": "Access denied - Campuses management has been disabled for your account"}), 403
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -13242,6 +13266,12 @@ def get_database_viewer():
         print(f"[DATABASE_VIEWER] User role: {user_role}, custom_perms: {custom_perms}")
         logger.info(f"[DATABASE_VIEWER] User role: {user_role}, custom_perms: {custom_perms}")
         
+        # Respect explicit denial from Role Manager (overrides role)
+        if custom_perms.get('database_viewer') is False:
+            print(f"[DATABASE_VIEWER] Access denied - database_viewer explicitly disabled in Role Manager")
+            logger.warning(f"[DATABASE_VIEWER] Access denied for user_id={current_user.id} - database_viewer disabled in custom_permissions")
+            return jsonify({"error": "Access denied - Database Viewer has been disabled for your account"}), 403
+        
         # Check if user has access via role or custom permissions
         allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor']
         has_role_access = user_role in allowed_roles
@@ -13398,12 +13428,12 @@ def export_database_viewer_csv():
         # Check user role and custom permissions (same as database_viewer endpoint)
         user_role = getattr(current_user, 'role', 'member')
         custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
-        
-        # Check if user has access via role or custom permissions
+        if custom_perms.get('database_viewer') is False:
+            logger.warning(f"[EXPORT_CSV] Access denied - database_viewer disabled in Role Manager for user_id={current_user.id}")
+            return jsonify({"error": "Access denied - Database Viewer has been disabled for your account"}), 403
         allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor']
         has_role_access = user_role in allowed_roles
         has_custom_access = rbac_manager.has_feature_access(user_role, 'database_viewer', custom_permissions=custom_perms)
-        
         if not (has_role_access or has_custom_access):
             logger.warning(f"[EXPORT_CSV] Access denied for role: {user_role}")
             return jsonify({"error": "Access denied - insufficient permissions"}), 403
@@ -28071,7 +28101,9 @@ def get_homepage_messages():
 def get_all_homepage_messages():
     """Get all homepage messages (admin only)"""
     try:
-        # Check if user is admin or superadmin
+        custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+        if custom_perms.get('homepage_manager') is False:
+            return jsonify({'error': 'Access denied - Homepage Manager has been disabled for your account'}), 403
         if current_user.role not in ['admin', 'superadmin']:
             return jsonify({'error': 'Insufficient permissions'}), 403
         
@@ -28107,7 +28139,9 @@ def get_all_homepage_messages():
 def create_homepage_message():
     """Create a new homepage message (admin only)"""
     try:
-        # Check if user is admin or superadmin
+        custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+        if custom_perms.get('homepage_manager') is False:
+            return jsonify({'error': 'Access denied - Homepage Manager has been disabled for your account'}), 403
         if current_user.role not in ['admin', 'superadmin']:
             return jsonify({'error': 'Insufficient permissions'}), 403
         
@@ -28152,7 +28186,9 @@ def create_homepage_message():
 def update_homepage_message(message_id):
     """Update an existing homepage message (admin only)"""
     try:
-        # Check if user is admin or superadmin
+        custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+        if custom_perms.get('homepage_manager') is False:
+            return jsonify({'error': 'Access denied - Homepage Manager has been disabled for your account'}), 403
         if current_user.role not in ['admin', 'superadmin']:
             return jsonify({'error': 'Insufficient permissions'}), 403
         
@@ -28328,7 +28364,9 @@ def upload_training_video():
 def delete_homepage_message(message_id):
     """Delete a homepage message (admin only)"""
     try:
-        # Check if user is admin or superadmin
+        custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+        if custom_perms.get('homepage_manager') is False:
+            return jsonify({'error': 'Access denied - Homepage Manager has been disabled for your account'}), 403
         if current_user.role not in ['admin', 'superadmin']:
             return jsonify({'error': 'Insufficient permissions'}), 403
         
