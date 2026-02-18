@@ -314,12 +314,21 @@ const LogStats = () => {
       'Child Dedications': 'Child Dedications'
     };
 
-    // Load stats from entry
+    // Load stats from entry - start with all known keys
     const newStats = {};
     Object.keys(quickInputStats).forEach(key => {
       const backendKey = Object.keys(fieldMapping).find(k => fieldMapping[k] === key) || key;
       const value = entry.stats[backendKey];
       newStats[key] = value !== undefined && value !== null && value !== '' ? String(value) : '';
+    });
+
+    // Merge in ANY extra keys from entry.stats (e.g. custom service times like "7:00PM (Brazilian)")
+    // These are not in quickInputStats but are in adult_breakdown/kids_breakdown from the API
+    const skipKeys = ['id', 'date', 'campus', 'campusId', 'Tithe'];
+    Object.entries(entry.stats || {}).forEach(([k, v]) => {
+      if (skipKeys.includes(k)) return;
+      const str = v !== undefined && v !== null && v !== '' ? String(v) : '';
+      newStats[k] = str;
     });
 
     console.log('[EDIT_FROM_RECENT] Mapped stats:', newStats);
