@@ -12,44 +12,33 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
   const hasFullAccess = userRole === 'superadmin' || userRole === 'admin' || userRole === 'senior_leader' || userRole === 'senior_pastor' || userRole === 'lead_pastor';
   const canSeeTracker = userRole === 'superadmin' || userRole === 'admin' || userRole === 'lead_pastor' || userRole === 'senior_pastor' || userRole === 'senior_leader';
   
-  // Filter campuses based on user role, assigned campus, and selected region
+  // Filter campuses based on user role, assigned campus, and selected region.
+  // /api/campuses already applies Role Manager allowed_campuses, so we only filter by role/region here.
   const getAccessibleCampuses = () => {
     let accessibleCampuses = campuses;
-    
-    // First, filter by user role and assigned campus
     if (!hasFullAccess) {
-      // For campus pastors, only show their assigned campus
       if (userCampus && userCampus !== 'all_campuses') {
-        // Normalize campus ID for matching (handle case, spaces, underscores)
         const normalizedUserCampus = userCampus.toLowerCase().trim().replace(/\s+/g, '_');
-        
         accessibleCampuses = campuses.filter(c => {
           const campusId = (c.id || '').toLowerCase().trim();
           const campusName = (c.name || '').toLowerCase().trim();
-          return campusId === normalizedUserCampus || 
+          return campusId === normalizedUserCampus ||
                  campusId === userCampus.toLowerCase().trim() ||
                  campusName === userCampus.toLowerCase().trim() ||
                  campusName.includes(userCampus.toLowerCase().trim()) ||
                  campusId.includes(normalizedUserCampus);
         });
-        
-        // If no campus found, log warning but don't return empty (show all for debugging)
         if (accessibleCampuses.length === 0) {
-          console.warn(`[CampusSelector] Campus pastor campus "${userCampus}" not found. Available campuses:`, campuses.map(c => `${c.id} (${c.name})`));
-          // Return all campuses so user can see what's available (for debugging)
-          // In production, you might want to return empty array instead
+          console.warn(`[CampusSelector] Campus pastor campus "${userCampus}" not found. Available:`, campuses.map(c => `${c.id} (${c.name})`));
           return campuses;
         }
-      } else {
-        return []; // No access
       }
+      // Else: no single assigned campus (e.g. staff with allowed_campuses from Role Manager).
+      // campuses list is already scoped by /api/campuses, so use it.
     }
-    
-    // Then, filter by selected region if one is selected
     if (selectedRegion) {
       accessibleCampuses = accessibleCampuses.filter(c => c.region_id === selectedRegion.id);
     }
-    
     return accessibleCampuses;
   };
 
@@ -117,21 +106,22 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
 
   const fetchCampuses = async () => {
     try {
-      const response = await fetch('/api/v2/campuses', {
+      // Use authenticated /api/campuses so Role Manager campus restrictions (allowed_campuses) are applied
+      const response = await fetch('/api/campuses', {
         credentials: 'include',
+        cache: 'no-store',
       });
       const result = await response.json();
       const campusesList = result.campuses || [];
-      
       if (Array.isArray(campusesList)) {
-        // Map v2 API response to the format expected by the component
         const formattedCampuses = campusesList
-          .filter(c => c.campus_id !== 'all_campuses' && c.active)
+          .filter(c => c.id !== 'all_campuses')
           .map(c => ({
-            id: c.campus_id,
-            name: c.display_name,
+            id: c.id,
+            name: c.name || c.display_name,
             region_id: c.region_id,
-            description: c.notes || 'Campus Ministry Dashboard',
+            region_code: c.region_code,
+            description: c.description || 'Campus Ministry Dashboard',
             icon: '⛪'
           }));
         setCampuses(formattedCampuses);

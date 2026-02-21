@@ -249,6 +249,18 @@ const RoleManager = () => {
       region_access: false, beacon_management: false, pathway_manager: false, 
       resource_manager: false, homepage_manager: false,
       tv_manager: false, events_manager: false, notifications: false
+    },
+    'user': {
+      // Alias for member - same defaults (used in nav roles)
+      home: true, dashboard: true, input: true, pulse_tv: true, events: true, devotions: true,
+      finance: false, giving: false,
+      people: false, heartbeat: false, connect_groups: false, prayer: false,
+      resources: false, serving: false,
+      communication: false,
+      data_export: false, user_management: false, campus_management: false,
+      region_access: false, beacon_management: false, pathway_manager: false,
+      resource_manager: false, homepage_manager: false,
+      tv_manager: false, events_manager: false, notifications: false
     }
   };
 
@@ -635,8 +647,8 @@ const RoleManager = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-6">
-      <div className="max-w-[95vw] mx-auto">
+    <div className="min-h-screen bg-slate-900 p-4 sm:p-6">
+      <div className="max-w-[95vw] sm:max-w-[98vw] mx-auto overflow-x-hidden">
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
@@ -892,150 +904,159 @@ const RoleManager = () => {
                       {/* Campus and Region Selection Row */}
                       {expandedUsers[user.id] && (
                         <tr key={`${user.id}-campuses`} className="bg-slate-750/30">
-                          <td colSpan={allFeatures.length + 1} className="px-4 py-4">
-                            {/* Region Selection */}
-                            <div className="bg-slate-800/80 border border-slate-700/50 rounded-lg p-4 mb-4">
-                              <div className="flex items-center gap-2 mb-3">
-                                <span className="text-xl">🌍</span>
-                                <h3 className="text-white font-medium">Region for {user.full_name || user.username}</h3>
-                              </div>
-                              <p className="text-slate-400 text-sm mb-4">
-                                Select which region this user belongs to. This determines which regional data and campuses they can access.
-                              </p>
-                              {regions.length === 0 ? (
-                                <div className="text-yellow-400 text-sm py-4">
-                                  ⚠️ No regions loaded. Please refresh the page.
+                          <td colSpan={allFeatures.length + 1} className="px-3 sm:px-4 py-4">
+                            <div className="space-y-4 sm:space-y-5">
+                              {/* Region Selection - responsive card */}
+                              <div className="bg-slate-800/80 border border-slate-700/50 rounded-xl p-4 sm:p-5">
+                                <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                                  <span className="text-xl" aria-hidden>🌍</span>
+                                  <h3 className="text-white font-medium text-base sm:text-lg">Region for {user.full_name || user.username}</h3>
                                 </div>
-                              ) : (
-                                <div className="flex flex-wrap gap-2">
-                                  {regions.map(region => {
-                                    const userRegion = user.region_code || 'AU';
-                                    const isSelected = userRegion === region.code;
-                                    
-                                    return (
-                                      <button
-                                        key={region.code}
-                                        onClick={async () => {
-                                          if (isSelected) return; // Already selected
-                                          
-                                          try {
-                                            const response = await fetch(`/api/users/${user.id}`, {
-                                              method: 'PUT',
-                                              headers: {
-                                                'Content-Type': 'application/json'
-                                              },
-                                              credentials: 'include',
-                                              body: JSON.stringify({
-                                                region_code: region.code
-                                              })
-                                            });
-                                            
-                                            if (response.ok) {
-                                              // Reload users to reflect the change
-                                              await loadUsers();
-                                              setSuccess(`Updated ${user.full_name || user.username}'s region to ${region.name}`);
-                                              setTimeout(() => setSuccess(''), 3000);
-                                            } else {
-                                              setError(`Failed to update region: ${response.statusText}`);
-                                              setTimeout(() => setError(''), 3000);
+                                <p className="text-slate-400 text-xs sm:text-sm mb-3 sm:mb-4">
+                                  Select which region this user belongs to. This determines which regional data and campuses they can access.
+                                </p>
+                                {regions.length === 0 ? (
+                                  <div className="text-yellow-400 text-sm py-4">
+                                    ⚠️ No regions loaded. Please refresh the page.
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-wrap gap-2 sm:gap-3">
+                                    {regions.map(region => {
+                                      const userRegion = user.region_code || (regions[0] && regions[0].code) || 'AU';
+                                      const isSelected = userRegion === region.code;
+
+                                      return (
+                                        <button
+                                          key={region.code}
+                                          type="button"
+                                          onClick={async () => {
+                                            if (isSelected) return;
+                                            setError('');
+                                            try {
+                                              const response = await fetch(`/api/users/${user.id}`, {
+                                                method: 'PUT',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                credentials: 'include',
+                                                body: JSON.stringify({ region_code: region.code })
+                                              });
+                                              const data = await response.json().catch(() => ({}));
+                                              if (response.ok) {
+                                                setUsers(prev => prev.map(u => u.id === user.id ? { ...u, region_code: region.code } : u));
+                                                await loadUsers();
+                                                setSuccess(`Updated ${user.full_name || user.username}'s region to ${region.name || region.code}`);
+                                                setTimeout(() => setSuccess(''), 4000);
+                                              } else {
+                                                setError(data.error || `Failed to update region: ${response.statusText}`);
+                                                setTimeout(() => setError(''), 5000);
+                                              }
+                                            } catch (err) {
+                                              console.error('Error updating region:', err);
+                                              setError('Failed to update region. Please try again.');
+                                              setTimeout(() => setError(''), 5000);
                                             }
-                                          } catch (err) {
-                                            console.error('Error updating region:', err);
-                                            setError('Failed to update region');
-                                            setTimeout(() => setError(''), 3000);
-                                          }
-                                        }}
-                                        className={`px-4 py-2 rounded-lg border-2 transition-all cursor-pointer ${
-                                          isSelected
-                                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/50'
-                                            : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-slate-700/70 hover:border-blue-400/30'
-                                        }`}
-                                        title={isSelected ? `Current region: ${region.name}` : `Click to change to ${region.name}`}
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          {isSelected && <CheckIcon className="w-4 h-4" />}
-                                          <span>{region.code} - {region.name}</span>
-                                        </div>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                              <div className="mt-3 text-xs text-slate-400">
-                                <span className="text-blue-400">💡</span> Click a region to assign the user to it. This determines their regional data access.
-                              </div>
-                            </div>
-                            
-                            {/* Campus Selection */}
-                            <div className="bg-slate-800/80 border border-slate-700/50 rounded-lg p-4">
-                              <div className="flex items-center gap-2 mb-3">
-                                <MapPinIcon className="w-5 h-5 text-purple-400" />
-                                <h3 className="text-white font-medium">Campus Access for {user.full_name || user.username}</h3>
-                              </div>
-                              <p className="text-slate-400 text-sm mb-4">
-                                Select which campuses this user can view data for. Leave all unchecked to allow access to all campuses.
-                              </p>
-                              {campuses.length === 0 ? (
-                                <div className="text-yellow-400 text-sm py-4">
-                                  ⚠️ No campuses loaded. Please refresh the page or check the console for errors.
-                                </div>
-                              ) : (
-                                <div className="flex flex-wrap gap-2">
-                                  {campuses.map(campus => {
-                                  const isAllowed = isCampusAllowed(user.id, campus.id);
-                                  const allowedCampuses = getAllowedCampuses(user.id);
-                                  const hasRestriction = allowedCampuses !== null;
-                                  
-                                  return (
-                                    <button
-                                      key={campus.id}
-                                      onClick={() => toggleCampusAccess(user.id, campus.id)}
-                                      className={`px-4 py-2 rounded-lg border-2 transition-all ${
-                                        isAllowed
-                                          ? 'bg-green-500/20 text-green-400 border-green-500/50 hover:bg-green-500/30'
-                                          : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-slate-700/70'
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        {isAllowed ? (
-                                          <CheckIcon className="w-4 h-4" />
-                                        ) : (
-                                          <XMarkIcon className="w-4 h-4" />
-                                        )}
-                                        <span>{campus.name || campus.display_name || campus.id}</span>
-                                      </div>
-                                    </button>
-                                  );
-                                })}
-                                {getAllowedCampuses(user.id) !== null && (
-                                  <button
-                                    onClick={() => {
-                                      setPermissions(prev => {
-                                        const newPerms = { ...prev };
-                                        if (!newPerms[user.id]) {
-                                          newPerms[user.id] = {};
-                                        }
-                                        delete newPerms[user.id].allowed_campuses;
-                                        if (Object.keys(newPerms[user.id]).length === 0) {
-                                          delete newPerms[user.id];
-                                        }
-                                        const hasChanges = JSON.stringify(newPerms) !== JSON.stringify(originalPermissions);
-                                        setHasChanges(hasChanges);
-                                        return newPerms;
-                                      });
-                                    }}
-                                    className="px-4 py-2 rounded-lg border-2 border-blue-500/50 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all"
-                                  >
-                                    Clear Restrictions (Allow All)
-                                  </button>
+                                          }}
+                                          className={`min-h-[44px] sm:min-h-0 px-4 py-3 sm:py-2 rounded-xl border-2 transition-all cursor-pointer touch-manipulation ${
+                                            isSelected
+                                              ? 'bg-blue-500/20 text-blue-400 border-blue-500/50 ring-2 ring-blue-400/30'
+                                              : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-slate-700/70 hover:border-blue-400/30 active:scale-[0.98]'
+                                          }`}
+                                          title={isSelected ? `Current region: ${region.name}` : `Click to change to ${region.name}`}
+                                        >
+                                          <div className="flex items-center justify-center gap-2">
+                                            {isSelected && <CheckIcon className="w-4 h-4 flex-shrink-0" />}
+                                            <span className="text-sm sm:text-base">{region.code} – {region.name}</span>
+                                          </div>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 )}
+                                <p className="mt-3 text-xs text-slate-400">
+                                  <span className="text-blue-400">💡</span> Tap a region to assign the user. Affects regional data and campus list below.
+                                </p>
+                              </div>
+
+                              {/* Campus Selection - responsive, filter by user region on small screens */}
+                              <div className="bg-slate-800/80 border border-slate-700/50 rounded-xl p-4 sm:p-5">
+                                <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                                  <MapPinIcon className="w-5 h-5 text-purple-400 flex-shrink-0" />
+                                  <h3 className="text-white font-medium text-base sm:text-lg">Campus Access for {user.full_name || user.username}</h3>
                                 </div>
-                              )}
-                              {getAllowedCampuses(user.id) !== null && (
-                                <div className="mt-3 text-xs text-slate-400">
-                                  <span className="text-purple-400">⚠️</span> Campus restriction active: User can only view data from selected campuses.
-                                </div>
-                              )}
+                                <p className="text-slate-400 text-xs sm:text-sm mb-3 sm:mb-4">
+                                  Select which campuses this user can view and edit. Leave all unchecked to allow all campuses.
+                                </p>
+                                {campuses.length === 0 ? (
+                                  <div className="text-yellow-400 text-sm py-4">
+                                    ⚠️ No campuses loaded. Please refresh the page or check the console for errors.
+                                  </div>
+                                ) : (
+                                  <>
+                                    {(() => {
+                                      const realCampuses = campuses.filter(c => c.id !== 'all_campuses');
+                                      const userRegionCode = user.region_code || (regions[0] && regions[0].code);
+                                      let campusesToShow = userRegionCode
+                                        ? realCampuses.filter(c => (c.region_code || '').toUpperCase() === (userRegionCode || '').toUpperCase())
+                                        : realCampuses;
+                                      if (campusesToShow.length === 0 && realCampuses.length > 0) {
+                                        campusesToShow = realCampuses;
+                                      }
+                                      const hasFilter = userRegionCode && realCampuses.some(c => (c.region_code || '').toUpperCase() !== (userRegionCode || '').toUpperCase());
+                                      return (
+                                        <div className="flex flex-wrap gap-2 sm:gap-3">
+                                          {campusesToShow.map(campus => {
+                                            const isAllowed = isCampusAllowed(user.id, campus.id);
+                                            return (
+                                              <button
+                                                key={campus.id}
+                                                type="button"
+                                                onClick={() => toggleCampusAccess(user.id, campus.id)}
+                                                className={`min-h-[44px] sm:min-h-0 px-4 py-3 sm:py-2 rounded-xl border-2 transition-all touch-manipulation ${
+                                                  isAllowed
+                                                    ? 'bg-green-500/20 text-green-400 border-green-500/50 hover:bg-green-500/30 active:scale-[0.98]'
+                                                    : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-slate-700/70 active:scale-[0.98]'
+                                                }`}
+                                              >
+                                                <div className="flex items-center justify-center gap-2">
+                                                  {isAllowed ? <CheckIcon className="w-4 h-4 flex-shrink-0" /> : <XMarkIcon className="w-4 h-4 flex-shrink-0" />}
+                                                  <span className="text-sm sm:text-base">{campus.name || campus.display_name || campus.id}</span>
+                                                </div>
+                                              </button>
+                                            );
+                                          })}
+                                          {hasFilter && (
+                                            <p className="w-full text-xs text-slate-500 mt-1">
+                                              Showing campuses for {user.region_code || 'selected region'} only.
+                                            </p>
+                                          )}
+                                          {getAllowedCampuses(user.id) !== null && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setPermissions(prev => {
+                                                  const newPerms = { ...prev };
+                                                  if (!newPerms[user.id]) newPerms[user.id] = {};
+                                                  delete newPerms[user.id].allowed_campuses;
+                                                  if (Object.keys(newPerms[user.id]).length === 0) delete newPerms[user.id];
+                                                  setHasChanges(JSON.stringify(newPerms) !== JSON.stringify(originalPermissions));
+                                                  return newPerms;
+                                                });
+                                              }}
+                                              className="min-h-[44px] sm:min-h-0 px-4 py-3 sm:py-2 rounded-xl border-2 border-blue-500/50 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all touch-manipulation"
+                                            >
+                                              Clear restrictions (allow all)
+                                            </button>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
+                                  </>
+                                )}
+                                {getAllowedCampuses(user.id) !== null && (
+                                  <p className="mt-3 text-xs text-slate-400">
+                                    <span className="text-purple-400">⚠️</span> Campus restriction active: user can only view/edit selected campuses.
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </td>
                         </tr>

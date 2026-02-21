@@ -2159,6 +2159,13 @@ class User(UserMixin):
             if custom_perms.get('finance') is False:
                 return False
         
+        if permission_type == 'data_export':
+            # If user has 'data_export: true/false' in custom_permissions (Role Manager), use it
+            if custom_perms.get('data_export') is True:
+                return True
+            if custom_perms.get('data_export') is False:
+                return False
+        
         # Define permissions for each role (legacy system)
         role_permissions = {
             'superadmin': {
@@ -2170,7 +2177,8 @@ class User(UserMixin):
                 'finance_access': True,
                 'manage_users': True,
                 'manage_campuses': True,
-                'view_all_campuses': True
+                'view_all_campuses': True,
+                'data_export': True
             },
             'admin': {
                 'log_stats': True,
@@ -2181,7 +2189,8 @@ class User(UserMixin):
                 'finance_access': True,
                 'manage_users': True,
                 'manage_campuses': True,
-                'view_all_campuses': True
+                'view_all_campuses': True,
+                'data_export': True
             },
             'senior_leadership': {
                 'log_stats': True,
@@ -2192,7 +2201,8 @@ class User(UserMixin):
                 'finance_access': True,
                 'manage_users': True,
                 'manage_campuses': True,
-                'view_all_campuses': True
+                'view_all_campuses': True,
+                'data_export': True
             },
             'senior_leader': {
                 'log_stats': True,
@@ -2203,7 +2213,8 @@ class User(UserMixin):
                 'finance_access': True,
                 'manage_users': True,
                 'manage_campuses': True,
-                'view_all_campuses': True
+                'view_all_campuses': True,
+                'data_export': True
             },
             'senior_pastor': {
                 'log_stats': True,
@@ -2214,7 +2225,8 @@ class User(UserMixin):
                 'finance_access': True,
                 'manage_users': True,
                 'manage_campuses': True,
-                'view_all_campuses': True
+                'view_all_campuses': True,
+                'data_export': True
             },
             'lead_pastor': {
                 'log_stats': True,
@@ -2225,7 +2237,8 @@ class User(UserMixin):
                 'finance_access': True,
                 'manage_users': True,
                 'manage_campuses': True,
-                'view_all_campuses': True
+                'view_all_campuses': True,
+                'data_export': True
             },
             'finance': {
                 'log_stats': False,
@@ -2235,7 +2248,8 @@ class User(UserMixin):
                 'finance_access': True,  # Can ONLY submit finance data
                 'manage_users': False,
                 'manage_campuses': False,
-                'view_all_campuses': False
+                'view_all_campuses': False,
+                'data_export': False
             },
             'campus_pastor': {
                 'log_stats': True,  # Can log stats for their campus
@@ -2246,7 +2260,8 @@ class User(UserMixin):
                 'finance_access': False,
                 'manage_users': False,
                 'manage_campuses': False,
-                'view_all_campuses': False
+                'view_all_campuses': False,
+                'data_export': False
             },
             'pastor': {
                 'log_stats': True,  # Can log stats
@@ -2257,7 +2272,8 @@ class User(UserMixin):
                 'finance_access': False,
                 'manage_users': False,
                 'manage_campuses': False,
-                'view_all_campuses': False
+                'view_all_campuses': False,
+                'data_export': False
             }
         }
         
@@ -2301,6 +2317,9 @@ class User(UserMixin):
         elif permission_type == 'query_access':
             return perm_value is True
             
+        elif permission_type == 'data_export':
+            return perm_value is True
+        
         # For all other permissions, just return the boolean value
         else:
             return perm_value is True
@@ -12060,14 +12079,18 @@ def get_campuses():
     allowed_campuses = custom_permissions.get('allowed_campuses')
     
     if allowed_campuses is not None:
-        # User has custom campus restrictions
-        # Filter to only allowed campuses
-        filtered_campuses = [c for c in active_campuses if c['id'] in allowed_campuses]
-        # Default to first allowed campus, or 'all_campuses' if multiple
-        if len(allowed_campuses) == 1:
-            default_campus = allowed_campuses[0]
+        # Normalize: ignore 'all_campuses' in the list; only real campus ids count
+        allowed_real = [x for x in allowed_campuses if str(x).lower() != 'all_campuses']
+        if not allowed_real:
+            # Only 'all_campuses' or empty → no restriction
+            allowed_campuses = None
         else:
-            default_campus = "all_campuses" if len(allowed_campuses) > 1 else (allowed_campuses[0] if allowed_campuses else "all_campuses")
+            allowed_campuses = allowed_real
+    if allowed_campuses is not None:
+        # User has custom campus restrictions (real campuses only; exclude virtual 'all_campuses')
+        allowed_set = {str(x) for x in allowed_campuses}
+        filtered_campuses = [c for c in active_campuses if c['id'] != 'all_campuses' and str(c['id']) in allowed_set]
+        default_campus = filtered_campuses[0]['id'] if len(filtered_campuses) == 1 else ("all_campuses" if len(filtered_campuses) > 1 else "all_campuses")
     else:
         # No custom restrictions, use role-based filtering
         if current_user.role == 'admin' or current_user.role == 'senior_leader':
@@ -13887,7 +13910,9 @@ def get_recent_entries():
 @app.route('/api/admin/attendance/all', methods=['GET'])
 @admin_required
 def get_all_attendance_records():
-    """Get ALL attendance records from database - Admin only"""
+    """Get ALL attendance records from database - respects Role Manager data_export"""
+    if not current_user.has_permission('data_export'):
+        return jsonify({"error": "Access denied - Data Export / Attendance Data has been disabled for your account"}), 403
     try:
         from models import AttendanceRecord, CampusV2, Region
         
@@ -16024,6 +16049,50 @@ def delete_user_api(user_id):
         logger.error(f"Delete user API error: {e}", exc_info=True)
         return jsonify({"error": "Failed to delete user"}), 500
 
+@app.route('/api/users/<user_id>', methods=['PUT'])
+@login_required
+def update_user_region_api(user_id):
+    """Update a user's region (region_code). Used by Role Manager. Same roles as get_all_users_permissions."""
+    try:
+        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        data = request.get_json() or {}
+        region_code = (data.get('region_code') or '').strip().upper()
+        if not region_code:
+            return jsonify({'error': 'region_code is required'}), 400
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute("PRAGMA table_info(users)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'region_id' not in columns:
+            conn.close()
+            return jsonify({'error': 'Users table does not support region_id'}), 400
+        
+        cursor.execute("SELECT id FROM regions WHERE code = ?", (region_code,))
+        region_row = cursor.fetchone()
+        if not region_row:
+            conn.close()
+            return jsonify({'error': f'Region not found: {region_code}'}), 404
+        
+        region_id = region_row[0]
+        cursor.execute('SELECT id FROM users WHERE id = ? AND active = 1', (user_id,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+        
+        cursor.execute('UPDATE users SET region_id = ? WHERE id = ?', (region_id, user_id))
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Updated user {user_id} region to {region_code} (region_id={region_id})")
+        return jsonify({"success": True, "message": "Region updated", "region_code": region_code, "region_id": region_id})
+    except Exception as e:
+        logger.error(f"Update user region API error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to update region"}), 500
+
 @app.route('/api/users/permissions', methods=['GET'])
 @login_required
 def get_all_users_permissions():
@@ -16035,12 +16104,21 @@ def get_all_users_permissions():
         conn = get_db()
         cursor = conn.cursor()
         
-        # Check if custom_permissions column exists
+        # Check if custom_permissions and region_id columns exist
         cursor.execute("PRAGMA table_info(users)")
         columns = [col[1] for col in cursor.fetchall()]
         has_custom_permissions = 'custom_permissions' in columns
+        has_region_id = 'region_id' in columns
         
-        if has_custom_permissions:
+        if has_region_id and has_custom_permissions:
+            cursor.execute('''
+                SELECT u.id, u.username, u.full_name, u.email, u.role, u.campus, u.active, u.custom_permissions, u.region_id, r.code as region_code
+                FROM users u
+                LEFT JOIN regions r ON u.region_id = r.id
+                WHERE u.active = 1
+                ORDER BY u.full_name, u.username
+            ''')
+        elif has_custom_permissions:
             cursor.execute('''
                 SELECT id, username, full_name, email, role, campus, active, custom_permissions
                 FROM users
@@ -16067,7 +16145,13 @@ def get_all_users_permissions():
                 except:
                     custom_permissions = {}
             
-            users_list.append({
+            region_id = None
+            region_code = None
+            if has_region_id and len(row) > 9:
+                region_id = row[8]
+                region_code = row[9] if row[9] else None
+            
+            user_entry = {
                 'id': row[0],
                 'username': row[1],
                 'full_name': row[2] or row[1],
@@ -16076,7 +16160,11 @@ def get_all_users_permissions():
                 'campus': row[5] or 'all_campuses',
                 'active': bool(row[6]),
                 'custom_permissions': custom_permissions
-            })
+            }
+            if has_region_id:
+                user_entry['region_id'] = region_id
+                user_entry['region_code'] = region_code
+            users_list.append(user_entry)
         
         conn.close()
         return jsonify({'users': users_list, 'success': True})
@@ -16237,7 +16325,9 @@ def update_user_permissions(user_id):
 @app.route('/api/export/attendance', methods=['GET'])
 @login_required
 def export_attendance():
-    """Export attendance data to CSV"""
+    """Export attendance data to CSV - respects Role Manager data_export"""
+    if not current_user.has_permission('data_export'):
+        return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
     try:
         import csv
         from io import StringIO
@@ -22790,8 +22880,11 @@ def get_pulse_status(person_id):
 @app.route('/api/beacon_zones', methods=['GET'])
 @login_required
 def get_beacon_zones():
-    """Get all beacon zones (admin only)"""
+    """Get all beacon zones (admin only) - respects Role Manager beacon_management"""
     try:
+        custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+        if custom_perms.get('beacon_management') is False:
+            return jsonify({'error': 'Access denied - Beacons has been disabled for your account'}), 403
         # Check for beacons permission or admin role
         has_permission = (
             current_user.has_permission('beacons', 'read') or
@@ -23395,7 +23488,10 @@ def get_beacon_zones_public():
 @app.route('/api/beacons/zones', methods=['POST'])
 @admin_required
 def create_beacon_zone():
-    """Create a new beacon zone (admin only)"""
+    """Create a new beacon zone (admin only) - respects Role Manager beacon_management"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('beacon_management') is False:
+        return jsonify({'error': 'Access denied - Beacons has been disabled for your account'}), 403
     try:
         data = request.get_json()
         required_fields = ['zone_name', 'campus', 'uuid', 'major', 'minor']
@@ -23771,9 +23867,11 @@ def get_events():
 @app.route('/api/admin/resource-categories', methods=['GET'])
 @admin_required_json
 def get_admin_resource_categories():
-    """Get all resource categories (admin only)"""
+    """Get all resource categories (admin only) - respects Role Manager resource_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('resource_manager') is False:
+        return jsonify({'error': 'Access denied - Resource Manager has been disabled for your account'}), 403
     try:
-        
         # Try to get categories from database, but handle case where table doesn't exist yet
         try:
             categories = ResourceCategory.query.filter_by(is_active=True).order_by(ResourceCategory.sort_order.asc(), ResourceCategory.display_name.asc()).all()
@@ -23796,9 +23894,11 @@ def get_admin_resource_categories():
 @app.route('/api/admin/resource-categories', methods=['POST'])
 @admin_required_json
 def create_resource_category():
-    """Create a new resource category (admin only)"""
+    """Create a new resource category (admin only) - respects Role Manager resource_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('resource_manager') is False:
+        return jsonify({'error': 'Access denied - Resource Manager has been disabled for your account'}), 403
     try:
-        
         data = request.get_json()
         
         # Validate required fields
@@ -23854,9 +23954,11 @@ def create_resource_category():
 @app.route('/api/admin/resource-categories/<category_id>', methods=['PUT'])
 @admin_required_json
 def update_resource_category(category_id):
-    """Update a resource category (admin only)"""
+    """Update a resource category (admin only) - respects Role Manager resource_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('resource_manager') is False:
+        return jsonify({'error': 'Access denied - Resource Manager has been disabled for your account'}), 403
     try:
-        
         data = request.get_json()
         
         # Find category by slug or ID
@@ -23901,9 +24003,11 @@ def update_resource_category(category_id):
 @app.route('/api/admin/resource-categories/<category_id>', methods=['DELETE'])
 @admin_required_json
 def delete_resource_category(category_id):
-    """Delete a resource category (admin only)"""
+    """Delete a resource category (admin only) - respects Role Manager resource_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('resource_manager') is False:
+        return jsonify({'error': 'Access denied - Resource Manager has been disabled for your account'}), 403
     try:
-        
         # Find category by slug or ID
         category = ResourceCategory.query.filter(
             (ResourceCategory.slug == category_id) | (ResourceCategory.id == category_id)
@@ -24416,7 +24520,10 @@ def get_resource_folder_files(category_id, folder_id):
 @app.route('/api/admin/resource-categories/<category_id>/drive-overrides', methods=['GET'])
 @admin_required_json
 def get_drive_overrides(category_id):
-    """Get all display name overrides for a category"""
+    """Get all display name overrides for a category - respects Role Manager resource_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('resource_manager') is False:
+        return jsonify({'error': 'Access denied - Resource Manager has been disabled for your account'}), 403
     try:
         category = ResourceCategory.query.filter(
             (ResourceCategory.slug == category_id) | (ResourceCategory.id == category_id)
@@ -24434,7 +24541,10 @@ def get_drive_overrides(category_id):
 @app.route('/api/admin/resource-categories/<category_id>/drive-overrides', methods=['POST'])
 @admin_required_json
 def create_drive_override(category_id):
-    """Create or update a display name override for a Drive item"""
+    """Create or update a display name override for a Drive item - respects Role Manager resource_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('resource_manager') is False:
+        return jsonify({'error': 'Access denied - Resource Manager has been disabled for your account'}), 403
     try:
         category = ResourceCategory.query.filter(
             (ResourceCategory.slug == category_id) | (ResourceCategory.id == category_id)
@@ -24486,7 +24596,10 @@ def create_drive_override(category_id):
 @app.route('/api/admin/resource-categories/<category_id>/drive-overrides/<override_id>', methods=['DELETE'])
 @admin_required_json
 def delete_drive_override(category_id, override_id):
-    """Delete a display name override"""
+    """Delete a display name override - respects Role Manager resource_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('resource_manager') is False:
+        return jsonify({'error': 'Access denied - Resource Manager has been disabled for your account'}), 403
     try:
         override = DriveItemOverride.query.get(override_id)
         
@@ -24522,7 +24635,10 @@ def get_event_categories():
 @app.route('/api/events/categories', methods=['POST'])
 @admin_required
 def create_event_category():
-    """Create a new event category (admin only)"""
+    """Create a new event category (admin only) - respects Role Manager events_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('events_manager') is False:
+        return jsonify({'error': 'Access denied - Events Manager has been disabled for your account'}), 403
     try:
         data = request.get_json()
         
@@ -24555,7 +24671,10 @@ def create_event_category():
 @app.route('/api/events/upload-image', methods=['POST'])
 @admin_required
 def upload_event_image():
-    """Upload an image for an event (admin only)"""
+    """Upload an image for an event (admin only) - respects Role Manager events_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('events_manager') is False:
+        return jsonify({'error': 'Access denied - Events Manager has been disabled for your account'}), 403
     try:
         from werkzeug.utils import secure_filename
         from PIL import Image
@@ -24665,7 +24784,10 @@ def serve_event_image(filename):
 @app.route('/api/events', methods=['POST'])
 @admin_required
 def create_event():
-    """Create a new event (admin only)"""
+    """Create a new event (admin only) - respects Role Manager events_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('events_manager') is False:
+        return jsonify({'error': 'Access denied - Events Manager has been disabled for your account'}), 403
     try:
         data = request.get_json()
         required_fields = ['title', 'category_id', 'start_datetime']
@@ -24835,7 +24957,10 @@ def create_event():
 @app.route('/api/events/<event_id>', methods=['PUT'])
 @admin_required
 def update_event(event_id):
-    """Update an existing event (admin only)"""
+    """Update an existing event (admin only) - respects Role Manager events_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('events_manager') is False:
+        return jsonify({'error': 'Access denied - Events Manager has been disabled for your account'}), 403
     try:
         event = Event.query.get(event_id)
         if not event:
@@ -24941,7 +25066,10 @@ def update_event(event_id):
 @app.route('/api/events/<event_id>', methods=['DELETE'])
 @admin_required
 def delete_event(event_id):
-    """Delete an event (admin only)"""
+    """Delete an event (admin only) - respects Role Manager events_manager"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('events_manager') is False:
+        return jsonify({'error': 'Access denied - Events Manager has been disabled for your account'}), 403
     try:
         event = Event.query.get(event_id)
         if not event:
@@ -25961,7 +26089,10 @@ def save_push_token():
 @app.route('/api/notifications/send', methods=['POST'])
 @admin_required_json
 def send_notification():
-    """Send push notification immediately"""
+    """Send push notification immediately - respects Role Manager notifications"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('notifications') is False:
+        return jsonify({'error': 'Access denied - Notifications has been disabled for your account'}), 403
     try:
         data = request.get_json()
         title = data.get('title')
@@ -26038,7 +26169,10 @@ def send_notification():
 @app.route('/api/notifications/schedule', methods=['POST'])
 @admin_required_json
 def schedule_notification():
-    """Schedule a push notification for later"""
+    """Schedule a push notification for later - respects Role Manager notifications"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('notifications') is False:
+        return jsonify({'error': 'Access denied - Notifications has been disabled for your account'}), 403
     try:
         data = request.get_json()
         title = data.get('title')
@@ -26099,7 +26233,10 @@ def schedule_notification():
 @app.route('/api/notifications/scheduled', methods=['GET'])
 @admin_required_json
 def get_scheduled_notifications():
-    """Get list of scheduled notifications"""
+    """Get list of scheduled notifications - respects Role Manager notifications"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('notifications') is False:
+        return jsonify({'error': 'Access denied - Notifications has been disabled for your account'}), 403
     try:
         status = request.args.get('status', 'all')  # all, pending, sent, failed, cancelled
         limit = request.args.get('limit', 50, type=int)
@@ -26124,7 +26261,10 @@ def get_scheduled_notifications():
 @app.route('/api/notifications/scheduled/<int:notification_id>', methods=['DELETE'])
 @admin_required_json
 def cancel_scheduled_notification(notification_id):
-    """Cancel a scheduled notification"""
+    """Cancel a scheduled notification - respects Role Manager notifications"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('notifications') is False:
+        return jsonify({'error': 'Access denied - Notifications has been disabled for your account'}), 403
     try:
         notification = ScheduledNotification.query.get_or_404(notification_id)
         
@@ -26145,7 +26285,10 @@ def cancel_scheduled_notification(notification_id):
 @app.route('/api/notifications/stats', methods=['GET'])
 @admin_required_json
 def get_notification_stats():
-    """Get statistics about push notifications"""
+    """Get statistics about push notifications - respects Role Manager notifications"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('notifications') is False:
+        return jsonify({'error': 'Access denied - Notifications has been disabled for your account'}), 403
     try:
         total_tokens = PushNotificationToken.query.filter_by(is_active=True).count()
         platform_stats = db.session.query(
@@ -26174,7 +26317,10 @@ def get_notification_stats():
 @app.route('/api/notifications/test', methods=['POST'])
 @admin_required_json
 def test_notification():
-    """Test sending a notification to a specific Expo push token"""
+    """Test sending a notification to a specific Expo push token - respects Role Manager notifications"""
+    custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
+    if custom_perms.get('notifications') is False:
+        return jsonify({'error': 'Access denied - Notifications has been disabled for your account'}), 403
     try:
         data = request.get_json()
         expo_push_token = data.get('expo_push_token')
