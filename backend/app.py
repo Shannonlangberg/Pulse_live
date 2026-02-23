@@ -7029,7 +7029,23 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     print(f"[DASHBOARD] Found {len(records)} database records across {len(campus_ids)} campuses (all regions)")
             else:
                 # Single campus - find by campus_id (e.g., 'adelaide_city', 'paradise')
+                # Normalize so "Adelaide City" or "Adelaide City Campus" still finds adelaide_city
                 campus_obj = CampusV2.query.filter_by(campus_id=campus).first()
+                if not campus_obj and campus:
+                    campus_normalized = str(campus).strip().lower().replace(' ', '_').replace('-', '_')
+                    # Remove trailing _campus if present so "adelaide_city_campus" -> "adelaide_city"
+                    if campus_normalized.endswith('_campus'):
+                        campus_normalized = campus_normalized[:-7]
+                    campus_obj = CampusV2.query.filter_by(campus_id=campus_normalized).first()
+                if not campus_obj and campus:
+                    # Try match by display_name or name (e.g. "Adelaide City")
+                    name_stripped = campus.strip()
+                    campus_obj = CampusV2.query.filter(
+                        db.or_(
+                            CampusV2.display_name == name_stripped,
+                            CampusV2.name == name_stripped
+                        )
+                    ).first()
                 
                 if not campus_obj:
                     print(f"[DASHBOARD] Campus '{campus}' not found in database, falling back to Google Sheets")
@@ -7121,6 +7137,7 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     stats['packs_out'] += record.packs_out or 0
                     stats['connect_groups'] += record.connect_groups or 0
                     stats['dream_team'] += record.dream_team or 0
+                    stats['saints'] += record.saints or 0
                     stats['baptisms'] += record.baptisms or 0
                     stats['child_dedications'] += record.child_dedications or 0
                     stats['tithe'] += float(record.tithe or 0)
@@ -14224,11 +14241,13 @@ def save_attendance_record(data, user_id=None):
             except Exception as e:
                 logger.error(f"[SAVE_ATTENDANCE] Error querying by campus value: {e}", exc_info=True)
             
-            # Try lowercase version
+            # Try lowercase version (and strip _campus so "Adelaide City Campus" -> adelaide_city)
             if not campus:
                 try:
-                    campus_lower = campus_value.lower().replace(' ', '_')
-                    logger.info(f"[SAVE_ATTENDANCE] Querying by lowercase: {campus_lower}")
+                    campus_lower = campus_value.lower().replace(' ', '_').replace('-', '_').strip()
+                    if campus_lower.endswith('_campus'):
+                        campus_lower = campus_lower[:-7]
+                    logger.info(f"[SAVE_ATTENDANCE] Querying by normalized: {campus_lower}")
                     campus = db.session.query(CampusV2).filter(CampusV2.campus_id == campus_lower).first()
                     if campus:
                         logger.info(f"[SAVE_ATTENDANCE] Found campus by lowercase campus_id: {campus.campus_id}")
