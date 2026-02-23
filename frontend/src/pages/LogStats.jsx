@@ -405,11 +405,13 @@ const LogStats = () => {
         'Child Dedications': 'Child Dedications'
       };
 
-      // Convert stats to backend format
+      // Build backend stats: send ALL mapped keys so backend never overwrites with 0 for missing fields (Saints, NP, NC, Youth etc.)
       const backendStats = {};
-      Object.entries(nonEmptyStats).forEach(([key, value]) => {
+      Object.keys(quickInputStats).forEach((key) => {
         const backendKey = fieldMapping[key] || key;
-        backendStats[backendKey] = parseInt(value) || 0;
+        const raw = nonEmptyStats[key] !== undefined ? nonEmptyStats[key] : quickInputStats[key];
+        backendStats[backendKey] = parseInt(raw, 10);
+        if (Number.isNaN(backendStats[backendKey])) backendStats[backendKey] = 0;
       });
 
       // Note: Total Attendance and Kids Attendance are NOT sent to backend

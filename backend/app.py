@@ -959,28 +959,29 @@ def save_attendance_record(data, user_id=None):
         record.new_kids_salvations = int(data.get('New Kids Salvations', 0) or 0)
         record.packs_out = int(data.get('Packs Out', 0) or 0)
         record.kids_service_breakdown = json.dumps(kids_breakdown) if kids_breakdown else None
-        record.youth_attendance = int(data.get('Youth Attendance', 0) or 0)
-        record.youth_salvations = int(data.get('Youth Salvations', 0) or 0)
-        record.youth_new_people = int(data.get('Youth New People', 0) or 0)
-        record.youth_leaders = int(data.get('Youth Leaders', 0) or 0)
-        record.first_time_visitors = int(data.get('First Time Visitors', 0) or 0)
-        record.visitors = int(data.get('Visitors', 0) or 0)
-        record.hands_up = int(data.get('Hands up', 0) or 0)
-        record.cards_back = int(data.get('Cards Back', 0) or 0)
-        record.first_time_christians = int(data.get('First Time Christians', 0) or 0)
-        record.rededications = int(data.get('Rededications', 0) or 0)
-        record.salvation_cards_returned = int(data.get('Salvation Cards Returned', 0) or 0)
-        record.baptisms = int(data.get('Baptisms', 0) or 0)
-        record.child_dedications = int(data.get('Child Dedications', 0) or 0)
-        record.connect_groups = int(data.get('Connect Groups', 0) or 0)
-        record.dream_team = int(data.get('Dream Team', 0) or 0)
-        record.tithe = float(data.get('Tithe', 0) or 0)
-        record.notes = data.get('notes')
-        
+        # On partial update (existing record, key not in data) preserve current value so Saints/NP/NC/Youth are not wiped
+        record.youth_attendance = int(data.get('Youth Attendance', 0) or 0) if (not existing or 'Youth Attendance' in data) else (record.youth_attendance or 0)
+        record.youth_salvations = int(data.get('Youth Salvations', 0) or 0) if (not existing or 'Youth Salvations' in data) else (record.youth_salvations or 0)
+        record.youth_new_people = int(data.get('Youth New People', 0) or 0) if (not existing or 'Youth New People' in data) else (record.youth_new_people or 0)
+        record.youth_leaders = int(data.get('Youth Leaders', 0) or 0) if (not existing or 'Youth Leaders' in data) else (record.youth_leaders or 0)
+        record.first_time_visitors = int(data.get('First Time Visitors', 0) or 0) if (not existing or 'First Time Visitors' in data) else (record.first_time_visitors or 0)
+        record.visitors = int(data.get('Visitors', 0) or 0) if (not existing or 'Visitors' in data) else (record.visitors or 0)
+        record.hands_up = int(data.get('Hands up', 0) or 0) if (not existing or 'Hands up' in data) else (record.hands_up or 0)
+        record.cards_back = int(data.get('Cards Back', 0) or 0) if (not existing or 'Cards Back' in data) else (record.cards_back or 0)
+        record.first_time_christians = int(data.get('First Time Christians', 0) or 0) if (not existing or 'First Time Christians' in data) else (record.first_time_christians or 0)
+        record.rededications = int(data.get('Rededications', 0) or 0) if (not existing or 'Rededications' in data) else (record.rededications or 0)
+        record.salvation_cards_returned = int(data.get('Salvation Cards Returned', 0) or 0) if (not existing or 'Salvation Cards Returned' in data) else (record.salvation_cards_returned or 0)
+        record.baptisms = int(data.get('Baptisms', 0) or 0) if (not existing or 'Baptisms' in data) else (record.baptisms or 0)
+        record.child_dedications = int(data.get('Child Dedications', 0) or 0) if (not existing or 'Child Dedications' in data) else (record.child_dedications or 0)
+        record.connect_groups = int(data.get('Connect Groups', 0) or 0) if (not existing or 'Connect Groups' in data) else (record.connect_groups or 0)
+        record.dream_team = int(data.get('Dream Team', 0) or 0) if (not existing or 'Dream Team' in data) else (record.dream_team or 0)
+        record.tithe = float(data.get('Tithe', 0) or 0) if (not existing or 'Tithe' in data) else float(record.tithe or 0)
+        record.notes = data.get('notes') if ('notes' in data or not existing) else record.notes
+        record.saints = int(data.get('Saints', 0) or 0) if (not existing or 'Saints' in data) else (record.saints or 0)
+
         # CALCULATE Total Attendance = Service Times + Saints + Kids + Kids Leaders (exclude Youth for Sundays)
         adult_total = sum(adult_breakdown.values()) if adult_breakdown else 0
-        saints = int(data.get('Saints', 0) or 0)
-        record.saints = saints  # Store saints separately in database
+        saints = record.saints or 0
         total_attendance_calculated = adult_total + saints + record.kids_attendance + record.kids_leaders
         record.total_attendance = total_attendance_calculated
         
@@ -13890,7 +13891,7 @@ def get_recent_entries():
                     'Youth Salvations': record.youth_salvations or 0,
                     'Youth Leaders': record.youth_leaders or 0,
                     # Church life
-                    'Saints': 0,  # Not stored in DB yet
+                    'Saints': record.saints or 0,
                     'Connect Groups': record.connect_groups or 0,
                     'Dream Team': record.dream_team or 0,
                     'Baptisms': record.baptisms or 0,
@@ -14301,12 +14302,45 @@ def save_attendance_record(data, user_id=None):
         
         if not date_val:
             return False, None, "Invalid date format"
-        
-        # Check if record already exists
-        existing = AttendanceRecord.query.filter_by(
-            campus_id=campus.id,
-            date=date_val
-        ).first()
+
+        # UPDATE MODE: when originalCampus + originalDate are provided, find existing by those so we update the correct record
+        original_campus_obj = None
+        original_date_val = None
+        if data.get('originalCampus') and data.get('originalDate'):
+            oc = (data.get('originalCampus') or '').strip()
+            od = (data.get('originalDate') or '').strip()
+            if oc and od:
+                try:
+                    original_date_val = datetime.strptime(od, '%Y-%m-%d').date()
+                except Exception:
+                    try:
+                        original_date_val = datetime.strptime(od, '%m/%d/%Y').date()
+                    except Exception:
+                        original_date_val = None
+                if original_date_val:
+                    original_campus_obj = db.session.query(CampusV2).filter(CampusV2.campus_id == oc).first()
+                    if not original_campus_obj:
+                        onorm = oc.lower().replace(' ', '_').replace('-', '_').strip()
+                        if onorm.endswith('_campus'):
+                            onorm = onorm[:-7]
+                        original_campus_obj = db.session.query(CampusV2).filter(CampusV2.campus_id == onorm).first()
+                    if not original_campus_obj:
+                        original_campus_obj = db.session.query(CampusV2).filter(CampusV2.display_name == oc).first()
+                    if original_campus_obj:
+                        logger.info(f"[SAVE_ATTENDANCE] Update mode: lookup by original campus '{oc}' date '{od}'")
+
+        if original_campus_obj is not None and original_date_val is not None:
+            existing = AttendanceRecord.query.filter_by(
+                campus_id=original_campus_obj.id,
+                date=original_date_val
+            ).first()
+            if existing:
+                logger.info(f"[SAVE_ATTENDANCE] Found existing record by original keys (id={existing.id})")
+        else:
+            existing = AttendanceRecord.query.filter_by(
+                campus_id=campus.id,
+                date=date_val
+            ).first()
         
         # Build service breakdowns
         adult_breakdown = {}
@@ -14348,28 +14382,29 @@ def save_attendance_record(data, user_id=None):
         record.new_kids_salvations = int(data.get('New Kids Salvations', 0) or 0)
         record.packs_out = int(data.get('Packs Out', 0) or 0)
         record.kids_service_breakdown = json.dumps(kids_breakdown) if kids_breakdown else None
-        record.youth_attendance = int(data.get('Youth Attendance', 0) or 0)
-        record.youth_salvations = int(data.get('Youth Salvations', 0) or 0)
-        record.youth_new_people = int(data.get('Youth New People', 0) or 0)
-        record.youth_leaders = int(data.get('Youth Leaders', 0) or 0)
-        record.first_time_visitors = int(data.get('First Time Visitors', 0) or 0)
-        record.visitors = int(data.get('Visitors', 0) or 0)
-        record.hands_up = int(data.get('Hands up', 0) or 0)
-        record.cards_back = int(data.get('Cards Back', 0) or 0)
-        record.first_time_christians = int(data.get('First Time Christians', 0) or 0)
-        record.rededications = int(data.get('Rededications', 0) or 0)
-        record.salvation_cards_returned = int(data.get('Salvation Cards Returned', 0) or 0)
-        record.baptisms = int(data.get('Baptisms', 0) or 0)
-        record.child_dedications = int(data.get('Child Dedications', 0) or 0)
-        record.connect_groups = int(data.get('Connect Groups', 0) or 0)
-        record.dream_team = int(data.get('Dream Team', 0) or 0)
-        record.tithe = float(data.get('Tithe', 0) or 0)
-        record.notes = data.get('notes')
-        
+        # On partial update (existing record, key not in data) preserve current value so Saints/NP/NC/Youth are not wiped
+        record.youth_attendance = int(data.get('Youth Attendance', 0) or 0) if (not existing or 'Youth Attendance' in data) else (record.youth_attendance or 0)
+        record.youth_salvations = int(data.get('Youth Salvations', 0) or 0) if (not existing or 'Youth Salvations' in data) else (record.youth_salvations or 0)
+        record.youth_new_people = int(data.get('Youth New People', 0) or 0) if (not existing or 'Youth New People' in data) else (record.youth_new_people or 0)
+        record.youth_leaders = int(data.get('Youth Leaders', 0) or 0) if (not existing or 'Youth Leaders' in data) else (record.youth_leaders or 0)
+        record.first_time_visitors = int(data.get('First Time Visitors', 0) or 0) if (not existing or 'First Time Visitors' in data) else (record.first_time_visitors or 0)
+        record.visitors = int(data.get('Visitors', 0) or 0) if (not existing or 'Visitors' in data) else (record.visitors or 0)
+        record.hands_up = int(data.get('Hands up', 0) or 0) if (not existing or 'Hands up' in data) else (record.hands_up or 0)
+        record.cards_back = int(data.get('Cards Back', 0) or 0) if (not existing or 'Cards Back' in data) else (record.cards_back or 0)
+        record.first_time_christians = int(data.get('First Time Christians', 0) or 0) if (not existing or 'First Time Christians' in data) else (record.first_time_christians or 0)
+        record.rededications = int(data.get('Rededications', 0) or 0) if (not existing or 'Rededications' in data) else (record.rededications or 0)
+        record.salvation_cards_returned = int(data.get('Salvation Cards Returned', 0) or 0) if (not existing or 'Salvation Cards Returned' in data) else (record.salvation_cards_returned or 0)
+        record.baptisms = int(data.get('Baptisms', 0) or 0) if (not existing or 'Baptisms' in data) else (record.baptisms or 0)
+        record.child_dedications = int(data.get('Child Dedications', 0) or 0) if (not existing or 'Child Dedications' in data) else (record.child_dedications or 0)
+        record.connect_groups = int(data.get('Connect Groups', 0) or 0) if (not existing or 'Connect Groups' in data) else (record.connect_groups or 0)
+        record.dream_team = int(data.get('Dream Team', 0) or 0) if (not existing or 'Dream Team' in data) else (record.dream_team or 0)
+        record.tithe = float(data.get('Tithe', 0) or 0) if (not existing or 'Tithe' in data) else float(record.tithe or 0)
+        record.notes = data.get('notes') if ('notes' in data or not existing) else record.notes
+        record.saints = int(data.get('Saints', 0) or 0) if (not existing or 'Saints' in data) else (record.saints or 0)
+
         # CALCULATE Total Attendance = Service Times + Saints + Kids + Kids Leaders (exclude Youth for Sundays)
         adult_total = sum(adult_breakdown.values()) if adult_breakdown else 0
-        saints = int(data.get('Saints', 0) or 0)
-        record.saints = saints  # Store saints separately in database
+        saints = record.saints or 0
         total_attendance_calculated = adult_total + saints + record.kids_attendance + record.kids_leaders
         record.total_attendance = total_attendance_calculated
         
@@ -14518,20 +14553,24 @@ def quick_input_update():
         if not current_user.has_permission('log_stats'):
             return jsonify({"error": "You don't have permission to update stats"}), 403
         
-        # Prepare data for save_attendance_record (handles both create and update)
+        # Prepare data for save_attendance_record - pass originalCampus/originalDate so we update the correct record
         save_data = {
             'campus': campus,
             'campus_id': campus.lower().replace(' ', '_'),
             'date': date_str,
             **stats  # Spread all stats fields
         }
-        
-        # Save using dual-write system (will update if exists, create if not)
+        if original_campus and original_date:
+            save_data['originalCampus'] = original_campus
+            save_data['originalDate'] = original_date
+            logger.info(f"[EDIT_REQUEST] Passing originalCampus/originalDate for update lookup: '{original_campus}' / '{original_date}'")
+
+        # Save using dual-write system (will find by original date+campus when provided, then update)
         success, record, error = save_attendance_record(
-            save_data, 
+            save_data,
             user_id=current_user.id if hasattr(current_user, 'id') else None
         )
-        
+
         if success:
             total_stats = len([v for v in stats.values() if v and v != 0])
             return jsonify({
