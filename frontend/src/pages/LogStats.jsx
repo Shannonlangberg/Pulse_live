@@ -58,7 +58,9 @@ const LogStats = () => {
   const quickInputFormRef = useRef(null);
   const latestValuesRef = useRef({});
   const updateStat = (key, value) => {
+    console.log(`[UPDATE_STAT] key="${key}", value="${value}"`);
     latestValuesRef.current = { ...latestValuesRef.current, [key]: value };
+    console.log('[UPDATE_STAT] latestValuesRef.current after update:', latestValuesRef.current);
     const next = { ...quickInputStats, [key]: value };
     setQuickInputStats(next);
   };
@@ -389,6 +391,7 @@ const LogStats = () => {
     });
 
     console.log('[EDIT_FROM_RECENT] Mapped stats:', newStats);
+    console.log('[EDIT_FROM_RECENT] Setting latestValuesRef.current to:', newStats);
     latestValuesRef.current = { ...newStats }; // Sync ref BEFORE opening modal - source of truth for submit
     setQuickInputStats(newStats);
     setQuickInputDate(entry.date);
@@ -419,6 +422,11 @@ const LogStats = () => {
     try {
       // Ref updated on every keystroke + DOM sync - guaranteed latest values
       const latestStats = getStatsForSubmit();
+      console.log('[SUBMIT_DEBUG] === PAYLOAD CONSTRUCTION ===');
+      console.log('[SUBMIT_DEBUG] latestValuesRef.current:', latestValuesRef.current);
+      console.log('[SUBMIT_DEBUG] latestStats (after getStatsForSubmit):', latestStats);
+      console.log('[SUBMIT_DEBUG] quickInputStats (state):', quickInputStats);
+      
       const nonEmptyStats = Object.fromEntries(
         Object.entries(latestStats).filter(([_, value]) => String(value || '').trim() !== '')
       );
@@ -473,6 +481,10 @@ const LogStats = () => {
         if (Number.isNaN(backendStats[backendKey])) backendStats[backendKey] = 0;
       });
 
+      console.log('[SUBMIT_DEBUG] backendStats (before send):', backendStats);
+      console.log('[SUBMIT_DEBUG] isEditMode:', isEditMode);
+      console.log('[SUBMIT_DEBUG] editingEntry:', editingEntry);
+
       // Note: Total Attendance and Kids Attendance are NOT sent to backend
       // The backend calculates these from the individual service time columns
 
@@ -481,22 +493,26 @@ const LogStats = () => {
       const campusForPayload = isEditMode && editingEntry
         ? (editingEntry.campusId || editingEntry.originalCampus)
         : selectedCampus;
+      
+      const payload = {
+        campus: campusForPayload,
+        date: quickInputDate,
+        stats: backendStats,
+        ...(isEditMode && editingEntry && { 
+          originalDate: editingEntry.originalDate || editingEntry.date, 
+          originalCampus: editingEntry.campusId || editingEntry.originalCampus,
+          recordId: editingEntry.recordId
+        })
+      };
+      console.log('[SUBMIT_DEBUG] Full payload being sent:', JSON.stringify(payload, null, 2));
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          campus: campusForPayload,
-          date: quickInputDate,
-          stats: backendStats,
-          ...(isEditMode && editingEntry && { 
-            originalDate: editingEntry.originalDate || editingEntry.date, 
-            originalCampus: editingEntry.campusId || editingEntry.originalCampus,
-            recordId: editingEntry.recordId
-          })
-        })
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
