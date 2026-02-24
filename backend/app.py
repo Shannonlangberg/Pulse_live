@@ -988,10 +988,13 @@ def save_attendance_record(data, user_id=None):
         print(f"[SAVE_ATTENDANCE] Calculated total_attendance: {total_attendance_calculated} (adult:{adult_total} + saints:{saints} + kids:{record.kids_attendance} + kids_leaders:{record.kids_leaders})")
         logger.info(f"[SAVE_ATTENDANCE] Calculated total_attendance: {total_attendance_calculated} (adult:{adult_total} + saints:{saints} + kids:{record.kids_attendance} + kids_leaders:{record.kids_leaders})")
         
-        # Save to database
+        # Save to database - flush first to ensure changes are written, then commit
         if not existing:
             db.session.add(record)
+        db.session.flush()
         db.session.commit()
+        print(f"[SAVE_ATTENDANCE] Committed record id={record.id} (existing={bool(existing)})", flush=True)
+        logger.info(f"[SAVE_ATTENDANCE] Committed record id={record.id}")
         
         # DUAL-WRITE: Also save to Google Sheets (for backward compatibility)
         try:
@@ -14332,10 +14335,14 @@ def save_attendance_record(data, user_id=None):
         # UPDATE MODE: find existing record - prefer recordId (most reliable), then originalCampus+originalDate
         existing = None
         record_id = data.get('recordId')
-        if record_id and isinstance(record_id, (int, float)):
-            existing = AttendanceRecord.query.get(int(record_id))
+        if record_id is not None and isinstance(record_id, (int, float)):
+            rid = int(record_id)
+            existing = AttendanceRecord.query.get(rid)
             if existing:
-                logger.info(f"[SAVE_ATTENDANCE] Found existing record by recordId={record_id}")
+                print(f"[SAVE_ATTENDANCE] Found existing record by recordId={rid}", flush=True)
+                logger.info(f"[SAVE_ATTENDANCE] Found existing record by recordId={rid}")
+            else:
+                print(f"[SAVE_ATTENDANCE] RecordId {rid} not found, trying fallback lookup", flush=True)
         if not existing and data.get('originalCampus') and data.get('originalDate'):
             oc = (data.get('originalCampus') or '').strip()
             od = (data.get('originalDate') or '').strip()
@@ -14438,10 +14445,13 @@ def save_attendance_record(data, user_id=None):
         print(f"[SAVE_ATTENDANCE] Calculated total_attendance: {total_attendance_calculated} (adult:{adult_total} + saints:{saints} + kids:{record.kids_attendance} + kids_leaders:{record.kids_leaders})")
         logger.info(f"[SAVE_ATTENDANCE] Calculated total_attendance: {total_attendance_calculated} (adult:{adult_total} + saints:{saints} + kids:{record.kids_attendance} + kids_leaders:{record.kids_leaders})")
         
-        # Save to database
+        # Save to database - flush first to ensure changes are written, then commit
         if not existing:
             db.session.add(record)
+        db.session.flush()
         db.session.commit()
+        print(f"[SAVE_ATTENDANCE] Committed record id={record.id} (existing={bool(existing)})", flush=True)
+        logger.info(f"[SAVE_ATTENDANCE] Committed record id={record.id}")
         
         # DUAL-WRITE: Also save to Google Sheets (for backward compatibility)
         try:
