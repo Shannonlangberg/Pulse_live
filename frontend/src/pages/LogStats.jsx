@@ -64,11 +64,11 @@ const LogStats = () => {
   // Collect stats from DOM - uncontrolled inputs mean DOM has the actual typed value
   const collectStatsFromDOM = () => {
     if (!quickInputFormRef.current) return quickInputStats;
-    const inputs = quickInputFormRef.current.querySelectorAll('[data-stat-key]');
+    const inputs = quickInputFormRef.current.querySelectorAll('input[data-stat-key]');
     const collected = { ...quickInputStats };
     inputs.forEach((inp) => {
       const key = inp.getAttribute('data-stat-key');
-      if (key) collected[key] = inp.value ?? '';
+      if (key) collected[key] = String(inp.value ?? '').trim();
     });
     return collected;
   };
@@ -248,7 +248,9 @@ const LogStats = () => {
   }, [selectedRegion, allCampuses, regions]);
 
   // Reset stats when campus changes (so service times update)
+  // CRITICAL: Skip when modal is open - otherwise we remount form and lose user's typed values
   useEffect(() => {
+    if (showQuickInput) return;
     if (selectedCampus && campuses.length > 0) {
       setQuickInputStats(prev => {
         const resetStats = { ...prev };
@@ -261,7 +263,7 @@ const LogStats = () => {
       });
       setFormMountKey(k => k + 1); // Force form remount with fresh defaults
     }
-  }, [selectedCampus, campuses]);
+  }, [selectedCampus, campuses, showQuickInput]);
 
   // Load recent entries when campus changes
   useEffect(() => {
