@@ -13930,7 +13930,10 @@ def get_recent_entries():
                 })
             
             logger.info(f"[RECENT_ENTRIES] Converted {len(entries)} database records to frontend format")
-            return jsonify({"entries": entries}), 200
+            resp = jsonify({"entries": entries})
+            resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+            resp.headers['Pragma'] = 'no-cache'
+            return resp
             
         except Exception as e:
             logger.error(f"[RECENT_ENTRIES] Error loading from database: {e}")

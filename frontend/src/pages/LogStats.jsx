@@ -258,11 +258,11 @@ const LogStats = () => {
     try {
       const url = cacheBuster
         ? `/api/recent_entries?campus=${encodeURIComponent(selectedCampus)}&_t=${Date.now()}`
-        : `/api/recent_entries?campus=${encodeURIComponent(selectedCampus)}`;
+        : `/api/recent_entries?campus=${encodeURIComponent(selectedCampus)}&_t=${Date.now()}`;
       const response = await fetch(url, {
         credentials: 'include',
-        cache: cacheBuster ? 'no-store' : 'default',
-        headers: cacheBuster ? { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' } : {}
+        cache: 'no-store',
+        headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
       });
       const data = await response.json();
       if (data.entries) {
@@ -278,7 +278,27 @@ const LogStats = () => {
     }
   };
 
-  const handleEditFromRecent = (entry) => {
+  const handleEditFromRecent = async (entry) => {
+    // Refetch to get latest data before opening edit form
+    try {
+      const url = `/api/recent_entries?campus=${encodeURIComponent(selectedCampus)}&_t=${Date.now()}`;
+      const response = await fetch(url, {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+      });
+      const data = await response.json();
+      if (data.entries && data.entries.length > 0) {
+        const freshEntry = data.entries.find(e => 
+          e.date === entry.date && 
+          (e.campus === entry.campus || e.stats?.Campus === entry.campus || (e.stats?.campusId || e.campusId) === (entry.campusId || entry.stats?.campusId))
+        );
+        if (freshEntry) entry = freshEntry;
+        setRecentEntries(data.entries);
+      }
+    } catch (err) {
+      console.warn('[EDIT_FROM_RECENT] Could not refetch, using cached entry:', err);
+    }
     // DEBUG: Log the entire entry to see what data we're receiving
     console.log('[EDIT_FROM_RECENT] Full entry:', entry);
     console.log('[EDIT_FROM_RECENT] Entry stats:', entry.stats);
@@ -619,9 +639,19 @@ const LogStats = () => {
           <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-3xl p-8 border border-white/20 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-white">Recent Entries (Last 30 Days)</h3>
-              {loadingRecent && (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-              )}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => loadRecentEntries(true)}
+                  disabled={loadingRecent}
+                  className="text-sm text-blue-400 hover:text-blue-300 disabled:opacity-50"
+                >
+                  Refresh
+                </button>
+                {loadingRecent && (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                )}
+              </div>
             </div>
             {recentEntries.length > 0 ? (
               <div className="space-y-4">
