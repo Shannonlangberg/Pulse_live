@@ -377,9 +377,10 @@ const LogStats = () => {
     // DON'T change selectedCampus - keep the list filter so after save we refetch the same view
     
     setEditingEntry({
-      originalCampus: originalCampus, // Use original campus name from stats data
+      originalCampus: originalCampus,
       originalDate: entry.date,
-      campusId: campusId // Store campus_id for proper lookup
+      campusId: campusId,
+      recordId: entry.stats?.id ?? entry.id // DB record ID for reliable update
     });
     setShowQuickInput(true);
   };
@@ -468,7 +469,8 @@ const LogStats = () => {
           stats: backendStats,
           ...(isEditMode && editingEntry && { 
             originalDate: editingEntry.originalDate || editingEntry.date, 
-            originalCampus: editingEntry.campusId || editingEntry.originalCampus 
+            originalCampus: editingEntry.campusId || editingEntry.originalCampus,
+            recordId: editingEntry.recordId
           })
         })
       });

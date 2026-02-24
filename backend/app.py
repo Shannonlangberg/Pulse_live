@@ -2292,7 +2292,12 @@ class User(UserMixin):
             elif perm_value == 'own_campus':
                 # For own_campus, allow if no campus specified or if it matches user's campus
                 user_campus = getattr(self, 'campus', None)
-                result = campus is None or campus == user_campus or user_campus == 'all_campuses'
+                if campus is None or user_campus == 'all_campuses':
+                    return True
+                # Normalize both for comparison (adelaide_city, Adelaide City, adelaide city -> same)
+                def _nc(s):
+                    return str(s or '').strip().lower().replace(' ', '_').replace('-', '_')
+                result = _nc(campus) == _nc(user_campus)
                 logger.info(f"[PERMISSION_CHECK] own_campus check: campus={campus}, user_campus={user_campus}, result={result}")
                 return result
             # If role not found in permissions, default to False but log it
@@ -13921,6 +13926,7 @@ def get_recent_entries():
                 }
                 
                 entries.append({
+                    'id': record.id,
                     'date': record.date.strftime('%Y-%m-%d'),
                     'campus': campus.display_name if campus else 'Unknown',
                     'campusId': campus.campus_id if campus else None,
@@ -14323,10 +14329,14 @@ def save_attendance_record(data, user_id=None):
         if not date_val:
             return False, None, "Invalid date format"
 
-        # UPDATE MODE: when originalCampus + originalDate are provided, find existing by those so we update the correct record
-        original_campus_obj = None
-        original_date_val = None
-        if data.get('originalCampus') and data.get('originalDate'):
+        # UPDATE MODE: find existing record - prefer recordId (most reliable), then originalCampus+originalDate
+        existing = None
+        record_id = data.get('recordId')
+        if record_id and isinstance(record_id, (int, float)):
+            existing = AttendanceRecord.query.get(int(record_id))
+            if existing:
+                logger.info(f"[SAVE_ATTENDANCE] Found existing record by recordId={record_id}")
+        if not existing and data.get('originalCampus') and data.get('originalDate'):
             oc = (data.get('originalCampus') or '').strip()
             od = (data.get('originalDate') or '').strip()
             if oc and od:
@@ -14347,16 +14357,13 @@ def save_attendance_record(data, user_id=None):
                     if not original_campus_obj:
                         original_campus_obj = db.session.query(CampusV2).filter(CampusV2.display_name == oc).first()
                     if original_campus_obj:
-                        logger.info(f"[SAVE_ATTENDANCE] Update mode: lookup by original campus '{oc}' date '{od}'")
-
-        if original_campus_obj is not None and original_date_val is not None:
-            existing = AttendanceRecord.query.filter_by(
-                campus_id=original_campus_obj.id,
-                date=original_date_val
-            ).first()
-            if existing:
-                logger.info(f"[SAVE_ATTENDANCE] Found existing record by original keys (id={existing.id})")
-        else:
+                        existing = AttendanceRecord.query.filter_by(
+                            campus_id=original_campus_obj.id,
+                            date=original_date_val
+                        ).first()
+                        if existing:
+                            logger.info(f"[SAVE_ATTENDANCE] Found existing record by original campus '{oc}' date '{od}' (id={existing.id})")
+        if not existing:
             existing = AttendanceRecord.query.filter_by(
                 campus_id=campus.id,
                 date=date_val
@@ -14573,13 +14580,21 @@ def quick_input_update():
         if not current_user.has_permission('log_stats'):
             return jsonify({"error": "You don't have permission to update stats"}), 403
         
-        # Prepare data for save_attendance_record - pass originalCampus/originalDate so we update the correct record
+        # Check if user has permission to log stats
+        if not current_user.has_permission('log_stats'):
+            return jsonify({"error": "You don't have permission to update stats"}), 403
+        
+        # Prepare data for save_attendance_record - pass recordId (most reliable), originalCampus/originalDate for lookup
         save_data = {
             'campus': campus,
             'campus_id': campus.lower().replace(' ', '_'),
             'date': date_str,
             **stats  # Spread all stats fields
         }
+        record_id = data.get('recordId')
+        if record_id is not None:
+            save_data['recordId'] = record_id
+            logger.info(f"[EDIT_REQUEST] Passing recordId for update: {record_id}")
         if original_campus and original_date:
             save_data['originalCampus'] = original_campus
             save_data['originalDate'] = original_date
