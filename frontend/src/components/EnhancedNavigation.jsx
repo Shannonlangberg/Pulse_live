@@ -137,7 +137,7 @@ const SETTINGS_ITEMS = [
     href: '/resources/manage', 
     icon: BookOpenIcon, 
     roles: ['superadmin', 'admin'],
-    featureKey: null  // Admin-only, cannot be overridden by custom permissions
+    featureKey: 'resource_manager'
   },
   { 
     name: 'TV Manager', 
@@ -165,7 +165,7 @@ const SETTINGS_ITEMS = [
     href: '/attendance-data', 
     icon: DocumentChartBarIcon, 
     roles: ['superadmin', 'admin'],
-    featureKey: null
+    featureKey: 'data_export'
   }
 ];
 

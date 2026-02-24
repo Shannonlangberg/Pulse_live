@@ -109,7 +109,7 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       href: '/resources/manage', 
       icon: BookOpenIcon, 
       roles: ['superadmin', 'admin'],
-      featureKey: null  // Admin-only, cannot be overridden by custom permissions
+      featureKey: 'resource_manager'
     },
     { 
       name: 'TV Manager', 
@@ -137,7 +137,7 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       href: '/attendance-data', 
       icon: DocumentChartBarIcon, 
       roles: ['superadmin', 'admin'],
-      featureKey: null
+      featureKey: 'data_export'
     }
   ];
 

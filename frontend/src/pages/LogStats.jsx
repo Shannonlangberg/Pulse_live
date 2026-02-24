@@ -64,24 +64,13 @@ const LogStats = () => {
     const next = { ...quickInputStats, [key]: value };
     setQuickInputStats(next);
   };
-  // Get stats for submit: prefer ref (updated on every change), fallback to DOM, then state
+  // Get stats for submit: use ref which is updated synchronously on every onChange
   const getStatsForSubmit = () => {
-    console.log('[GET_STATS] latestValuesRef.current BEFORE DOM sync:', JSON.stringify(latestValuesRef.current, null, 2));
-    if (quickInputFormRef.current) {
-      const inputs = quickInputFormRef.current.querySelectorAll('input[data-stat-key]');
-      console.log('[GET_STATS] Found', inputs.length, 'inputs with data-stat-key');
-      inputs.forEach((inp) => {
-        const key = inp.getAttribute('data-stat-key');
-        const value = String(inp.value ?? '').trim();
-        if (key) {
-          console.log(`[GET_STATS] Reading from DOM: key="${key}", value="${value}"`);
-          latestValuesRef.current[key] = value;
-        }
-      });
-    }
-    console.log('[GET_STATS] latestValuesRef.current AFTER DOM sync:', JSON.stringify(latestValuesRef.current, null, 2));
+    console.log('[GET_STATS] latestValuesRef.current:', JSON.stringify(latestValuesRef.current, null, 2));
+    console.log('[GET_STATS] quickInputStats:', JSON.stringify(quickInputStats, null, 2));
+    // Merge: quickInputStats has initial values, latestValuesRef has user changes
     const result = { ...quickInputStats, ...latestValuesRef.current };
-    console.log('[GET_STATS] Final result (quickInputStats + ref):', JSON.stringify(result, null, 2));
+    console.log('[GET_STATS] Final merged result:', JSON.stringify(result, null, 2));
     return result;
   };
 
@@ -395,8 +384,13 @@ const LogStats = () => {
     Object.entries(entry.stats || {}).forEach(([k, v]) => {
       if (skipKeys.includes(k)) return;
       const str = v !== undefined && v !== null && v !== '' ? String(v) : '';
-      newStats[k] = str;
-      if (backendToFrontend[k] !== undefined) newStats[backendToFrontend[k]] = str;
+      // If this is a backend key that maps to a frontend key, ONLY set the frontend key
+      if (backendToFrontend[k] !== undefined) {
+        newStats[backendToFrontend[k]] = str;
+      } else {
+        // Otherwise set the key as-is (for custom service times, etc.)
+        newStats[k] = str;
+      }
     });
 
     console.log('[EDIT_FROM_RECENT] Mapped stats:', newStats);
