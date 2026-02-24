@@ -6973,7 +6973,11 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
             start_date = end_date - timedelta(days=30)
         elif date_filter == 'last_90_days':
             start_date = end_date - timedelta(days=90)
-        elif date_filter == 'this_year':
+        elif date_filter == 'last_3_months':
+            start_date = end_date - timedelta(days=90)
+        elif date_filter == 'last_6_months':
+            start_date = end_date - timedelta(days=180)
+        elif date_filter in ['this_year', 'year_to_date']:
             start_date = datetime(end_date.year, 1, 1).date()
         elif date_filter == 'last_12_months':
             start_date = end_date - timedelta(days=365)
@@ -15162,7 +15166,11 @@ def get_dashboard_data_public():
         
         # Use the working Google Sheets function directly
         dashboard_data = get_dashboard_data(campus, date_filter, custom_start_date, custom_end_date, show_previous_year)
-        return jsonify(dashboard_data)
+        response = jsonify(dashboard_data)
+        # Prevent caching so dashboard always shows fresh database data
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        return response
     except Exception as e:
         logger.error(f"Public dashboard API error: {e}")
         return jsonify({"error": "Failed to load dashboard data"}), 500
@@ -15352,7 +15360,7 @@ def get_regional_dashboard_data():
             start_date = end_date - timedelta(days=30)
         elif date_filter == 'last_90_days':
             start_date = end_date - timedelta(days=90)
-        elif date_filter == 'this_year':
+        elif date_filter in ['this_year', 'year_to_date']:
             start_date = datetime(end_date.year, 1, 1).date()
         elif date_filter == 'last_12_months':
             start_date = end_date - timedelta(days=365)
@@ -15388,13 +15396,54 @@ def get_regional_dashboard_data():
                 info = date_breakdown[date_key]
                 print(f"[REGIONAL_DASHBOARD]   {date_key}: {info['count']} records, total_attendance={info['total_attendance']}, campuses={sorted(info['campuses'])}")
         
-        # If no records, check if ANY records exist in the table
+        # If no records, fall back to Google Sheets (database first, Sheets backup)
         if len(records) == 0:
             total_records = AttendanceRecord.query.count()
             print(f"[REGIONAL_DASHBOARD] No records found. Total records in table: {total_records}")
             if total_records > 0:
                 sample_record = AttendanceRecord.query.first()
                 print(f"[REGIONAL_DASHBOARD] Sample record: region_id={sample_record.region_id}, campus_id={sample_record.campus_id}, date={sample_record.date}")
+            # Fall back to get_dashboard_data (uses Sheets when DB empty)
+            campus_for_fallback = 'australia' if region_code.upper() == 'AU' else 'all_campuses'
+            print(f"[REGIONAL_DASHBOARD] Falling back to Google Sheets via get_dashboard_data(campus={campus_for_fallback})")
+            try:
+                fallback = get_dashboard_data(campus_for_fallback, date_filter, custom_start_date, custom_end_date)
+                s = fallback.get('stats', {})
+                if s:
+                    record_count = max(1, s.get('entry_count', 1))
+                    resp_data = {
+                        'date_range': {'start': str(start_date), 'end': str(end_date), 'filter': date_filter},
+                        'stats': {
+                            'total_attendance': s.get('total_attendance', 0),
+                            'avg_weekly_attendance': round(s.get('avg_attendance', 0), 1),
+                            'total_kids': s.get('kids_attendance', 0),
+                            'avg_kids': round(s.get('avg_kids_attendance', 0), 1),
+                            'total_kids_leaders': s.get('kids_leaders', 0),
+                            'avg_kids_leaders': round(s.get('avg_kids_leaders', 0), 1),
+                            'total_youth': s.get('youth_attendance', 0),
+                            'avg_youth': round(s.get('avg_youth_attendance', 0), 1),
+                            'total_salvations': (s.get('first_time_christians', 0) + s.get('rededications', 0) + s.get('youth_salvations', 0) + s.get('new_kids_salvations', 0)),
+                            'first_time_christians': s.get('first_time_christians', 0),
+                            'rededications': s.get('rededications', 0),
+                            'youth_salvations': s.get('youth_salvations', 0),
+                            'new_kids_salvations': s.get('new_kids_salvations', 0),
+                            'total_visitors': s.get('first_time_visitors', 0),
+                            'new_people': s.get('new_people', 0),
+                            'total_giving': round(float(s.get('tithe', 0)), 2),
+                            'avg_weekly_giving': round(float(s.get('avg_tithe', 0)), 2),
+                            'week_count': record_count,
+                        },
+                        'campuses': [],
+                        'chart_data': fallback.get('chart_data', {'labels': [], 'attendance': [], 'new_people': [], 'new_christians': []}),
+                        'data_source': fallback.get('data_source', 'Google Sheets')
+                    }
+                    resp = jsonify(resp_data)
+                    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+                    resp.headers['Pragma'] = 'no-cache'
+                    return resp
+            except Exception as fb_err:
+                print(f"[REGIONAL_DASHBOARD] Sheets fallback failed: {fb_err}")
+                logger.warning(f"[REGIONAL_DASHBOARD] Sheets fallback failed: {fb_err}")
         
         # Get campuses in this region
         campuses = CampusV2.query.filter_by(region_id=region_id, active=True).all()
@@ -15793,7 +15842,10 @@ def get_regional_dashboard_data():
         
         print(f"[REGIONAL_DASHBOARD] Successfully generated response with {len(records)} records")
         logger.info(f"[REGIONAL_DASHBOARD] Successfully generated response")
-        return jsonify(response)
+        resp = jsonify(response)
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        resp.headers['Pragma'] = 'no-cache'
+        return resp
     
     except Exception as e:
         import traceback
@@ -15842,7 +15894,7 @@ def get_global_dashboard_data():
             start_date = end_date - timedelta(days=30)
         elif date_filter == 'last_90_days':
             start_date = end_date - timedelta(days=90)
-        elif date_filter == 'this_year':
+        elif date_filter in ['this_year', 'year_to_date']:
             start_date = datetime(end_date.year, 1, 1).date()
         elif date_filter == 'last_12_months':
             start_date = end_date - timedelta(days=365)
@@ -15857,6 +15909,44 @@ def get_global_dashboard_data():
             AttendanceRecord.date >= start_date,
             AttendanceRecord.date <= end_date
         ).all()
+        
+        # If no records, fall back to Google Sheets (database first, Sheets backup)
+        if len(all_records) == 0:
+            print(f"[GLOBAL_DASHBOARD] No records found, falling back to Google Sheets")
+            try:
+                fallback = get_dashboard_data('all_campuses', date_filter, custom_start_date, custom_end_date)
+                s = fallback.get('stats', {})
+                if s:
+                    record_count = max(1, s.get('entry_count', 1))
+                    resp_data = {
+                        'date_range': {'start': start_date.isoformat(), 'end': end_date.isoformat(), 'filter': date_filter},
+                        'global_stats': {
+                            'total_attendance': s.get('total_attendance', 0),
+                            'avg_weekly_attendance': round(s.get('avg_attendance', 0), 1),
+                            'total_kids': s.get('kids_attendance', 0),
+                            'avg_kids': round(s.get('avg_kids_attendance', 0), 1),
+                            'total_youth': s.get('youth_attendance', 0),
+                            'avg_youth': round(s.get('avg_youth_attendance', 0), 1),
+                            'total_salvations': (s.get('first_time_christians', 0) + s.get('rededications', 0) + s.get('youth_salvations', 0) + s.get('new_kids_salvations', 0)),
+                            'total_baptisms': s.get('baptisms', 0),
+                            'total_visitors': s.get('first_time_visitors', 0),
+                            'total_giving': round(float(s.get('tithe', 0)), 2),
+                            'avg_weekly_giving': round(float(s.get('avg_tithe', 0)), 2),
+                            'week_count': record_count,
+                            'total_regions': 1,
+                            'active_regions': 1,
+                            'total_campuses': 1
+                        },
+                        'regions': [],
+                        'total_records': 0
+                    }
+                    resp = jsonify(resp_data)
+                    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+                    resp.headers['Pragma'] = 'no-cache'
+                    return resp
+            except Exception as fb_err:
+                print(f"[GLOBAL_DASHBOARD] Sheets fallback failed: {fb_err}")
+                logger.warning(f"[GLOBAL_DASHBOARD] Sheets fallback failed: {fb_err}")
         
         # Get all regions and campuses
         regions = Region.query.filter_by(active=True).all()
@@ -15937,7 +16027,10 @@ def get_global_dashboard_data():
             'total_records': len(all_records)
         }
         
-        return jsonify(response)
+        resp = jsonify(response)
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        resp.headers['Pragma'] = 'no-cache'
+        return resp
     
     except Exception as e:
         logger.error(f"Global dashboard error: {e}", exc_info=True)

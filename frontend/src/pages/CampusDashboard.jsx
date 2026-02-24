@@ -73,7 +73,9 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
       if (isGlobal) {
         console.log(`[CampusDashboard] Fetching GLOBAL dashboard`);
         const response = await fetch(`/api/dashboard/global?date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&_t=${cacheBuster}`, {
-          credentials: 'include'
+          credentials: 'include',
+          cache: 'no-store',
+          headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
         });
         
         if (!response.ok) {
@@ -127,7 +129,9 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
       } else if (isRollup) {
         console.log(`[CampusDashboard] Fetching regional dashboard for region: ${campusId}`);
         const response = await fetch(`/api/dashboard/regional?region=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&_t=${cacheBuster}`, {
-          credentials: 'include'
+          credentials: 'include',
+          cache: 'no-store',
+          headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
         });
         
         if (!response.ok) {
@@ -162,8 +166,8 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             rededications: result.stats?.rededications || 0,  // Rededications
             baptisms: result.stats?.total_baptisms || 0,
             child_dedications: result.stats?.total_child_dedications || 0,
-            new_people: result.stats?.total_visitors || 0,
-            first_time_visitors: result.stats?.total_visitors || 0,
+            new_people: result.stats?.new_people || 0,  // First time + visitors + youth (not just total_visitors)
+            first_time_visitors: result.stats?.total_visitors || 0,  // total_visitors = first time visitors in backend
             visitors: 0,
             information_gathered: 0,
             packs_out: 0,
@@ -188,7 +192,11 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
       } else {
         // Regular campus dashboard
         console.log(`[CampusDashboard] Fetching campus dashboard for campus: ${campusId}`);
-        const response = await fetch(`/api/dashboard_data_public?campus=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&show_previous_year=${showPreviousYear}&_t=${cacheBuster}`);
+        const response = await fetch(`/api/dashboard_data_public?campus=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&show_previous_year=${showPreviousYear}&_t=${cacheBuster}`, {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+        });
         
         if (!response.ok) {
           throw new Error(`Campus dashboard API error: ${response.status}`);
@@ -242,7 +250,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
         new_kids_salvations: result.stats?.new_kids_salvations || 0,  // Kids salvations
         rededications: result.stats?.rededications || 0,  // Rededications
         baptisms: result.stats?.total_baptisms || 0,
-        new_people: result.stats?.total_visitors || 0,
+        new_people: result.stats?.new_people || 0,  // First time + visitors + youth
         first_time_visitors: result.stats?.total_visitors || 0,
         tithe: result.stats?.total_giving || 0,
         avg_tithe: result.stats?.avg_weekly_giving || 0
@@ -522,6 +530,11 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 <div className="text-white font-medium">
                   {lastRefresh.toLocaleTimeString()}
                 </div>
+                {!isRollup && !isGlobal && data?.data_source && (
+                  <div className="text-white/50 text-xs mt-1" title={data.data_source}>
+                    {data.data_source.startsWith('Database') ? '✓ Database' : data.data_source}
+                  </div>
+                )}
               </div>
             </div>
           </div>
