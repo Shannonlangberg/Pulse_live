@@ -7218,6 +7218,10 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 stats['avg_connect_groups'] = stats['connect_groups'] / entry_count
                 stats['avg_dream_team'] = stats['dream_team'] / entry_count
                 stats['avg_saints'] = stats['saints'] / entry_count
+                stats['avg_new_people'] = stats['new_people'] / entry_count
+                stats['avg_first_time_visitors'] = stats['first_time_visitors'] / entry_count
+                stats['avg_first_time_christians'] = stats['first_time_christians'] / entry_count
+                stats['avg_rededications'] = stats['rededications'] / entry_count
                 
                 # FIX: total_people should be average, not sum across dates
                 # Convert the summed total_people to an average
@@ -13819,10 +13823,19 @@ def get_recent_entries():
             if campus and campus != 'all_campuses':
                 logger.info(f"[RECENT_ENTRIES] Looking for entries from {start_date} to {end_date} for campus '{campus}'")
                 
-                # Try to find campus by UUID first (campus.id), then by campus_id string
+                # Try to find campus: by id (int), campus_id (e.g. adelaide_city), then normalized, then display_name
                 campus_obj = CampusV2.query.filter(
                     (CampusV2.id == campus) | (CampusV2.campus_id == campus)
                 ).first()
+                if not campus_obj:
+                    campus_norm = str(campus).strip().lower().replace(' ', '_').replace('-', '_')
+                    if campus_norm.endswith('_campus'):
+                        campus_norm = campus_norm[:-7]
+                    campus_obj = CampusV2.query.filter(CampusV2.campus_id == campus_norm).first()
+                if not campus_obj:
+                    campus_obj = CampusV2.query.filter(CampusV2.display_name == campus.strip()).first()
+                if not campus_obj:
+                    campus_obj = CampusV2.query.filter(CampusV2.name == campus.strip()).first()
                 
                 if not campus_obj:
                     logger.warning(f"[RECENT_ENTRIES] Campus '{campus}' not found in database")

@@ -251,13 +251,18 @@ const LogStats = () => {
     }
   }, [selectedCampus]);
 
-  const loadRecentEntries = async () => {
+  const loadRecentEntries = async (cacheBuster = false) => {
     if (!selectedCampus) return;
     
     setLoadingRecent(true);
     try {
-      const response = await fetch(`/api/recent_entries?campus=${selectedCampus}`, {
-        credentials: 'include'
+      const url = cacheBuster
+        ? `/api/recent_entries?campus=${encodeURIComponent(selectedCampus)}&_t=${Date.now()}`
+        : `/api/recent_entries?campus=${encodeURIComponent(selectedCampus)}`;
+      const response = await fetch(url, {
+        credentials: 'include',
+        cache: cacheBuster ? 'no-store' : 'default',
+        headers: cacheBuster ? { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' } : {}
       });
       const data = await response.json();
       if (data.entries) {
@@ -323,12 +328,22 @@ const LogStats = () => {
     });
 
     // Merge in ANY extra keys from entry.stats (e.g. custom service times like "7:00PM (Brazilian)")
-    // These are not in quickInputStats but are in adult_breakdown/kids_breakdown from the API
+    // Also ensure backend keys (Youth Attendance, Youth New People, etc.) map to form keys (Youth Total, Youth NP)
     const skipKeys = ['id', 'date', 'campus', 'campusId', 'Tithe'];
+    const backendToFrontend = {
+      'Youth Attendance': 'Youth Total',
+      'Youth New People': 'Youth NP',
+      'First Time Visitors': 'First Time',
+      'First Time Christians': 'First Time Decision',
+      'Rededications': 'Rededication',
+      'New Kids Salvations': 'Kids Salvations',
+      'Cards Back': 'Cards Returned',
+    };
     Object.entries(entry.stats || {}).forEach(([k, v]) => {
       if (skipKeys.includes(k)) return;
       const str = v !== undefined && v !== null && v !== '' ? String(v) : '';
       newStats[k] = str;
+      if (backendToFrontend[k] !== undefined) newStats[backendToFrontend[k]] = str;
     });
 
     console.log('[EDIT_FROM_RECENT] Mapped stats:', newStats);
@@ -505,8 +520,8 @@ const LogStats = () => {
         setIsEditMode(false);
         setEditingEntry(null);
         
-        // Reload recent entries to show the updated/new entry
-        loadRecentEntries();
+        // Reload recent entries with cache-buster so the list shows DB state (not cached)
+        loadRecentEntries(true);
       } else {
         const errorData = await response.json();
         alert(`Error: ${errorData.error || (isEditMode ? 'Failed to update stats' : 'Failed to log stats')}`);
