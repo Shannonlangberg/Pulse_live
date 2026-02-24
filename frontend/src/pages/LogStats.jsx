@@ -54,23 +54,24 @@ const LogStats = () => {
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [formMountKey, setFormMountKey] = useState(0);
 
-  // UNCONTROLLED inputs: DOM owns the value so we always read what user typed on submit.
-  // Controlled inputs (value={state}) make DOM = last React render = stale when user types+clicks Save fast.
+  // Ref updated synchronously on every keystroke - guaranteed to have latest values on submit
   const quickInputFormRef = useRef(null);
+  const latestValuesRef = useRef({});
   const updateStat = (key, value) => {
+    latestValuesRef.current = { ...latestValuesRef.current, [key]: value };
     const next = { ...quickInputStats, [key]: value };
     setQuickInputStats(next);
   };
-  // Collect stats from DOM - uncontrolled inputs mean DOM has the actual typed value
-  const collectStatsFromDOM = () => {
-    if (!quickInputFormRef.current) return quickInputStats;
-    const inputs = quickInputFormRef.current.querySelectorAll('input[data-stat-key]');
-    const collected = { ...quickInputStats };
-    inputs.forEach((inp) => {
-      const key = inp.getAttribute('data-stat-key');
-      if (key) collected[key] = String(inp.value ?? '').trim();
-    });
-    return collected;
+  // Get stats for submit: prefer ref (updated on every change), fallback to DOM, then state
+  const getStatsForSubmit = () => {
+    if (quickInputFormRef.current) {
+      const inputs = quickInputFormRef.current.querySelectorAll('input[data-stat-key]');
+      inputs.forEach((inp) => {
+        const key = inp.getAttribute('data-stat-key');
+        if (key) latestValuesRef.current[key] = String(inp.value ?? '').trim();
+      });
+    }
+    return { ...quickInputStats, ...latestValuesRef.current };
   };
 
   // Get service times for selected campus
@@ -388,12 +389,13 @@ const LogStats = () => {
     });
 
     console.log('[EDIT_FROM_RECENT] Mapped stats:', newStats);
+    latestValuesRef.current = { ...newStats }; // Sync ref BEFORE opening modal - source of truth for submit
     setQuickInputStats(newStats);
     setQuickInputDate(entry.date);
     setIsEditMode(true);
     // Use campus_id if available, otherwise fall back to campus name
-    const campusId = entry.campusId || entry.stats.Campus || entry.campus;
-    const originalCampus = entry.campusId || entry.stats.Campus || entry.campus;
+    const campusId = entry.campusId || entry.stats?.campusId || entry.stats?.Campus || entry.campus;
+    const originalCampus = campusId || entry.campus;
     
     // DON'T change selectedCampus - keep the list filter so after save we refetch the same view
     
@@ -415,8 +417,8 @@ const LogStats = () => {
     setIsSubmittingQuickInput(true);
     
     try {
-      // Read from DOM to guarantee we get what user typed (bypasses React state batching entirely)
-      const latestStats = collectStatsFromDOM();
+      // Ref updated on every keystroke + DOM sync - guaranteed latest values
+      const latestStats = getStatsForSubmit();
       const nonEmptyStats = Object.fromEntries(
         Object.entries(latestStats).filter(([_, value]) => String(value || '').trim() !== '')
       );
@@ -648,7 +650,10 @@ const LogStats = () => {
             {/* Quick Input Section */}
             <div className="text-center">
               <button
-                onClick={() => setShowQuickInput(true)}
+                onClick={() => {
+                latestValuesRef.current = { ...quickInputStats };
+                setShowQuickInput(true);
+              }}
                 className="relative bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-12 py-5 rounded-2xl text-xl font-bold transition-all duration-300 shadow-2xl hover:shadow-purple-500/50 transform hover:scale-105 overflow-hidden group"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
