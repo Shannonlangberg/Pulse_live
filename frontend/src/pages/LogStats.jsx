@@ -66,14 +66,23 @@ const LogStats = () => {
   };
   // Get stats for submit: prefer ref (updated on every change), fallback to DOM, then state
   const getStatsForSubmit = () => {
+    console.log('[GET_STATS] latestValuesRef.current BEFORE DOM sync:', JSON.stringify(latestValuesRef.current, null, 2));
     if (quickInputFormRef.current) {
       const inputs = quickInputFormRef.current.querySelectorAll('input[data-stat-key]');
+      console.log('[GET_STATS] Found', inputs.length, 'inputs with data-stat-key');
       inputs.forEach((inp) => {
         const key = inp.getAttribute('data-stat-key');
-        if (key) latestValuesRef.current[key] = String(inp.value ?? '').trim();
+        const value = String(inp.value ?? '').trim();
+        if (key) {
+          console.log(`[GET_STATS] Reading from DOM: key="${key}", value="${value}"`);
+          latestValuesRef.current[key] = value;
+        }
       });
     }
-    return { ...quickInputStats, ...latestValuesRef.current };
+    console.log('[GET_STATS] latestValuesRef.current AFTER DOM sync:', JSON.stringify(latestValuesRef.current, null, 2));
+    const result = { ...quickInputStats, ...latestValuesRef.current };
+    console.log('[GET_STATS] Final result (quickInputStats + ref):', JSON.stringify(result, null, 2));
+    return result;
   };
 
   // Get service times for selected campus
