@@ -52,24 +52,20 @@ const LogStats = () => {
   const [sessionStats, setSessionStats] = useState([]);
   const [recentEntries, setRecentEntries] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
+  const [formMountKey, setFormMountKey] = useState(0);
 
-  // Ref to avoid stale closure when user types and quickly clicks Save (React batches state updates)
-  const quickInputStatsRef = useRef(quickInputStats);
+  // UNCONTROLLED inputs: DOM owns the value so we always read what user typed on submit.
+  // Controlled inputs (value={state}) make DOM = last React render = stale when user types+clicks Save fast.
   const quickInputFormRef = useRef(null);
-  useEffect(() => {
-    quickInputStatsRef.current = quickInputStats;
-  }, [quickInputStats]);
-  // Helper: update stat and ref synchronously so Save always gets latest value.
   const updateStat = (key, value) => {
-    const next = { ...quickInputStatsRef.current, [key]: value };
-    quickInputStatsRef.current = next;
+    const next = { ...quickInputStats, [key]: value };
     setQuickInputStats(next);
   };
-  // Collect stats from DOM on submit - guarantees we get what user actually typed (bypasses React batching)
+  // Collect stats from DOM - uncontrolled inputs mean DOM has the actual typed value
   const collectStatsFromDOM = () => {
-    if (!quickInputFormRef.current) return quickInputStatsRef.current;
+    if (!quickInputFormRef.current) return quickInputStats;
     const inputs = quickInputFormRef.current.querySelectorAll('[data-stat-key]');
-    const collected = { ...quickInputStatsRef.current };
+    const collected = { ...quickInputStats };
     inputs.forEach((inp) => {
       const key = inp.getAttribute('data-stat-key');
       if (key) collected[key] = inp.value ?? '';
@@ -254,18 +250,16 @@ const LogStats = () => {
   // Reset stats when campus changes (so service times update)
   useEffect(() => {
     if (selectedCampus && campuses.length > 0) {
-      // Reset all service time fields when campus changes
-      const resetStats = { ...quickInputStats };
-      
-      // Clear all service time fields (they'll be repopulated based on campus)
-      Object.keys(resetStats).forEach(key => {
-        if (key.includes(':') || key.startsWith('Kids ')) {
-          resetStats[key] = '';
-        }
+      setQuickInputStats(prev => {
+        const resetStats = { ...prev };
+        Object.keys(resetStats).forEach(key => {
+          if (key.includes(':') || key.startsWith('Kids ')) {
+            resetStats[key] = '';
+          }
+        });
+        return resetStats;
       });
-      
-      quickInputStatsRef.current = resetStats;
-      setQuickInputStats(resetStats);
+      setFormMountKey(k => k + 1); // Force form remount with fresh defaults
     }
   }, [selectedCampus, campuses]);
 
@@ -392,7 +386,6 @@ const LogStats = () => {
     });
 
     console.log('[EDIT_FROM_RECENT] Mapped stats:', newStats);
-    quickInputStatsRef.current = newStats;
     setQuickInputStats(newStats);
     setQuickInputDate(entry.date);
     setIsEditMode(true);
@@ -756,7 +749,7 @@ const LogStats = () => {
         {/* Quick Input Modal */}
         {showQuickInput && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div ref={quickInputFormRef} className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border border-white/20 rounded-3xl p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div ref={quickInputFormRef} key={`stats-form-${selectedCampus}-${formMountKey}-${isEditMode ? (editingEntry?.recordId ?? 'edit') : 'new'}`} className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border border-white/20 rounded-3xl p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <h3 className="text-3xl font-bold text-white mb-2">{isEditMode ? 'Edit Stats Entry' : 'Quick Stats Input'}</h3>
@@ -856,7 +849,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Total People in Campus"
-                        value={quickInputStats['Total People in Campus']}
+                        defaultValue={quickInputStats['Total People in Campus']}
                         onChange={(e) => updateStat('Total People in Campus', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -884,7 +877,7 @@ const LogStats = () => {
                           type="text"
                           inputMode="numeric"
                           data-stat-key={serviceTime}
-                          value={quickInputStats[serviceTime] || ''}
+                          defaultValue={quickInputStats[serviceTime] || ''}
                           onChange={(e) => updateStat(serviceTime, e.target.value)}
                           placeholder="0"
                           className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -921,7 +914,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Saints"
-                        value={quickInputStats['Saints']}
+                        defaultValue={quickInputStats['Saints']}
                         onChange={(e) => updateStat('Saints', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -943,7 +936,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Packs Out"
-                        value={quickInputStats['Packs Out']}
+                        defaultValue={quickInputStats['Packs Out']}
                         onChange={(e) => updateStat('Packs Out', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -958,7 +951,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Cards Returned"
-                        value={quickInputStats['Cards Returned']}
+                        defaultValue={quickInputStats['Cards Returned']}
                         onChange={(e) => updateStat('Cards Returned', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -973,7 +966,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="First Time"
-                        value={quickInputStats['First Time']}
+                        defaultValue={quickInputStats['First Time']}
                         onChange={(e) => updateStat('First Time', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -988,7 +981,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Visitors"
-                        value={quickInputStats['Visitors']}
+                        defaultValue={quickInputStats['Visitors']}
                         onChange={(e) => updateStat('Visitors', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1010,7 +1003,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Hands up"
-                        value={quickInputStats['Hands up']}
+                        defaultValue={quickInputStats['Hands up']}
                         onChange={(e) => updateStat('Hands up', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1025,7 +1018,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Salvation Cards Returned"
-                        value={quickInputStats['Salvation Cards Returned']}
+                        defaultValue={quickInputStats['Salvation Cards Returned']}
                         onChange={(e) => updateStat('Salvation Cards Returned', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1040,7 +1033,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="First Time Decision"
-                        value={quickInputStats['First Time Decision']}
+                        defaultValue={quickInputStats['First Time Decision']}
                         onChange={(e) => updateStat('First Time Decision', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1055,7 +1048,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Rededication"
-                        value={quickInputStats['Rededication']}
+                        defaultValue={quickInputStats['Rededication']}
                         onChange={(e) => updateStat('Rededication', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1085,7 +1078,7 @@ const LogStats = () => {
                             type="text"
                             inputMode="numeric"
                             data-stat-key={kidsServiceTime}
-                            value={quickInputStats[kidsServiceTime] || ''}
+                            defaultValue={quickInputStats[kidsServiceTime] || ''}
                             onChange={(e) => updateStat(kidsServiceTime, e.target.value)}
                             placeholder="0"
                             className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1103,7 +1096,7 @@ const LogStats = () => {
                           type="text"
                           inputMode="numeric"
                           data-stat-key="Kids Leaders"
-                          value={quickInputStats['Kids Leaders']}
+                          defaultValue={quickInputStats['Kids Leaders']}
                           onChange={(e) => updateStat('Kids Leaders', e.target.value)}
                           placeholder="0"
                           className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1118,7 +1111,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="New Kids"
-                        value={quickInputStats['New Kids']}
+                        defaultValue={quickInputStats['New Kids']}
                         onChange={(e) => updateStat('New Kids', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1132,7 +1125,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Kids Salvations"
-                        value={quickInputStats['Kids Salvations']}
+                        defaultValue={quickInputStats['Kids Salvations']}
                         onChange={(e) => updateStat('Kids Salvations', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1159,7 +1152,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Youth Total"
-                        value={quickInputStats['Youth Total']}
+                        defaultValue={quickInputStats['Youth Total']}
                         onChange={(e) => updateStat('Youth Total', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1174,7 +1167,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Youth NP"
-                        value={quickInputStats['Youth NP']}
+                        defaultValue={quickInputStats['Youth NP']}
                         onChange={(e) => updateStat('Youth NP', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1189,7 +1182,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Youth Salvations"
-                        value={quickInputStats['Youth Salvations']}
+                        defaultValue={quickInputStats['Youth Salvations']}
                         onChange={(e) => updateStat('Youth Salvations', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1204,7 +1197,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Youth Leaders"
-                        value={quickInputStats['Youth Leaders']}
+                        defaultValue={quickInputStats['Youth Leaders']}
                         onChange={(e) => updateStat('Youth Leaders', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1226,7 +1219,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Connect Groups"
-                        value={quickInputStats['Connect Groups']}
+                        defaultValue={quickInputStats['Connect Groups']}
                         onChange={(e) => updateStat('Connect Groups', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1241,7 +1234,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         data-stat-key="Dream Team"
-                        value={quickInputStats['Dream Team']}
+                        defaultValue={quickInputStats['Dream Team']}
                         onChange={(e) => updateStat('Dream Team', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1255,7 +1248,8 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={quickInputStats['Seniors']}
+                        data-stat-key="Seniors"
+                        defaultValue={quickInputStats['Seniors']}
                         onChange={(e) => updateStat('Seniors', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1276,7 +1270,8 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={quickInputStats['Baptisms']}
+                        data-stat-key="Baptisms"
+                        defaultValue={quickInputStats['Baptisms']}
                         onChange={(e) => updateStat('Baptisms', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
@@ -1290,7 +1285,8 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={quickInputStats['Child Dedications']}
+                        data-stat-key="Child Dedications"
+                        defaultValue={quickInputStats['Child Dedications']}
                         onChange={(e) => updateStat('Child Dedications', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
