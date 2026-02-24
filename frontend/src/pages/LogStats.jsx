@@ -354,8 +354,7 @@ const LogStats = () => {
     const campusId = entry.campusId || entry.stats.Campus || entry.campus;
     const originalCampus = entry.campusId || entry.stats.Campus || entry.campus;
     
-    // Set the selected campus to the correct one for editing (prefer campus_id)
-    setSelectedCampus(campusId);
+    // DON'T change selectedCampus - keep the list filter so after save we refetch the same view
     
     setEditingEntry({
       originalCampus: originalCampus, // Use original campus name from stats data
@@ -433,6 +432,10 @@ const LogStats = () => {
       // The backend calculates these from the individual service time columns
 
       const endpoint = isEditMode ? '/api/quick_input/update' : '/api/quick_input';
+      // When editing, use the entry's campus (not dropdown) so we update the correct record
+      const campusForPayload = isEditMode && editingEntry
+        ? (editingEntry.campusId || editingEntry.originalCampus)
+        : selectedCampus;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -440,7 +443,7 @@ const LogStats = () => {
         },
         credentials: 'include',
         body: JSON.stringify({
-          campus: selectedCampus,
+          campus: campusForPayload,
           date: quickInputDate,
           stats: backendStats,
           ...(isEditMode && editingEntry && { 
