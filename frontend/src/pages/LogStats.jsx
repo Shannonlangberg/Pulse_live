@@ -58,13 +58,13 @@ const LogStats = () => {
   useEffect(() => {
     quickInputStatsRef.current = quickInputStats;
   }, [quickInputStats]);
-  // Helper: update stat and ref synchronously so Save always gets latest value
+  // Helper: update stat and ref synchronously so Save always gets latest value.
+  // CRITICAL: Update ref BEFORE setState - the setState callback runs when React flushes,
+  // so if user types then quickly clicks Save, the ref must already have the new value.
   const updateStat = (key, value) => {
-    setQuickInputStats(prev => {
-      const next = { ...prev, [key]: value };
-      quickInputStatsRef.current = next;
-      return next;
-    });
+    const next = { ...quickInputStatsRef.current, [key]: value };
+    quickInputStatsRef.current = next;
+    setQuickInputStats(next);
   };
 
   // Get service times for selected campus
@@ -254,6 +254,7 @@ const LogStats = () => {
         }
       });
       
+      quickInputStatsRef.current = resetStats;
       setQuickInputStats(resetStats);
     }
   }, [selectedCampus, campuses]);
@@ -381,6 +382,7 @@ const LogStats = () => {
     });
 
     console.log('[EDIT_FROM_RECENT] Mapped stats:', newStats);
+    quickInputStatsRef.current = newStats;
     setQuickInputStats(newStats);
     setQuickInputDate(entry.date);
     setIsEditMode(true);
