@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusIcon, CalendarIcon, XMarkIcon, PencilIcon } from '@heroicons/react/24/outline';
 import DynamicBackground from '../components/DynamicBackground';
@@ -52,6 +52,20 @@ const LogStats = () => {
   const [sessionStats, setSessionStats] = useState([]);
   const [recentEntries, setRecentEntries] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
+
+  // Ref to avoid stale closure when user types and quickly clicks Save (React batches state updates)
+  const quickInputStatsRef = useRef(quickInputStats);
+  useEffect(() => {
+    quickInputStatsRef.current = quickInputStats;
+  }, [quickInputStats]);
+  // Helper: update stat and ref synchronously so Save always gets latest value
+  const updateStat = (key, value) => {
+    setQuickInputStats(prev => {
+      const next = { ...prev, [key]: value };
+      quickInputStatsRef.current = next;
+      return next;
+    });
+  };
 
   // Get service times for selected campus
   const getCampusServiceTimes = () => {
@@ -394,9 +408,10 @@ const LogStats = () => {
     setIsSubmittingQuickInput(true);
     
     try {
-      // Filter out empty values
+      // Use ref to get latest values (avoids stale closure when user types then quickly clicks Save)
+      const latestStats = quickInputStatsRef.current;
       const nonEmptyStats = Object.fromEntries(
-        Object.entries(quickInputStats).filter(([_, value]) => value.trim() !== '')
+        Object.entries(latestStats).filter(([_, value]) => String(value || '').trim() !== '')
       );
 
       if (Object.keys(nonEmptyStats).length === 0) {
@@ -442,9 +457,9 @@ const LogStats = () => {
 
       // Build backend stats: send ALL mapped keys so backend never overwrites with 0 for missing fields (Saints, NP, NC, Youth etc.)
       const backendStats = {};
-      Object.keys(quickInputStats).forEach((key) => {
+      Object.keys(latestStats).forEach((key) => {
         const backendKey = fieldMapping[key] || key;
-        const raw = nonEmptyStats[key] !== undefined ? nonEmptyStats[key] : quickInputStats[key];
+        const raw = nonEmptyStats[key] !== undefined ? nonEmptyStats[key] : latestStats[key];
         backendStats[backendKey] = parseInt(raw, 10);
         if (Number.isNaN(backendStats[backendKey])) backendStats[backendKey] = 0;
       });
@@ -481,7 +496,7 @@ const LogStats = () => {
         const campusName = campuses.find(c => c.id === selectedCampus)?.name || selectedCampus;
         
         if (isEditMode) {
-          // Update the existing entry in session stats
+          // Update the existing entry in session stats (use latestStats = what we actually sent)
           setSessionStats(prev => prev.map(stat => 
             stat.timestamp === editingEntry.timestamp
               ? {
@@ -489,7 +504,7 @@ const LogStats = () => {
                   campus: campusName,
                   campusId: selectedCampus,
                   date: quickInputDate,
-                  stats: {...quickInputStats},
+                  stats: {...latestStats},
                   text: `Quick input: ${Object.keys(nonEmptyStats).join(', ')}`
                 }
               : stat
@@ -501,7 +516,7 @@ const LogStats = () => {
             campus: campusName,
             campusId: selectedCampus,
             date: quickInputDate,
-            stats: {...quickInputStats}, // Store complete stats
+            stats: {...latestStats}, // Store complete stats
             text: `Quick input: ${Object.keys(nonEmptyStats).join(', ')}`,
             timestamp: new Date().toISOString()
           }, ...prev.slice(0, 9)]); // Keep last 10 entries
@@ -829,10 +844,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Total People in Campus']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Total People in Campus': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Total People in Campus', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -859,10 +871,7 @@ const LogStats = () => {
                           type="text"
                           inputMode="numeric"
                           value={quickInputStats[serviceTime] || ''}
-                          onChange={(e) => setQuickInputStats(prev => ({
-                            ...prev,
-                            [serviceTime]: e.target.value
-                          }))}
+                          onChange={(e) => updateStat(serviceTime, e.target.value)}
                           placeholder="0"
                           className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                           style={{ color: '#ffffff' }}
@@ -898,10 +907,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Saints']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Saints': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Saints', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -922,10 +928,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Packs Out']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Packs Out': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Packs Out', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -939,10 +942,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Cards Returned']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Cards Returned': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Cards Returned', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -956,10 +956,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['First Time']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'First Time': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('First Time', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -973,10 +970,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Visitors']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Visitors': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Visitors', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -997,10 +991,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Hands up']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Hands up': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Hands up', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1014,10 +1005,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Salvation Cards Returned']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Salvation Cards Returned': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Salvation Cards Returned', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1031,10 +1019,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['First Time Decision']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'First Time Decision': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('First Time Decision', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1048,10 +1033,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Rededication']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Rededication': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Rededication', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1080,10 +1062,7 @@ const LogStats = () => {
                             type="text"
                             inputMode="numeric"
                             value={quickInputStats[kidsServiceTime] || ''}
-                            onChange={(e) => setQuickInputStats(prev => ({
-                              ...prev,
-                              [kidsServiceTime]: e.target.value
-                            }))}
+                            onChange={(e) => updateStat(kidsServiceTime, e.target.value)}
                             placeholder="0"
                             className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                             style={{ color: '#ffffff' }}
@@ -1100,10 +1079,7 @@ const LogStats = () => {
                           type="text"
                           inputMode="numeric"
                           value={quickInputStats['Kids Leaders']}
-                          onChange={(e) => setQuickInputStats(prev => ({
-                            ...prev,
-                            'Kids Leaders': e.target.value
-                          }))}
+                          onChange={(e) => updateStat('Kids Leaders', e.target.value)}
                           placeholder="0"
                           className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         />
@@ -1117,10 +1093,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['New Kids']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'New Kids': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('New Kids', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                       />
@@ -1133,10 +1106,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Kids Salvations']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Kids Salvations': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Kids Salvations', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                       />
@@ -1162,10 +1132,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Youth Total']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Youth Total': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Youth Total', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1179,10 +1146,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Youth NP']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Youth NP': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Youth NP', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1196,10 +1160,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Youth Salvations']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Youth Salvations': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Youth Salvations', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1213,10 +1174,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Youth Leaders']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Youth Leaders': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Youth Leaders', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1237,10 +1195,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Connect Groups']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Connect Groups': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Connect Groups', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1254,10 +1209,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Dream Team']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Dream Team': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Dream Team', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1271,10 +1223,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Seniors']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Seniors': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Seniors', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1295,10 +1244,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Baptisms']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Baptisms': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Baptisms', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
@@ -1312,10 +1258,7 @@ const LogStats = () => {
                         type="text"
                         inputMode="numeric"
                         value={quickInputStats['Child Dedications']}
-                        onChange={(e) => setQuickInputStats(prev => ({
-                          ...prev,
-                          'Child Dedications': e.target.value
-                        }))}
+                        onChange={(e) => updateStat('Child Dedications', e.target.value)}
                         placeholder="0"
                         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                         style={{ color: '#ffffff' }}
