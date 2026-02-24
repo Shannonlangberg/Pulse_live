@@ -55,16 +55,26 @@ const LogStats = () => {
 
   // Ref to avoid stale closure when user types and quickly clicks Save (React batches state updates)
   const quickInputStatsRef = useRef(quickInputStats);
+  const quickInputFormRef = useRef(null);
   useEffect(() => {
     quickInputStatsRef.current = quickInputStats;
   }, [quickInputStats]);
   // Helper: update stat and ref synchronously so Save always gets latest value.
-  // CRITICAL: Update ref BEFORE setState - the setState callback runs when React flushes,
-  // so if user types then quickly clicks Save, the ref must already have the new value.
   const updateStat = (key, value) => {
     const next = { ...quickInputStatsRef.current, [key]: value };
     quickInputStatsRef.current = next;
     setQuickInputStats(next);
+  };
+  // Collect stats from DOM on submit - guarantees we get what user actually typed (bypasses React batching)
+  const collectStatsFromDOM = () => {
+    if (!quickInputFormRef.current) return quickInputStatsRef.current;
+    const inputs = quickInputFormRef.current.querySelectorAll('[data-stat-key]');
+    const collected = { ...quickInputStatsRef.current };
+    inputs.forEach((inp) => {
+      const key = inp.getAttribute('data-stat-key');
+      if (key) collected[key] = inp.value ?? '';
+    });
+    return collected;
   };
 
   // Get service times for selected campus
@@ -410,8 +420,8 @@ const LogStats = () => {
     setIsSubmittingQuickInput(true);
     
     try {
-      // Use ref to get latest values (avoids stale closure when user types then quickly clicks Save)
-      const latestStats = quickInputStatsRef.current;
+      // Read from DOM to guarantee we get what user typed (bypasses React state batching entirely)
+      const latestStats = collectStatsFromDOM();
       const nonEmptyStats = Object.fromEntries(
         Object.entries(latestStats).filter(([_, value]) => String(value || '').trim() !== '')
       );
@@ -746,7 +756,7 @@ const LogStats = () => {
         {/* Quick Input Modal */}
         {showQuickInput && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border border-white/20 rounded-3xl p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div ref={quickInputFormRef} className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border border-white/20 rounded-3xl p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <h3 className="text-3xl font-bold text-white mb-2">{isEditMode ? 'Edit Stats Entry' : 'Quick Stats Input'}</h3>
@@ -845,6 +855,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Total People in Campus"
                         value={quickInputStats['Total People in Campus']}
                         onChange={(e) => updateStat('Total People in Campus', e.target.value)}
                         placeholder="0"
@@ -872,6 +883,7 @@ const LogStats = () => {
                         <input
                           type="text"
                           inputMode="numeric"
+                          data-stat-key={serviceTime}
                           value={quickInputStats[serviceTime] || ''}
                           onChange={(e) => updateStat(serviceTime, e.target.value)}
                           placeholder="0"
@@ -908,6 +920,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Saints"
                         value={quickInputStats['Saints']}
                         onChange={(e) => updateStat('Saints', e.target.value)}
                         placeholder="0"
@@ -929,6 +942,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Packs Out"
                         value={quickInputStats['Packs Out']}
                         onChange={(e) => updateStat('Packs Out', e.target.value)}
                         placeholder="0"
@@ -943,6 +957,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Cards Returned"
                         value={quickInputStats['Cards Returned']}
                         onChange={(e) => updateStat('Cards Returned', e.target.value)}
                         placeholder="0"
@@ -957,6 +972,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="First Time"
                         value={quickInputStats['First Time']}
                         onChange={(e) => updateStat('First Time', e.target.value)}
                         placeholder="0"
@@ -971,6 +987,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Visitors"
                         value={quickInputStats['Visitors']}
                         onChange={(e) => updateStat('Visitors', e.target.value)}
                         placeholder="0"
@@ -992,6 +1009,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Hands up"
                         value={quickInputStats['Hands up']}
                         onChange={(e) => updateStat('Hands up', e.target.value)}
                         placeholder="0"
@@ -1006,6 +1024,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Salvation Cards Returned"
                         value={quickInputStats['Salvation Cards Returned']}
                         onChange={(e) => updateStat('Salvation Cards Returned', e.target.value)}
                         placeholder="0"
@@ -1020,6 +1039,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="First Time Decision"
                         value={quickInputStats['First Time Decision']}
                         onChange={(e) => updateStat('First Time Decision', e.target.value)}
                         placeholder="0"
@@ -1034,6 +1054,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Rededication"
                         value={quickInputStats['Rededication']}
                         onChange={(e) => updateStat('Rededication', e.target.value)}
                         placeholder="0"
@@ -1063,6 +1084,7 @@ const LogStats = () => {
                           <input
                             type="text"
                             inputMode="numeric"
+                            data-stat-key={kidsServiceTime}
                             value={quickInputStats[kidsServiceTime] || ''}
                             onChange={(e) => updateStat(kidsServiceTime, e.target.value)}
                             placeholder="0"
@@ -1080,6 +1102,7 @@ const LogStats = () => {
                         <input
                           type="text"
                           inputMode="numeric"
+                          data-stat-key="Kids Leaders"
                           value={quickInputStats['Kids Leaders']}
                           onChange={(e) => updateStat('Kids Leaders', e.target.value)}
                           placeholder="0"
@@ -1094,6 +1117,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="New Kids"
                         value={quickInputStats['New Kids']}
                         onChange={(e) => updateStat('New Kids', e.target.value)}
                         placeholder="0"
@@ -1107,6 +1131,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Kids Salvations"
                         value={quickInputStats['Kids Salvations']}
                         onChange={(e) => updateStat('Kids Salvations', e.target.value)}
                         placeholder="0"
@@ -1133,6 +1158,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Youth Total"
                         value={quickInputStats['Youth Total']}
                         onChange={(e) => updateStat('Youth Total', e.target.value)}
                         placeholder="0"
@@ -1147,6 +1173,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Youth NP"
                         value={quickInputStats['Youth NP']}
                         onChange={(e) => updateStat('Youth NP', e.target.value)}
                         placeholder="0"
@@ -1161,6 +1188,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Youth Salvations"
                         value={quickInputStats['Youth Salvations']}
                         onChange={(e) => updateStat('Youth Salvations', e.target.value)}
                         placeholder="0"
@@ -1175,6 +1203,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Youth Leaders"
                         value={quickInputStats['Youth Leaders']}
                         onChange={(e) => updateStat('Youth Leaders', e.target.value)}
                         placeholder="0"
@@ -1196,6 +1225,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Connect Groups"
                         value={quickInputStats['Connect Groups']}
                         onChange={(e) => updateStat('Connect Groups', e.target.value)}
                         placeholder="0"
@@ -1210,6 +1240,7 @@ const LogStats = () => {
                       <input
                         type="text"
                         inputMode="numeric"
+                        data-stat-key="Dream Team"
                         value={quickInputStats['Dream Team']}
                         onChange={(e) => updateStat('Dream Team', e.target.value)}
                         placeholder="0"
