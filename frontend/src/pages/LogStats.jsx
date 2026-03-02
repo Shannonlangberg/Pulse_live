@@ -475,13 +475,14 @@ const LogStats = () => {
         'Child Dedications': 'Child Dedications'
       };
 
-      // Build backend stats: send ALL mapped keys so backend never overwrites with 0 for missing fields (Saints, NP, NC, Youth etc.)
+      // Build backend stats: ONLY send non-empty fields to avoid overwriting untouched fields with 0
       const backendStats = {};
-      Object.keys(latestStats).forEach((key) => {
+      Object.entries(nonEmptyStats).forEach(([key, value]) => {
         const backendKey = fieldMapping[key] || key;
-        const raw = nonEmptyStats[key] !== undefined ? nonEmptyStats[key] : latestStats[key];
-        backendStats[backendKey] = parseInt(raw, 10);
-        if (Number.isNaN(backendStats[backendKey])) backendStats[backendKey] = 0;
+        const parsed = parseInt(value, 10);
+        if (!Number.isNaN(parsed)) {
+          backendStats[backendKey] = parsed;
+        }
       });
 
       console.log('[SUBMIT_DEBUG] backendStats (before send):', backendStats);
