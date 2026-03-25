@@ -128,7 +128,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
         setLastRefresh(new Date());
       } else if (isRollup) {
         console.log(`[CampusDashboard] Fetching regional dashboard for region: ${campusId}`);
-        const response = await fetch(`/api/dashboard/regional?region=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&_t=${cacheBuster}`, {
+        const response = await fetch(`/api/dashboard/regional?region=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&show_previous_year=${showPreviousYear}&_t=${cacheBuster}`, {
           credentials: 'include',
           cache: 'no-store',
           headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }

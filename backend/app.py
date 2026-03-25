@@ -7346,6 +7346,49 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 
                 print(f"[DASHBOARD YTD] Weekly aggregates: {len(ytd_weekly)} weeks")
                 
+                # Previous calendar year — same week slots as current YTD (for "Show previous year")
+                prev_ytd_weekly = {}
+                if show_previous_year:
+                    prev_start_d = date(now.year - 1, 1, 1)
+                    try:
+                        prev_end_d = date(now.year - 1, now.month, now.day)
+                    except ValueError:
+                        prev_end_d = date(now.year - 1, now.month, 28)
+                    if campus in ['all_campuses', 'australia', 'usa']:
+                        if campus == 'australia' and australia_region:
+                            prev_ytd_records = AttendanceRecord.query.filter(
+                                AttendanceRecord.region_id == australia_region.id,
+                                AttendanceRecord.date >= prev_start_d,
+                                AttendanceRecord.date <= prev_end_d
+                            ).all()
+                        else:
+                            prev_ytd_records = AttendanceRecord.query.filter(
+                                AttendanceRecord.date >= prev_start_d,
+                                AttendanceRecord.date <= prev_end_d
+                            ).all()
+                    else:
+                        prev_ytd_records = AttendanceRecord.query.filter(
+                            AttendanceRecord.campus_id == campus_obj.id,
+                            AttendanceRecord.date >= prev_start_d,
+                            AttendanceRecord.date <= prev_end_d
+                        ).all()
+                    print(f"[DASHBOARD YTD] Previous-year chart: {len(prev_ytd_records)} records from {prev_start_d} to {prev_end_d}")
+                    for record in prev_ytd_records:
+                        record_date = record.date
+                        year, week_num, _ = record_date.isocalendar()
+                        pkey = f"{year}-W{week_num:02d}"
+                        if pkey not in prev_ytd_weekly:
+                            prev_ytd_weekly[pkey] = {
+                                'attendance': 0,
+                                'new_people': 0,
+                                'new_christians': 0,
+                                'count': 0,
+                            }
+                        prev_ytd_weekly[pkey]['attendance'] += record.total_attendance or 0
+                        prev_ytd_weekly[pkey]['new_people'] += (record.first_time_visitors or 0) + (record.visitors or 0)
+                        prev_ytd_weekly[pkey]['new_christians'] += (record.first_time_christians or 0) + (record.rededications or 0)
+                        prev_ytd_weekly[pkey]['count'] += 1
+                
                 # Build chart_data for Year-To-Date view (weekly)
                 chart_data = {
                     'labels': [],
@@ -7368,6 +7411,13 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 days_since_monday = current_week_start.weekday()
                 if days_since_monday > 0:
                     current_week_start = current_week_start - timedelta(days=days_since_monday)
+                
+                anchor_curr = current_week_start
+                prev_jan1 = date(now.year - 1, 1, 1)
+                anchor_prev = prev_jan1
+                dmp = anchor_prev.weekday()
+                if dmp > 0:
+                    anchor_prev = anchor_prev - timedelta(days=dmp)
                 
                 # Get today's date and find the Monday of this week
                 today = now.date() if isinstance(now, datetime) else now
@@ -7411,6 +7461,24 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     chart_data['new_christians'].append(new_christians_val)
                     chart_data['youth'].append(0)  # TODO: Add youth breakdown if needed
                     chart_data['kids'].append(0)  # TODO: Add kids breakdown if needed
+                    
+                    if show_previous_year:
+                        offset_weeks = (current_week_start - anchor_curr).days // 7
+                        prev_week_start = anchor_prev + timedelta(days=7 * offset_weeks)
+                        py, pw, _ = prev_week_start.isocalendar()
+                        prev_week_key = f"{py}-W{pw:02d}"
+                        prev_week_data = prev_ytd_weekly.get(
+                            prev_week_key,
+                            {'attendance': 0, 'new_people': 0, 'new_christians': 0, 'count': 0},
+                        )
+                        if campus in ['all_campuses', 'australia', 'usa']:
+                            prev_attendance_val = prev_week_data['attendance'] if prev_week_data['count'] > 0 else 0
+                        else:
+                            pc = prev_week_data['count'] or 1
+                            prev_attendance_val = (
+                                prev_week_data['attendance'] / pc if prev_week_data['count'] > 0 else 0
+                            )
+                        chart_data['attendance_previous_year'].append(prev_attendance_val)
                     
                     # Move to next week (add 7 days)
                     current_week_start = current_week_start + timedelta(days=7)
@@ -15316,6 +15384,7 @@ def get_regional_dashboard_data():
         date_filter = request.args.get('date_filter', 'last_12_months')
         custom_start_date = request.args.get('custom_start_date', '')
         custom_end_date = request.args.get('custom_end_date', '')
+        show_previous_year = request.args.get('show_previous_year', 'false').lower() == 'true'
         
         print(f"[REGIONAL_DASHBOARD] Request for region: {region_code}, filter: {date_filter}")
         logger.info(f"[REGIONAL_DASHBOARD] Request for region: {region_code}, filter: {date_filter}")
@@ -15755,6 +15824,42 @@ def get_regional_dashboard_data():
         for week_key, week_data in sorted(ytd_weekly.items()):
             print(f"[REGIONAL_DASHBOARD YTD] Week {week_key}: attendance={week_data['attendance']}, count={week_data['count']}, dates={sorted(week_data['dates'])}")
         
+        prev_ytd_weekly = {}
+        if show_previous_year:
+            prev_start_d = date(now.year - 1, 1, 1)
+            try:
+                prev_end_d = date(now.year - 1, now.month, now.day)
+            except ValueError:
+                prev_end_d = date(now.year - 1, now.month, 28)
+            prev_ytd_records = AttendanceRecord.query.filter(
+                AttendanceRecord.region_id == region_id,
+                AttendanceRecord.date >= prev_start_d,
+                AttendanceRecord.date <= prev_end_d
+            ).all()
+            print(f"[REGIONAL_DASHBOARD YTD] Previous-year chart: {len(prev_ytd_records)} records from {prev_start_d} to {prev_end_d}")
+            for record in prev_ytd_records:
+                record_date = record.date
+                year, week_num, _ = record_date.isocalendar()
+                pkey = f"{year}-W{week_num:02d}"
+                if pkey not in prev_ytd_weekly:
+                    prev_ytd_weekly[pkey] = {
+                        'attendance': 0,
+                        'new_people': 0,
+                        'new_christians': 0,
+                        'count': 0,
+                    }
+                record_kids = (record.kids_attendance or 0) + (record.kids_leaders or 0)
+                record_total = record.total_attendance or 0
+                if record_total < record_kids:
+                    adults_and_saints = record_total
+                else:
+                    adults_and_saints = max(0, record_total - record_kids)
+                corrected_attendance = adults_and_saints + record_kids
+                prev_ytd_weekly[pkey]['attendance'] += corrected_attendance
+                prev_ytd_weekly[pkey]['new_people'] += (record.first_time_visitors or 0) + (record.visitors or 0)
+                prev_ytd_weekly[pkey]['new_christians'] += (record.first_time_christians or 0) + (record.rededications or 0)
+                prev_ytd_weekly[pkey]['count'] += 1
+        
         # Build chart_data for Year-To-Date view (weekly)
         chart_data = {
             'labels': [],
@@ -15776,6 +15881,13 @@ def get_regional_dashboard_data():
         days_since_monday = current_week_start.weekday()
         if days_since_monday > 0:
             current_week_start = current_week_start - timedelta(days=days_since_monday)
+        
+        anchor_curr = current_week_start
+        prev_jan1 = date(now.year - 1, 1, 1)
+        anchor_prev = prev_jan1
+        dmp = anchor_prev.weekday()
+        if dmp > 0:
+            anchor_prev = anchor_prev - timedelta(days=dmp)
         
         # Get today's date and find the Monday of this week
         today = now.date() if isinstance(now, datetime) else now
@@ -15811,6 +15923,18 @@ def get_regional_dashboard_data():
             chart_data['new_christians'].append(new_christians_val)
             chart_data['youth'].append(0)  # TODO: Add youth breakdown if needed
             chart_data['kids'].append(0)  # TODO: Add kids breakdown if needed
+            
+            if show_previous_year:
+                offset_weeks = (current_week_start - anchor_curr).days // 7
+                prev_week_start = anchor_prev + timedelta(days=7 * offset_weeks)
+                py, pw, _ = prev_week_start.isocalendar()
+                prev_week_key = f"{py}-W{pw:02d}"
+                prev_week_data = prev_ytd_weekly.get(
+                    prev_week_key,
+                    {'attendance': 0, 'new_people': 0, 'new_christians': 0, 'count': 0},
+                )
+                prev_attendance_val = prev_week_data['attendance'] if prev_week_data['count'] > 0 else 0
+                chart_data['attendance_previous_year'].append(prev_attendance_val)
             
             # Move to next week (add 7 days)
             current_week_start = current_week_start + timedelta(days=7)
