@@ -6942,6 +6942,23 @@ def get_tithe_breakdown(campus, start_date, end_date):
         logger.error(f"Error fetching tithe breakdown: {str(e)}")
         return {'general': 0, 'trust': 0, 'online': 0, 'text': 0, 'total': 0}
 
+
+def _ytd_chart_week_key(record_date):
+    """
+    ISO week key (YYYY-Www) matching YTD chart columns (each column is Mon–Sun).
+
+    Stats are often entered a day or two after Sunday. Raw ISO would put a Monday
+    date in the *next* week, leaving the real service week empty. Map Monday and
+    Tuesday to the ISO week that contains the preceding Sunday.
+    """
+    rd = record_date.date() if isinstance(record_date, datetime) else record_date
+    if rd.weekday() in (0, 1):  # Monday or Tuesday
+        rd = rd - timedelta(days=(rd.weekday() + 1) % 7)
+    monday = rd - timedelta(days=rd.weekday())
+    year, week_num, _ = monday.isocalendar()
+    return f"{year}-W{week_num:02d}"
+
+
 def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='', custom_end_date='', show_previous_year=False):
     """
     Get dashboard data - DATABASE FIRST VERSION
@@ -7321,14 +7338,10 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 # Build weekly aggregates for YTD (week-by-week instead of monthly)
                 ytd_weekly = {}
                 for record in ytd_records:
-                    # Calculate week number and year (ISO week)
-                    # Get the Monday of the week for this date
                     record_date = record.date
                     days_since_monday = record_date.weekday()  # Monday is 0
                     week_start = record_date - timedelta(days=days_since_monday)
-                    # Use ISO week format: YYYY-Www (e.g., 2026-W05)
-                    year, week_num, _ = record_date.isocalendar()
-                    week_key = f"{year}-W{week_num:02d}"
+                    week_key = _ytd_chart_week_key(record_date)
                     
                     if week_key not in ytd_weekly:
                         ytd_weekly[week_key] = {
@@ -7375,8 +7388,7 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     print(f"[DASHBOARD YTD] Previous-year chart: {len(prev_ytd_records)} records from {prev_start_d} to {prev_end_d}")
                     for record in prev_ytd_records:
                         record_date = record.date
-                        year, week_num, _ = record_date.isocalendar()
-                        pkey = f"{year}-W{week_num:02d}"
+                        pkey = _ytd_chart_week_key(record_date)
                         if pkey not in prev_ytd_weekly:
                             prev_ytd_weekly[pkey] = {
                                 'attendance': 0,
@@ -15772,13 +15784,10 @@ def get_regional_dashboard_data():
         # Build weekly aggregates for YTD (week-by-week instead of monthly)
         ytd_weekly = {}
         for record in ytd_records:
-            # Calculate week number and year (ISO week)
             record_date = record.date
             days_since_monday = record_date.weekday()  # Monday is 0
             week_start = record_date - timedelta(days=days_since_monday)
-            # Use ISO week format: YYYY-Www (e.g., 2026-W05)
-            year, week_num, _ = record_date.isocalendar()
-            week_key = f"{year}-W{week_num:02d}"
+            week_key = _ytd_chart_week_key(record_date)
             
             if week_key not in ytd_weekly:
                 ytd_weekly[week_key] = {
@@ -15814,7 +15823,7 @@ def get_regional_dashboard_data():
         
         # Debug: Print week aggregates for Jan 18th week
         jan_18 = date(2026, 1, 18)
-        jan_18_week_key = f"{jan_18.isocalendar()[0]}-W{jan_18.isocalendar()[1]:02d}"
+        jan_18_week_key = _ytd_chart_week_key(jan_18)
         if jan_18_week_key in ytd_weekly:
             week_info = ytd_weekly[jan_18_week_key]
             print(f"[REGIONAL_DASHBOARD YTD] Week {jan_18_week_key} (Jan 18 week): attendance={week_info['attendance']}, count={week_info['count']}, dates={week_info['dates']}")
@@ -15839,8 +15848,7 @@ def get_regional_dashboard_data():
             print(f"[REGIONAL_DASHBOARD YTD] Previous-year chart: {len(prev_ytd_records)} records from {prev_start_d} to {prev_end_d}")
             for record in prev_ytd_records:
                 record_date = record.date
-                year, week_num, _ = record_date.isocalendar()
-                pkey = f"{year}-W{week_num:02d}"
+                pkey = _ytd_chart_week_key(record_date)
                 if pkey not in prev_ytd_weekly:
                     prev_ytd_weekly[pkey] = {
                         'attendance': 0,
