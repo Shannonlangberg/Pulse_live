@@ -903,8 +903,14 @@ def _chart_bar_weekend_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
     pl = data.get("period_label") or "Q1"
     yp, yc = data["prev_year"], data["year"]
     n = len(rows)
-    fig_h = min(6.0, max(2.35 if n <= 1 else 4.0, 0.42 * max(n, 1) + (1.55 if n <= 1 else 2.85)))
-    fig, ax = plt.subplots(figsize=(11.0, fig_h))
+    single_campus = n == 1
+    if single_campus:
+        # Narrow canvas so two bars are not stretched across a full landscape width when embedded in PDF.
+        fig_w, fig_h = 4.9, 3.05
+    else:
+        fig_w = 11.0
+        fig_h = min(6.0, max(2.35 if n <= 1 else 4.0, 0.42 * max(n, 1) + (1.55 if n <= 1 else 2.85)))
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     if not rows:
         ax.text(0.5, 0.5, "No data", ha="center", va="center")
         ax.set_axis_off()
@@ -913,7 +919,7 @@ def _chart_bar_weekend_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
         wk_p = [r["prev_avg_weekend"] for r in rows]
         wk_c = [r["avg_weekend"] for r in rows]
         x = list(range(n))
-        w = 0.38
+        w = 0.28 if single_campus else 0.38
         ax.bar(
             [i - w / 2 for i in x],
             wk_p,
@@ -933,7 +939,11 @@ def _chart_bar_weekend_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
             linewidth=0.7,
         )
         ax.set_xticks(x)
-        ax.set_xticklabels(names, rotation=38, ha="right", fontsize=11)
+        if single_campus:
+            ax.set_xlim(-0.55, 0.55)
+            ax.set_xticklabels(names, rotation=0, ha="center", fontsize=11)
+        else:
+            ax.set_xticklabels(names, rotation=38, ha="right", fontsize=11)
         ax.set_ylabel(f"Weekend — {pl} avg per service", fontsize=12)
         ax.tick_params(axis="both", labelsize=11)
         ax.legend(
@@ -1158,7 +1168,8 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 nm = _esc_xml(str(row["campus_name"])[:100])
                 story.append(Paragraph(f"<b>{nm}</b>", campus_title_ps))
                 bar_b = _chart_bar_weekend_compare_compact(sub_chart)
-                story.append(Image(bar_b, width=avail_w, height=2.15 * inch))
+                bar_pdf_w = min(5.15 * inch, avail_w * 0.55)
+                story.append(Image(bar_b, width=bar_pdf_w, hAlign="CENTER"))
                 story.append(Spacer(1, 6))
                 line_b = _chart_line_weekly_dual_compact(sub_chart)
                 story.append(Image(line_b, width=avail_w, height=1.55 * inch))
@@ -1184,7 +1195,6 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
         else:
             n_camp = len(data["campus_rows"])
             bar_wk_buf = _chart_bar_weekend_compare_compact(data)
-            bar_wk_h = min(4.15 * inch, max(2.95 * inch, 0.16 * n_camp * inch + 2.35 * inch))
             line_buf = _chart_line_weekly_dual_compact(data)
             line_disp_h = 1.72 * inch
 
@@ -1321,7 +1331,12 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
             t.setStyle(TableStyle(tbl_cmds))
 
             # Page 1: charts only. Page 2: full data table (fixes split-table band bugs and reduces clutter).
-            story.append(Image(bar_wk_buf, width=avail_w, height=bar_wk_h))
+            if n_camp <= 1:
+                bar_pdf_w = min(5.15 * inch, avail_w * 0.55)
+                story.append(Image(bar_wk_buf, width=bar_pdf_w, hAlign="CENTER"))
+            else:
+                bar_wk_h = min(4.15 * inch, max(2.95 * inch, 0.16 * n_camp * inch + 2.35 * inch))
+                story.append(Image(bar_wk_buf, width=avail_w, height=bar_wk_h))
             story.append(Spacer(1, 8))
             story.append(Image(line_buf, width=avail_w, height=line_disp_h))
             story.append(Spacer(1, 10))
