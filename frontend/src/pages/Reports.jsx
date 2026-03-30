@@ -23,6 +23,7 @@ const Reports = () => {
   const [regionCode, setRegionCode] = useState('');
   const [selectedCampusSlugs, setSelectedCampusSlugs] = useState(() => new Set());
   const [loadError, setLoadError] = useState('');
+  const [includePreviousYear, setIncludePreviousYear] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loadingCsv, setLoadingCsv] = useState(false);
   const [error, setError] = useState('');
@@ -103,8 +104,11 @@ const Reports = () => {
     if (selectedCampusSlugs.size > 0) {
       params.set('campuses', Array.from(selectedCampusSlugs).join(','));
     }
+    if (includePreviousYear) {
+      params.set('include_previous_year', 'true');
+    }
     return params.toString();
-  }, [year, regionCode, selectedCampusSlugs]);
+  }, [year, regionCode, selectedCampusSlugs, includePreviousYear]);
 
   const pdfUrl = `/api/reports/q1-attendance.pdf?${queryString}`;
   const csvUrl = `/api/reports/q1-attendance.csv?${queryString}`;
@@ -120,8 +124,11 @@ const Reports = () => {
       parts.push(`${selectedCampusSlugs.size} campus(es) selected`);
     } else if (regionCode) parts.push('Campuses: all in region');
     else parts.push('Campuses: all');
+    if (includePreviousYear) {
+      parts.push(`YoY: Q1 ${year - 1} vs Q1 ${year}`);
+    }
     return parts.join(' · ');
-  }, [year, regionCode, selectedCampusSlugs, regions]);
+  }, [year, regionCode, selectedCampusSlugs, regions, includePreviousYear]);
 
   const downloadFile = async (url, defaultName, setLoading) => {
     setError('');
@@ -195,11 +202,15 @@ const Reports = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                Year
+                Year (Q1 report)
               </label>
               <select
                 value={year}
-                onChange={(e) => setYear(parseInt(e.target.value, 10))}
+                onChange={(e) => {
+                  const y = parseInt(e.target.value, 10);
+                  setYear(y);
+                  if (y <= 2000) setIncludePreviousYear(false);
+                }}
                 className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               >
                 {buildYearOptions().map((y) => (
@@ -227,6 +238,25 @@ const Reports = () => {
               </select>
             </div>
           </div>
+
+          <label className="flex items-start gap-3 mb-6 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={includePreviousYear}
+              onChange={(e) => setIncludePreviousYear(e.target.checked)}
+              disabled={year <= 2000}
+              className="mt-1 rounded border-slate-500 text-violet-600 focus:ring-violet-500 disabled:opacity-40"
+            />
+            <span>
+              <span className="text-white font-medium group-hover:text-violet-200 transition-colors">
+                Include previous year (year-over-year)
+              </span>
+              <span className="block text-slate-500 text-sm mt-0.5">
+                Adds Q1 {year > 2000 ? year - 1 : '—'} alongside Q1 {year} with the same region and campus filters. PDF/CSV
+                show both side by side.
+              </span>
+            </span>
+          </label>
 
           <div className="mb-6">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">

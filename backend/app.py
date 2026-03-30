@@ -16707,7 +16707,7 @@ def _normalize_campus_slug_for_report(raw: str) -> str:
     return s
 
 
-def _q1_report_filename(year: int, region_code: str, campuses_csv: str) -> str:
+def _q1_report_filename(year: int, region_code: str, campuses_csv: str, compare: bool = False) -> str:
     suf = ""
     if region_code and region_code.strip():
         suf += f"-{region_code.strip().upper()}"
@@ -16715,6 +16715,8 @@ def _q1_report_filename(year: int, region_code: str, campuses_csv: str) -> str:
         n = len([x for x in campuses_csv.split(",") if x.strip()])
         if n:
             suf += f"-{n}cx"
+    if compare:
+        suf += "-yoy"
     return f"pulse-q1-attendance-{year}{suf}"
 
 
@@ -16796,6 +16798,23 @@ def _q1_report_data(year: int, region_code: str | None = None, campuses_csv: str
     return build_q1_data(year, records, campuses_by_id, filter_summary=filter_summary)
 
 
+def _q1_report_with_optional_yoy(year: int, region: str, campuses: str, include_previous_year: bool):
+    from q1_attendance_report import build_compare_payload
+
+    data_curr = _q1_report_data(year, region_code=region or None, campuses_csv=campuses or None)
+    if not include_previous_year:
+        return data_curr
+    if year <= 2000:
+        raise ValueError("Cannot include previous year for this year value")
+    data_prev = _q1_report_data(year - 1, region_code=region or None, campuses_csv=campuses or None)
+    return build_compare_payload(data_curr, data_prev)
+
+
+def _parse_include_previous_year() -> bool:
+    v = (request.args.get("include_previous_year") or "").strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+
 @app.route('/api/reports/q1-attendance.csv', methods=['GET'])
 @login_required
 def report_q1_attendance_csv():
@@ -16810,9 +16829,10 @@ def report_q1_attendance_csv():
             return jsonify({"error": "Invalid year"}), 400
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
-        data = _q1_report_data(year, region_code=region or None, campuses_csv=campuses or None)
+        compare = _parse_include_previous_year()
+        data = _q1_report_with_optional_yoy(year, region, campuses, compare)
         payload = build_q1_csv_bytes(data)
-        fname = _q1_report_filename(year, region, campuses)
+        fname = _q1_report_filename(year, region, campuses, compare=compare)
         resp = Response(payload, mimetype='text/csv; charset=utf-8')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.csv'
         return resp
@@ -16837,9 +16857,10 @@ def report_q1_attendance_pdf():
             return jsonify({"error": "Invalid year"}), 400
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
-        data = _q1_report_data(year, region_code=region or None, campuses_csv=campuses or None)
+        compare = _parse_include_previous_year()
+        data = _q1_report_with_optional_yoy(year, region, campuses, compare)
         payload = build_q1_pdf_bytes(data)
-        fname = _q1_report_filename(year, region, campuses)
+        fname = _q1_report_filename(year, region, campuses, compare=compare)
         resp = Response(payload, mimetype='application/pdf')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.pdf'
         return resp
