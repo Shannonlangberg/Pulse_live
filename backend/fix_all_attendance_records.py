@@ -203,6 +203,26 @@ def fix_all_attendance_records():
                 record.first_time_christians = safe_int(sheets_row.get('First Time Christians', 0))
                 record.rededications = safe_int(sheets_row.get('Rededications', 0))
                 record.salvation_cards_returned = safe_int(sheets_row.get('Salvation Cards Returned', 0))
+
+                # If the sheet only had aggregate columns filled (legacy rows), map into DB fields
+                comp_np = (
+                    (record.first_time_visitors or 0)
+                    + (record.visitors or 0)
+                    + (record.youth_new_people or 0)
+                )
+                sheet_np = safe_int(sheets_row.get('New People', 0))
+                if sheet_np > 0 and comp_np == 0:
+                    record.visitors = sheet_np
+
+                base_sal = (
+                    (record.first_time_christians or 0)
+                    + (record.rededications or 0)
+                    + (record.youth_salvations or 0)
+                    + (record.new_kids_salvations or 0)
+                )
+                sheet_nc = safe_int(sheets_row.get('New Christians', 0))
+                if sheet_nc > 0 and base_sal == 0:
+                    record.first_time_christians = sheet_nc
                 record.baptisms = safe_int(sheets_row.get('Baptisms', 0))
                 record.child_dedications = safe_int(sheets_row.get('Child Dedications', 0))
                 record.connect_groups = safe_int(sheets_row.get('Connect Groups', 0))

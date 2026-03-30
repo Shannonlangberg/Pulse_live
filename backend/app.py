@@ -16707,6 +16707,85 @@ def _normalize_campus_slug_for_report(raw: str) -> str:
     return s
 
 
+def _q1_campus_name_aliases(campus) -> set:
+    """Lowercase names that might appear in the Stats sheet Campus column."""
+    names = set()
+    for attr in ("display_name", "name", "campus_id"):
+        v = getattr(campus, attr, None)
+        if v is not None and str(v).strip():
+            names.add(str(v).strip().lower())
+    return names
+
+
+def _safe_int_q1_sheet(val) -> int:
+    try:
+        if val is None or val == "":
+            return 0
+        return int(float(val))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _build_q1_sheet_enrichment(year: int, campuses_by_id: dict) -> dict:
+    """
+    Map (campus_display_name_lower, date) -> {'new_people': int, 'new_christians': int}
+    from the Google Stats tab for Q1 only. Fills gaps when DB rows only had attendance
+    totals but 'New People' / 'New Christians' aggregates live on the sheet.
+    """
+    out: dict = {}
+    global sheet
+    if not sheet or not campuses_by_id:
+        return out
+    alias_to_canonical: dict = {}
+    for c in campuses_by_id.values():
+        can = (getattr(c, "display_name", None) or "").strip().lower()
+        if not can:
+            continue
+        for a in _q1_campus_name_aliases(c):
+            alias_to_canonical[a] = can
+    try:
+        rows = safe_sheets_request(sheet.get_all_records)
+    except Exception as e:
+        logger.warning("[Q1_REPORT] Stats sheet enrichment skipped: %s", e)
+        return out
+    start_d = date(year, 1, 1)
+    end_d = date(year, 3, 31)
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        campus_cell = (row.get("Campus") or "").strip().lower()
+        if not campus_cell:
+            continue
+        can = alias_to_canonical.get(campus_cell)
+        if not can:
+            continue
+        ds = row.get("Date")
+        if ds is None or ds == "":
+            continue
+        try:
+            date_str = str(ds).strip()
+            if "/" in date_str:
+                date_obj = datetime.strptime(date_str, "%m/%d/%Y").date()
+            else:
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            continue
+        if date_obj.year != year or not (start_d <= date_obj <= end_d):
+            continue
+        k = (can, date_obj)
+        np = _safe_int_q1_sheet(row.get("New People"))
+        if np == 0:
+            np = _safe_int_q1_sheet(row.get("new people"))
+        nc = _safe_int_q1_sheet(row.get("New Christians"))
+        if nc == 0:
+            nc = _safe_int_q1_sheet(row.get("new christians"))
+        if k not in out:
+            out[k] = {"new_people": 0, "new_christians": 0}
+        out[k]["new_people"] += np
+        out[k]["new_christians"] += nc
+    return out
+
+
 def _q1_report_filename(year: int, region_code: str, campuses_csv: str, compare: bool = False) -> str:
     suf = ""
     if region_code and region_code.strip():
@@ -16795,7 +16874,14 @@ def _q1_report_data(year: int, region_code: str | None = None, campuses_csv: str
         parts.append("Campuses: all")
 
     filter_summary = " · ".join(parts)
-    return build_q1_data(year, records, campuses_by_id, filter_summary=filter_summary)
+    sheet_enrichment = _build_q1_sheet_enrichment(year, campuses_by_id)
+    return build_q1_data(
+        year,
+        records,
+        campuses_by_id,
+        filter_summary=filter_summary,
+        sheet_enrichment=sheet_enrichment,
+    )
 
 
 def _q1_report_with_optional_yoy(year: int, region: str, campuses: str, include_previous_year: bool):

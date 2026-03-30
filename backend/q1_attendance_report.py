@@ -71,19 +71,36 @@ def record_sunday_and_weekend_totals(record) -> Tuple[int, int]:
     return sunday, weekend
 
 
-def record_new_people_total(record) -> int:
-    """Matches regional dashboard: FTV + visitors + youth new people."""
-    return (record.first_time_visitors or 0) + (record.visitors or 0) + (record.youth_new_people or 0)
+def record_new_people_total(record, sheet_new_people: int | None = None) -> int:
+    """
+    FTV + visitors + youth new people (same components as regional dashboard).
+    If Google Stats has a 'New People' aggregate and the DB breakdown is lower
+    (common for legacy imports), use max(component_sum, sheet) so Q1 matches the sheet.
+    """
+    comp = (record.first_time_visitors or 0) + (record.visitors or 0) + (record.youth_new_people or 0)
+    sp = int(sheet_new_people or 0)
+    if sp > 0:
+        return max(comp, sp)
+    return comp
 
 
-def record_salvations_total(record) -> int:
-    """Matches regional dashboard: FTC + rededications + youth + kids salvations."""
-    return (
+def record_salvations_total(record, sheet_new_christians: int | None = None) -> int:
+    """
+    FTC + rededications + youth + kids salvations.
+    When that sum is zero, use salvation_cards_returned and/or Stats 'New Christians'
+    (legacy rows often only had those populated).
+    """
+    base = (
         (record.first_time_christians or 0)
         + (record.rededications or 0)
         + (record.youth_salvations or 0)
         + (record.new_kids_salvations or 0)
     )
+    if base > 0:
+        return base
+    sc = int(record.salvation_cards_returned or 0)
+    nc = int(sheet_new_christians or 0)
+    return max(sc, nc)
 
 
 def _region_aggregate_rows(campus_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -188,6 +205,7 @@ def build_q1_data(
     records: List[Any],
     campuses_by_id: Dict[int, Any],
     filter_summary: str = "",
+    sheet_enrichment: Dict[Tuple[str, date], Dict[str, int]] | None = None,
 ) -> Dict[str, Any]:
     """Aggregate by campus and by global week."""
     start = date(year, 1, 1)
@@ -210,11 +228,21 @@ def build_q1_data(
             continue
         sun, wknd = record_sunday_and_weekend_totals(r)
         cid = r.campus_id
+        ex: Dict[str, int] | None = None
+        if sheet_enrichment:
+            campus = campuses_by_id.get(cid)
+            if campus:
+                k = ((campus.display_name or "").strip().lower(), d)
+                ex = sheet_enrichment.get(k)
         by_campus[cid]["service_rows"] += 1
         by_campus[cid]["total_sunday"] += sun
         by_campus[cid]["total_weekend"] += wknd
-        by_campus[cid]["total_new_people"] += record_new_people_total(r)
-        by_campus[cid]["total_salvations"] += record_salvations_total(r)
+        by_campus[cid]["total_new_people"] += record_new_people_total(
+            r, sheet_new_people=ex.get("new_people") if ex else None
+        )
+        by_campus[cid]["total_salvations"] += record_salvations_total(
+            r, sheet_new_christians=ex.get("new_christians") if ex else None
+        )
         wkey = _week_key_chart(d)
         weekly[wkey]["sunday"] += sun
         weekly[wkey]["weekend"] += wknd
@@ -536,8 +564,8 @@ def _chart_bar_campus_compare(data: Dict[str, Any]) -> io.BytesIO:
         wk_c = [r["total_weekend"] for r in rows]
         ax.barh([i - 1.5 * w for i in y], sun_p, height=w, label=f"Sun {yp}", color="#93c5fd")
         ax.barh([i - 0.5 * w for i in y], sun_c, height=w, label=f"Sun {yc}", color="#2563eb")
-        ax.barh([i + 0.5 * w for i in y], wk_p, height=w, label=f"Wknd {yp}", color="#cbd5e1")
-        ax.barh([i + 1.5 * w for i in y], wk_c, height=w, label=f"Wknd {yc}", color="#475569")
+        ax.barh([i + 0.5 * w for i in y], wk_p, height=w, label=f"Weekend {yp}", color="#cbd5e1")
+        ax.barh([i + 1.5 * w for i in y], wk_c, height=w, label=f"Weekend {yc}", color="#475569")
         ax.set_yticks(y)
         ax.set_yticklabels(names, fontsize=8)
         ax.invert_yaxis()
@@ -623,77 +651,192 @@ def _chart_line_weekly_dual(data: Dict[str, Any]) -> io.BytesIO:
     return out
 
 
+def _chart_bar_campus_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
+    """Shorter bar chart for single-page PDF layouts."""
+    rows = data["campus_rows"]
+    yp, yc = data["prev_year"], data["year"]
+    fig_h = min(3.0, max(2.0, 0.17 * len(rows) + 0.95))
+    fig, ax = plt.subplots(figsize=(10.0, fig_h))
+    if not rows:
+        ax.text(0.5, 0.5, "No data", ha="center", va="center")
+        ax.set_axis_off()
+    else:
+        names = [r["campus_name"][:24] for r in rows]
+        y = list(range(len(names)))
+        w = 0.16
+        sun_p = [r["prev_total_sunday"] for r in rows]
+        sun_c = [r["total_sunday"] for r in rows]
+        wk_p = [r["prev_total_weekend"] for r in rows]
+        wk_c = [r["total_weekend"] for r in rows]
+        ax.barh([i - 1.5 * w for i in y], sun_p, height=w, label=f"Sunday {yp}", color="#93c5fd")
+        ax.barh([i - 0.5 * w for i in y], sun_c, height=w, label=f"Sunday {yc}", color="#2563eb")
+        ax.barh([i + 0.5 * w for i in y], wk_p, height=w, label=f"Weekend {yp}", color="#cbd5e1")
+        ax.barh([i + 1.5 * w for i in y], wk_c, height=w, label=f"Weekend {yc}", color="#475569")
+        ax.set_yticks(y)
+        ax.set_yticklabels(names, fontsize=6)
+        ax.invert_yaxis()
+        ax.legend(loc="lower right", fontsize=5.5, ncol=2)
+        ax.set_xlabel("Attendance (Q1 total)", fontsize=7)
+    sub = (data.get("filter_summary") or "")[:70]
+    t = f"Q1 YoY — {yp} vs {yc}"
+    if sub:
+        t += f"\n({sub})"
+    ax.set_title(t, fontsize=8, fontweight="bold")
+    plt.tight_layout(pad=0.35)
+    out = io.BytesIO()
+    fig.savefig(out, format="png", dpi=100, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    out.seek(0)
+    return out
+
+
+def _chart_line_weekly_dual_compact(data: Dict[str, Any]) -> io.BytesIO:
+    """Two weekly charts side-by-side to save vertical space on PDF."""
+    yc, yp = data["year"], data["prev_year"]
+    s_curr = data["weekly_series_current"]
+    s_prev = data["weekly_series_previous"]
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10.0, 2.05), sharey=False)
+
+    def _plot(ax, series, title_y: str):
+        if not series:
+            ax.text(0.5, 0.5, "No data", ha="center", va="center", fontsize=7)
+            ax.set_axis_off()
+            return
+        labels = _week_series_xtick_labels(series)
+        sun = [s[1] for s in series]
+        wknd = [s[2] for s in series]
+        x = range(len(labels))
+        ax.plot(x, sun, marker="o", markersize=3, label="Sunday", color="#2563eb", linewidth=1.2)
+        ax.plot(x, wknd, marker="s", markersize=3, label="Weekend", color="#64748b", linewidth=1.2)
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=35, ha="right", fontsize=5)
+        ax.set_xlabel("Month (ISO week Mon)", fontsize=6)
+        ax.legend(loc="upper right", fontsize=5)
+        ax.set_ylabel("Attendance", fontsize=6)
+        ax.grid(True, alpha=0.28)
+        ax.set_title(f"Q1 {title_y}", fontsize=7, fontweight="bold")
+
+    _plot(ax1, s_prev, str(yp))
+    _plot(ax2, s_curr, str(yc))
+    plt.tight_layout(pad=0.45)
+    out = io.BytesIO()
+    fig.savefig(out, format="png", dpi=100, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    out.seek(0)
+    return out
+
+
 def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
     from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
     from reportlab.lib.pagesizes import A4, landscape
-    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
-    from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     buffer = io.BytesIO()
+    page = landscape(A4)
+    compare = bool(data.get("compare"))
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=landscape(A4),
-        rightMargin=36,
-        leftMargin=36,
-        topMargin=42,
-        bottomMargin=36,
+        pagesize=page,
+        rightMargin=28,
+        leftMargin=28,
+        topMargin=30,
+        bottomMargin=28,
     )
     styles = getSampleStyleSheet()
-    story = []
+    title_ps = ParagraphStyle(
+        "Q1Title",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=14 if compare else 16,
+        leading=17 if compare else 19,
+        textColor=colors.HexColor("#0f172a"),
+        spaceAfter=4,
+    )
+    meta_ps = ParagraphStyle(
+        "Q1Meta",
+        parent=styles["Normal"],
+        fontSize=7 if compare else 8,
+        leading=9 if compare else 10,
+        textColor=colors.HexColor("#334155"),
+        spaceAfter=2,
+    )
+    hdr_white = ParagraphStyle(
+        "Q1Hdr",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=6,
+        leading=7,
+        alignment=TA_CENTER,
+        textColor=colors.white,
+    )
 
-    if data.get("compare"):
+    def _hdr_metric(label: str, year: int) -> Paragraph:
+        return Paragraph(
+            f'<para align="center">{label}<br/><font size="5">{year} &middot; Q1 total</font></para>',
+            hdr_white,
+        )
+
+    story: List[Any] = []
+
+    if compare:
         title = (
-            f"Pulse — Q1 attendance YoY ({data['prev_year']}: Jan–Mar vs {data['year']}: Jan–Mar)"
+            f"Pulse &mdash; Q1 attendance year-over-year "
+            f"({data['prev_year']} Jan&ndash;Mar vs {data['year']} Jan&ndash;Mar)"
         )
     else:
         title = f"Pulse — Q1 attendance report ({data['start']} to {data['end']})"
-    story.append(Paragraph(title, styles["Title"]))
+    story.append(Paragraph(title, title_ps))
     fs = data.get("filter_summary") or ""
     if fs:
         safe = fs.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        story.append(Paragraph(f"<b>Filters:</b> {safe}", styles["Normal"]))
+        story.append(Paragraph(f"<b>Filters:</b> {safe}", meta_ps))
     story.append(
         Paragraph(
-            "Sunday = adults + saints + kids (same logic as regional dashboard). "
-            "Weekend = Sunday + youth + youth leaders. "
-            "New people = first-time visitors + visitors + youth new people (Q1 sums). "
-            "Salvations = first-time Christians + rededications + youth salvations + new kids salvations (Q1 sums). "
-            "Region total rows sum campuses in that region code (e.g. AU).",
-            styles["Normal"],
+            "<b>Metrics:</b> "
+            "<b>Sunday</b> = adults + saints + kids. "
+            "<b>Weekend</b> = Sunday + youth + youth leaders. "
+            "<b>New people</b> = first-time visitors + visitors + youth new people; "
+            "if the DB breakdown is lower, the Google Stats <i>New People</i> column is used (legacy rows). "
+            "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
+            "when that sum is zero, <i>Salvation cards returned</i> and/or Stats <i>New Christians</i> apply. "
+            "<b>Region total</b> = sum of campuses in that region code.",
+            meta_ps,
         )
     )
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 4))
 
-    if data.get("compare"):
-        bar_buf = _chart_bar_campus_compare(data)
-        bar_h = min(5.5 * inch, max(2.8 * inch, 0.42 * len(data["campus_rows"]) * inch + 1.2 * inch))
-        story.append(Image(bar_buf, width=9.5 * inch, height=bar_h))
-        story.append(Spacer(1, 12))
-        line_buf = _chart_line_weekly_dual(data)
-        story.append(Image(line_buf, width=9.5 * inch, height=4.8 * inch))
-        story.append(Spacer(1, 16))
+    avail_w = page[0] - 56
+
+    if compare:
         yp, yc = data["prev_year"], data["year"]
         tp, tc = data["totals_previous"], data["totals"]
-        table_data = [
+        bar_buf = _chart_bar_campus_compare_compact(data)
+        bar_disp_h = min(2.35 * inch, max(1.55 * inch, 0.11 * len(data["campus_rows"]) * inch + 1.05 * inch))
+        line_buf = _chart_line_weekly_dual_compact(data)
+        line_disp_h = 1.55 * inch
+
+        table_data: List[List[Any]] = [
             [
-                "Campus",
-                "Region",
-                f"Sun {yp}",
-                f"Wk {yp}",
-                f"New {yp}",
-                f"Sal {yp}",
-                f"Sun {yc}",
-                f"Wk {yc}",
-                f"New {yc}",
-                f"Sal {yc}",
+                Paragraph("<para align='center'><b>Campus</b></para>", hdr_white),
+                Paragraph("<para align='center'><b>Region</b></para>", hdr_white),
+                _hdr_metric("<b>Sunday</b>", yp),
+                _hdr_metric("<b>Weekend</b>", yp),
+                _hdr_metric("<b>New people</b>", yp),
+                _hdr_metric("<b>Salvations</b>", yp),
+                _hdr_metric("<b>Sunday</b>", yc),
+                _hdr_metric("<b>Weekend</b>", yc),
+                _hdr_metric("<b>New people</b>", yc),
+                _hdr_metric("<b>Salvations</b>", yc),
             ]
         ]
         region_row_idx_compare: List[int] = []
         for row in data["campus_rows"]:
             table_data.append(
                 [
-                    row["campus_name"][:28],
+                    row["campus_name"][:26],
                     row["region"] or "—",
                     str(row["prev_total_sunday"]),
                     str(row["prev_total_weekend"]),
@@ -710,7 +853,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
             region_row_idx_compare.append(base_c + j)
             table_data.append(
                 [
-                    rrow["campus_name"][:28],
+                    rrow["campus_name"][:26],
                     rrow["region"] or "—",
                     str(rrow["prev_total_sunday"]),
                     str(rrow["prev_total_weekend"]),
@@ -724,7 +867,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
             )
         table_data.append(
             [
-                "TOTAL",
+                "ALL CAMPUSES — TOTAL",
                 "",
                 str(tp["sunday"]),
                 str(tp["weekend"]),
@@ -736,32 +879,83 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
                 str(tc.get("salvations", 0)),
             ]
         )
+
+        col_widths = [avail_w * 0.14, avail_w * 0.06] + [avail_w * 0.10] * 8
+
+        t = Table(table_data, colWidths=col_widths, repeatRows=1)
+        n_rows = len(table_data) - 1
+        fs_pdf = 5 if n_rows > 16 else 6
+        tbl_cmds = [
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("FONTSIZE", (0, 1), (-1, -1), fs_pdf),
+            ("FONTNAME", (0, 1), (-1, -2), "Helvetica"),
+            ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
+            ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f8fafc")]),
+            ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#0f172a")),
+            ("TEXTCOLOR", (0, -1), (-1, -1), colors.white),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, -1), (-1, -1), fs_pdf),
+        ]
+        for ri in region_row_idx_compare:
+            tbl_cmds.append(("BACKGROUND", (0, ri), (-1, ri), colors.HexColor("#fef3c7")))
+            tbl_cmds.append(("TEXTCOLOR", (0, ri), (-1, ri), colors.HexColor("#422006")))
+            tbl_cmds.append(("FONTNAME", (0, ri), (-1, ri), "Helvetica-Bold"))
+        t.setStyle(TableStyle(tbl_cmds))
+
+        story.append(
+            KeepTogether(
+                [
+                    Image(bar_buf, width=avail_w, height=bar_disp_h),
+                    Spacer(1, 3),
+                    Image(line_buf, width=avail_w, height=line_disp_h),
+                    Spacer(1, 4),
+                    t,
+                ]
+            )
+        )
     else:
         bar_buf = _chart_bar_campus(data)
-        bar_h = min(4.8 * inch, max(2.2 * inch, 0.32 * len(data["campus_rows"]) * inch + 1.1 * inch))
-        story.append(Image(bar_buf, width=9.5 * inch, height=bar_h))
-        story.append(Spacer(1, 12))
+        bar_h = min(3.6 * inch, max(1.9 * inch, 0.26 * len(data["campus_rows"]) * inch + 1.0 * inch))
+        story.append(Image(bar_buf, width=avail_w, height=bar_h))
+        story.append(Spacer(1, 8))
         line_buf = _chart_line_weekly(data)
-        story.append(Image(line_buf, width=9.5 * inch, height=3.1 * inch))
-        story.append(Spacer(1, 20))
+        story.append(Image(line_buf, width=avail_w, height=2.45 * inch))
+        story.append(Spacer(1, 10))
+
+        hdr_single = ParagraphStyle(
+            "Q1HdrSingle",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=7,
+            leading=8,
+            alignment=TA_CENTER,
+            textColor=colors.white,
+        )
         table_data = [
             [
-                "Campus",
-                "Region",
-                "Rows",
-                "Total Sun",
-                "Total Wknd",
-                "Avg Sun",
-                "Avg Wknd",
-                "New ppl",
-                "Salv",
+                Paragraph("<para align='center'><b>Campus</b></para>", hdr_single),
+                Paragraph("<para align='center'><b>Region</b></para>", hdr_single),
+                Paragraph("<para align='center'><b>Service<br/>rows</b></para>", hdr_single),
+                Paragraph("<para align='center'><b>Sunday<br/>total</b></para>", hdr_single),
+                Paragraph("<para align='center'><b>Weekend<br/>total</b></para>", hdr_single),
+                Paragraph("<para align='center'><b>Sunday<br/>avg</b></para>", hdr_single),
+                Paragraph("<para align='center'><b>Weekend<br/>avg</b></para>", hdr_single),
+                Paragraph("<para align='center'><b>New people<br/>total</b></para>", hdr_single),
+                Paragraph("<para align='center'><b>Salvations<br/>total</b></para>", hdr_single),
             ]
         ]
         region_row_idx_single: List[int] = []
         for row in data["campus_rows"]:
             table_data.append(
                 [
-                    row["campus_name"][:36],
+                    row["campus_name"][:34],
                     row["region"] or "—",
                     str(row["service_rows"]),
                     str(row["total_sunday"]),
@@ -777,7 +971,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
             region_row_idx_single.append(base_s + j)
             table_data.append(
                 [
-                    rrow["campus_name"][:36],
+                    rrow["campus_name"][:34],
                     rrow["region"] or "—",
                     str(rrow["service_rows"]),
                     str(rrow["total_sunday"]),
@@ -790,7 +984,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
             )
         table_data.append(
             [
-                "TOTAL",
+                "ALL CAMPUSES — TOTAL",
                 "",
                 str(data["totals"]["service_rows"]),
                 str(data["totals"]["sunday"]),
@@ -802,24 +996,32 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
             ]
         )
 
-    t = Table(table_data, repeatRows=1)
-    fs_pdf = 6 if data.get("compare") else 7
-    tbl_cmds = [
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), fs_pdf),
-        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f1f5f9")]),
-        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#e2e8f0")),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-    ]
-    reg_idx = region_row_idx_compare if data.get("compare") else region_row_idx_single
-    for ri in reg_idx:
-        tbl_cmds.append(("BACKGROUND", (0, ri), (-1, ri), colors.HexColor("#dbeafe")))
-        tbl_cmds.append(("FONTNAME", (0, ri), (-1, ri), "Helvetica-Bold"))
-    t.setStyle(TableStyle(tbl_cmds))
-    story.append(t)
+        col_widths_s = [avail_w * 0.17, avail_w * 0.06] + [avail_w * 0.11] * 7
+        t = Table(table_data, colWidths=col_widths_s, repeatRows=1)
+        fs_pdf = 7
+        tbl_cmds = [
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("FONTSIZE", (0, 1), (-1, -1), fs_pdf),
+            ("FONTNAME", (0, 1), (-1, -2), "Helvetica"),
+            ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
+            ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f8fafc")]),
+            ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#0f172a")),
+            ("TEXTCOLOR", (0, -1), (-1, -1), colors.white),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ]
+        for ri in region_row_idx_single:
+            tbl_cmds.append(("BACKGROUND", (0, ri), (-1, ri), colors.HexColor("#fef3c7")))
+            tbl_cmds.append(("TEXTCOLOR", (0, ri), (-1, ri), colors.HexColor("#422006")))
+            tbl_cmds.append(("FONTNAME", (0, ri), (-1, ri), "Helvetica-Bold"))
+        t.setStyle(TableStyle(tbl_cmds))
+        story.append(t)
 
     doc.build(story)
     pdf = buffer.getvalue()

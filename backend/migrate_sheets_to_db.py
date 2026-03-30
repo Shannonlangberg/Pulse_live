@@ -139,6 +139,19 @@ def migrate_sheets_to_database():
                         total_people += kids_attendance + youth_attendance
                     
                     kids_attendance = int(row.get('Kids Attendance', 0) or 0)
+                    youth_attendance = int(row.get('Youth Attendance', 0) or 0)
+
+                    ftv_m = int(row.get('First Time Visitors', 0) or 0)
+                    visitors_m = int(row.get('Visitors', 0) or 0)
+                    youth_np_m = int(row.get('Youth New People', 0) or 0)
+                    if int(row.get('New People', 0) or 0) > 0 and (ftv_m + visitors_m + youth_np_m) == 0:
+                        visitors_m = int(row.get('New People', 0) or 0)
+                    ftc_m = int(row.get('First Time Christians', 0) or 0)
+                    reded_m = int(row.get('Rededications', 0) or 0)
+                    ys_m = int(row.get('Youth Salvations', 0) or 0)
+                    nks_m = int(row.get('Kids Salvations', 0) or 0)
+                    if int(row.get('New Christians', 0) or 0) > 0 and (ftc_m + reded_m + ys_m + nks_m) == 0:
+                        ftc_m = int(row.get('New Christians', 0) or 0)
                     
                     # Create attendance record
                     record = AttendanceRecord(
@@ -153,22 +166,22 @@ def migrate_sheets_to_database():
                         kids_attendance=kids_attendance,
                         kids_leaders=int(row.get('Kids Leaders', 0) or 0),
                         new_kids=int(row.get('New Kids', 0) or 0),
-                        new_kids_salvations=int(row.get('Kids Salvations', 0) or 0),
+                        new_kids_salvations=nks_m,
                         packs_out=int(row.get('Packs Out', 0) or 0),
                         
                         # Youth
                         youth_attendance=youth_attendance,
-                        youth_salvations=int(row.get('Youth Salvations', 0) or 0),
-                        youth_new_people=int(row.get('Youth New People', 0) or 0),
+                        youth_salvations=ys_m,
+                        youth_new_people=youth_np_m,
                         youth_leaders=int(row.get('Youth Leaders', 0) or 0),
                         
                         # Visitors & Salvations
-                        first_time_visitors=int(row.get('First Time Visitors', 0) or 0),
-                        visitors=int(row.get('Visitors', 0) or 0),
+                        first_time_visitors=ftv_m,
+                        visitors=visitors_m,
                         hands_up=int(row.get('Hands Up', 0) or 0),
                         cards_back=int(row.get('Cards Back', 0) or 0),
-                        first_time_christians=int(row.get('First Time Christians', 0) or 0),
-                        rededications=int(row.get('Rededications', 0) or 0),
+                        first_time_christians=ftc_m,
+                        rededications=reded_m,
                         salvation_cards_returned=int(row.get('Salvation Cards Returned', 0) or 0),
                         
                         # Milestones

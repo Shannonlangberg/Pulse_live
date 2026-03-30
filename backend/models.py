@@ -3442,7 +3442,20 @@ class AttendanceRecord(db.Model):
                         kids_breakdown[kids_key] = int(row_dict[kids_key] or 0)
             except:
                 pass
-        
+
+        ftv = int(row_dict.get('First Time Visitors', 0) or 0)
+        visitors_val = int(row_dict.get('Visitors', 0) or 0)
+        youth_np = int(row_dict.get('Youth New People', 0) or 0)
+        if int(row_dict.get('New People', 0) or 0) > 0 and (ftv + visitors_val + youth_np) == 0:
+            visitors_val = int(row_dict.get('New People', 0) or 0)
+
+        ftc = int(row_dict.get('First Time Christians', 0) or 0)
+        reded = int(row_dict.get('Rededications', 0) or 0)
+        ys = int(row_dict.get('Youth Salvations', 0) or 0)
+        nks = int(row_dict.get('New Kids Salvations', 0) or 0)
+        if int(row_dict.get('New Christians', 0) or 0) > 0 and (ftc + reded + ys + nks) == 0:
+            ftc = int(row_dict.get('New Christians', 0) or 0)
+
         return cls(
             campus_id=campus_obj.id,
             region_id=campus_obj.region_id,
@@ -3453,19 +3466,19 @@ class AttendanceRecord(db.Model):
             kids_attendance=int(row_dict.get('Kids Attendance', 0) or 0),
             kids_leaders=int(row_dict.get('Kids Leaders', 0) or 0),
             new_kids=int(row_dict.get('New Kids', 0) or 0),
-            new_kids_salvations=int(row_dict.get('New Kids Salvations', 0) or 0),
+            new_kids_salvations=nks,
             packs_out=int(row_dict.get('Packs Out', 0) or 0),
             kids_service_breakdown=json.dumps(kids_breakdown) if kids_breakdown else None,
             youth_attendance=int(row_dict.get('Youth Attendance', 0) or 0),
-            youth_salvations=int(row_dict.get('Youth Salvations', 0) or 0),
-            youth_new_people=int(row_dict.get('Youth New People', 0) or 0),
+            youth_salvations=ys,
+            youth_new_people=youth_np,
             youth_leaders=int(row_dict.get('Youth Leaders', 0) or 0),
-            first_time_visitors=int(row_dict.get('First Time Visitors', 0) or 0),
-            visitors=int(row_dict.get('Visitors', 0) or 0),
+            first_time_visitors=ftv,
+            visitors=visitors_val,
             hands_up=int(row_dict.get('Hands up', 0) or 0),
             cards_back=int(row_dict.get('Cards Back', 0) or 0),
-            first_time_christians=int(row_dict.get('First Time Christians', 0) or 0),
-            rededications=int(row_dict.get('Rededications', 0) or 0),
+            first_time_christians=ftc,
+            rededications=reded,
             salvation_cards_returned=int(row_dict.get('Salvation Cards Returned', 0) or 0),
             baptisms=int(row_dict.get('Baptisms', 0) or 0),
             child_dedications=int(row_dict.get('Child Dedications', 0) or 0),
