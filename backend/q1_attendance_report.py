@@ -88,6 +88,28 @@ _PDF_CHART_DPI = 200
 _PDF_CHART_DPI_SHARP = 280  # YoY bar + compact weekly (crisp axis labels in PDF)
 _PDF_CHART_DPI_LEGACY = 160  # non-compact charts (taller figures)
 
+# Must match single-campus branch of _chart_bar_weekend_compare_compact (figsize inches).
+_YOY_WEEKEND_BAR_SINGLE_FIG_W = 4.9
+_YOY_WEEKEND_BAR_SINGLE_FIG_H = 3.05
+
+
+def _rl_image_yoy_weekend_bar_single(buf: io.BytesIO, target_w: float, *, max_h: float) -> Any:
+    """
+    ReportLab Image with explicit W×H from figure aspect ratio.
+    Width-only Images can get a huge auto-height from PNG + title text, causing LayoutError
+    when the flowable no longer fits the frame on per-campus PDF pages.
+    """
+    from reportlab.platypus import Image as RLImage
+
+    buf.seek(0)
+    aspect = _YOY_WEEKEND_BAR_SINGLE_FIG_H / _YOY_WEEKEND_BAR_SINGLE_FIG_W
+    w = target_w
+    h = w * aspect
+    if h > max_h:
+        h = max_h
+        w = max_h / aspect
+    return RLImage(buf, width=w, height=h, hAlign="CENTER")
+
 
 def _week_key_chart(record_date: date) -> str:
     """Align with dashboard YTD week columns (Mon–Sun); Mon/Tue → prior Sunday's week."""
@@ -1169,7 +1191,9 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 story.append(Paragraph(f"<b>{nm}</b>", campus_title_ps))
                 bar_b = _chart_bar_weekend_compare_compact(sub_chart)
                 bar_pdf_w = min(5.15 * inch, avail_w * 0.55)
-                story.append(Image(bar_b, width=bar_pdf_w, hAlign="CENTER"))
+                story.append(
+                    _rl_image_yoy_weekend_bar_single(bar_b, bar_pdf_w, max_h=2.42 * inch)
+                )
                 story.append(Spacer(1, 6))
                 line_b = _chart_line_weekly_dual_compact(sub_chart)
                 story.append(Image(line_b, width=avail_w, height=1.55 * inch))
@@ -1333,7 +1357,9 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
             # Page 1: charts only. Page 2: full data table (fixes split-table band bugs and reduces clutter).
             if n_camp <= 1:
                 bar_pdf_w = min(5.15 * inch, avail_w * 0.55)
-                story.append(Image(bar_wk_buf, width=bar_pdf_w, hAlign="CENTER"))
+                story.append(
+                    _rl_image_yoy_weekend_bar_single(bar_wk_buf, bar_pdf_w, max_h=2.42 * inch)
+                )
             else:
                 bar_wk_h = min(4.15 * inch, max(2.95 * inch, 0.16 * n_camp * inch + 2.35 * inch))
                 story.append(Image(bar_wk_buf, width=avail_w, height=bar_wk_h))
