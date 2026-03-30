@@ -1055,7 +1055,6 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
     from reportlab.lib.units import inch
     from reportlab.platypus import (
         Image,
-        KeepTogether,
         PageBreak,
         Paragraph,
         SimpleDocTemplate,
@@ -1273,45 +1272,47 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 ]
             )
         )
-        story.append(Table([[Spacer(1, 1), accent_tbl, Spacer(1, 1)]], colWidths=[side, accent_w, side]))
+        # Spacer width must match column width in Table cells (ReportLab); wrong width blows up row height.
+        story.append(Table([[Spacer(side, 1), accent_tbl, Spacer(side, 1)]], colWidths=[side, accent_w, side]))
 
         fs = data.get("filter_summary") or ""
-        scope_inner: List[Any] = []
-        scope_inner.append(Paragraph("Scope &amp; filters", cov_scope_title))
-        if fs:
-            safe_fs = fs.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            scope_inner.append(Paragraph(safe_fs, cov_scope_body))
-        else:
-            scope_inner.append(Paragraph("All campuses in scope (no additional filters).", cov_scope_body))
-        if not compare:
-            scope_inner.append(Spacer(1, 8))
-            scope_inner.append(
-                Paragraph(
-                    "<b>Metrics</b> (each page): Sunday, Weekend (incl. youth), New people, Salvations "
-                    "&mdash; aligned with the regional attendance dashboard.",
-                    cov_scope_body,
-                )
-            )
-        else:
-            scope_inner.append(Spacer(1, 8))
-            scope_inner.append(
-                Paragraph(
-                    "<b>Each campus page</b> includes weekend year-over-year bars, weekly lines for both years, "
-                    "and a figures table.",
-                    cov_scope_body,
-                )
-            )
-
         box_w = avail_w * 0.78
         box_side = (avail_w - box_w) / 2
-        scope_tbl = Table([[KeepTogether(scope_inner)]], colWidths=[box_w])
+        scope_rows: List[List[Any]] = [[Paragraph("Scope &amp; filters", cov_scope_title)]]
+        if fs:
+            safe_fs = fs.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            scope_rows.append([Paragraph(safe_fs, cov_scope_body)])
+        else:
+            scope_rows.append([Paragraph("All campuses in scope (no additional filters).", cov_scope_body)])
+        if not compare:
+            scope_rows.append(
+                [
+                    Paragraph(
+                        "<b>Metrics</b> (each page): Sunday, Weekend (incl. youth), New people, Salvations "
+                        "&mdash; aligned with the regional attendance dashboard.",
+                        cov_scope_body,
+                    )
+                ]
+            )
+        else:
+            scope_rows.append(
+                [
+                    Paragraph(
+                        "<b>Each campus page</b> includes weekend year-over-year bars, weekly lines for both years, "
+                        "and a figures table.",
+                        cov_scope_body,
+                    )
+                ]
+            )
+
+        scope_tbl = Table(scope_rows, colWidths=[box_w])
         scope_tbl.setStyle(
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), ice),
                     ("BOX", (0, 0), (-1, -1), 0.75, border),
-                    ("TOPPADDING", (0, 0), (-1, -1), 16),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 16),
+                    ("TOPPADDING", (0, 0), (-1, -1), 10),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
                     ("LEFTPADDING", (0, 0), (-1, -1), 18),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 18),
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -1321,7 +1322,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
         story.append(Spacer(1, 0.36 * inch))
         story.append(
             Table(
-                [[Spacer(1, 1), scope_tbl, Spacer(1, 1)]],
+                [[Spacer(box_side, 1), scope_tbl, Spacer(box_side, 1)]],
                 colWidths=[box_side, box_w, box_side],
             )
         )
