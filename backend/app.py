@@ -17116,18 +17116,16 @@ def _q1_sheet_rows_as_dicts(ws) -> list:
     return rows
 
 
-def _q1_parse_sheet_date_for_year(ds, year: int):
-    """Parse Stats Date cell; must fall in Q1 of ``year``."""
+def _q1_parse_sheet_date_in_range(ds, start_d: date, end_d: date):
+    """Parse Stats Date cell; must fall in ``start_d``..``end_d`` (inclusive)."""
     if ds is None or ds == "":
         return None
     date_str = str(ds).strip()
-    start_d = date(year, 1, 1)
-    end_d = date(year, 3, 31)
     fmts = ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y/%m/%d", "%d-%m-%Y", "%m-%d-%Y")
     for fmt in fmts:
         try:
             date_obj = datetime.strptime(date_str, fmt).date()
-            if date_obj.year == year and start_d <= date_obj <= end_d:
+            if start_d <= date_obj <= end_d:
                 return date_obj
         except (ValueError, TypeError):
             continue
@@ -17158,11 +17156,13 @@ def _q1_row_salvations_from_sheet(row: dict) -> int:
     return max(detail, agg, cards)
 
 
-def _build_q1_sheet_enrichment(year: int, campuses_by_id: dict, region_obj=None) -> dict:
+def _build_q1_sheet_enrichment(
+    start_d: date, end_d: date, campuses_by_id: dict, region_obj=None
+) -> dict:
     """
     Map (campus_display_name_lower, date) -> {'new_people': int, 'salvations': int}
-    from Google Stats for Q1. Uses the region's spreadsheet when ``sheets_spreadsheet_id``
-    is set (AU data often lives there, not the global Stats workbook).
+    from Google Stats for the report date range. Uses the region's spreadsheet when
+    ``sheets_spreadsheet_id`` is set (AU data often lives there, not the global Stats workbook).
     """
     out: dict = {}
     if not campuses_by_id:
@@ -17188,8 +17188,6 @@ def _build_q1_sheet_enrichment(year: int, campuses_by_id: dict, region_obj=None)
         for a in _q1_campus_name_aliases(c):
             alias_to_canonical[_q1_norm_campus_cell(a)] = can
 
-    start_d = date(year, 1, 1)
-    end_d = date(year, 3, 31)
     for row in rows:
         if not isinstance(row, dict):
             continue
@@ -17199,7 +17197,7 @@ def _build_q1_sheet_enrichment(year: int, campuses_by_id: dict, region_obj=None)
         can = alias_to_canonical.get(campus_cell)
         if not can:
             continue
-        date_obj = _q1_parse_sheet_date_for_year(row.get("Date"), year)
+        date_obj = _q1_parse_sheet_date_in_range(row.get("Date"), start_d, end_d)
         if not date_obj:
             continue
         if not (start_d <= date_obj <= end_d):
@@ -17214,7 +17212,16 @@ def _build_q1_sheet_enrichment(year: int, campuses_by_id: dict, region_obj=None)
     return out
 
 
-def _q1_report_filename(year: int, region_code: str, campuses_csv: str, compare: bool = False) -> str:
+def _q1_report_filename(
+    year: int,
+    region_code: str,
+    campuses_csv: str,
+    compare: bool = False,
+    period: str = "q1",
+) -> str:
+    from q1_attendance_report import normalized_report_period
+
+    p = normalized_report_period(period)
     suf = ""
     if region_code and region_code.strip():
         suf += f"-{region_code.strip().upper()}"
@@ -17224,20 +17231,28 @@ def _q1_report_filename(year: int, region_code: str, campuses_csv: str, compare:
             suf += f"-{n}cx"
     if compare:
         suf += "-yoy"
-    return f"pulse-q1-attendance-{year}{suf}"
+    return f"pulse-{p}-attendance-{year}{suf}"
 
 
-def _q1_report_data(year: int, region_code: str | None = None, campuses_csv: str | None = None):
+def _q1_report_data(
+    year: int,
+    region_code: str | None = None,
+    campuses_csv: str | None = None,
+    *,
+    start_d: date,
+    end_d: date,
+    period_code: str = "q1",
+    period_label: str = "Q1",
+    period_caption: str = "Jan–Mar",
+):
     """
-    Load Jan–Mar attendance for Q1 reports.
+    Load attendance for the given inclusive date range (quarter / YTD / custom).
     Optional filters: region code (e.g. AU), comma-separated campus_id slugs (campuses_v2.campus_id).
     """
     from models import AttendanceRecord, CampusV2, Region
     from sqlalchemy import func
     from q1_attendance_report import build_q1_data
 
-    start_d = date(year, 1, 1)
-    end_d = date(year, 3, 31)
     q = AttendanceRecord.query.filter(
         AttendanceRecord.date >= start_d,
         AttendanceRecord.date <= end_d,
@@ -17286,6 +17301,7 @@ def _q1_report_data(year: int, region_code: str | None = None, campuses_csv: str
             campuses_by_id[cid] = c
 
     parts = []
+    parts.append(f"Period: {period_label} ({start_d} to {end_d})")
     if region_obj:
         parts.append(f"Region: {region_obj.display_name} ({region_obj.code})")
     else:
@@ -17302,25 +17318,80 @@ def _q1_report_data(year: int, region_code: str | None = None, campuses_csv: str
         parts.append("Campuses: all")
 
     filter_summary = " · ".join(parts)
-    sheet_enrichment = _build_q1_sheet_enrichment(year, campuses_by_id, region_obj)
+    sheet_enrichment = _build_q1_sheet_enrichment(start_d, end_d, campuses_by_id, region_obj)
     return build_q1_data(
         year,
         records,
         campuses_by_id,
         filter_summary=filter_summary,
         sheet_enrichment=sheet_enrichment,
+        start=start_d,
+        end=end_d,
+        period_code=period_code,
+        period_label=period_label,
+        period_caption=period_caption,
     )
 
 
-def _q1_report_with_optional_yoy(year: int, region: str, campuses: str, include_previous_year: bool):
-    from q1_attendance_report import build_compare_payload
+def _parse_report_period() -> str:
+    from q1_attendance_report import normalized_report_period
 
-    data_curr = _q1_report_data(year, region_code=region or None, campuses_csv=campuses or None)
+    return normalized_report_period(request.args.get("period"))
+
+
+def _q1_report_with_optional_yoy(
+    year: int, region: str, campuses: str, include_previous_year: bool, period: str = "q1"
+):
+    from q1_attendance_report import (
+        build_compare_payload,
+        format_period_caption,
+        normalized_report_period,
+        report_range_for_year_period,
+        ytd_end_for_prior_year_yoy,
+    )
+
+    p = normalized_report_period(period)
+    s_c, e_c, code, lbl, cap_c = report_range_for_year_period(year, p)
+    data_curr = _q1_report_data(
+        year,
+        region_code=region or None,
+        campuses_csv=campuses or None,
+        start_d=s_c,
+        end_d=e_c,
+        period_code=code,
+        period_label=lbl,
+        period_caption=cap_c,
+    )
     if not include_previous_year:
         return data_curr
     if year <= 2000:
         raise ValueError("Cannot include previous year for this year value")
-    data_prev = _q1_report_data(year - 1, region_code=region or None, campuses_csv=campuses or None)
+    if p == "ytd":
+        s_p = date(year - 1, 1, 1)
+        e_p = ytd_end_for_prior_year_yoy(e_c, year - 1)
+        cap_p = format_period_caption(s_p, e_p, "ytd")
+        data_prev = _q1_report_data(
+            year - 1,
+            region_code=region or None,
+            campuses_csv=campuses or None,
+            start_d=s_p,
+            end_d=e_p,
+            period_code="ytd",
+            period_label="YTD",
+            period_caption=cap_p,
+        )
+    else:
+        s_p, e_p, code_p, lbl_p, cap_p = report_range_for_year_period(year - 1, p)
+        data_prev = _q1_report_data(
+            year - 1,
+            region_code=region or None,
+            campuses_csv=campuses or None,
+            start_d=s_p,
+            end_d=e_p,
+            period_code=code_p,
+            period_label=lbl_p,
+            period_caption=cap_p,
+        )
     return build_compare_payload(data_curr, data_prev)
 
 
@@ -17332,7 +17403,7 @@ def _parse_include_previous_year() -> bool:
 @app.route('/api/reports/q1-attendance.csv', methods=['GET'])
 @login_required
 def report_q1_attendance_csv():
-    """Q1 Jan–Mar attendance by campus — CSV (database). Requires data_export permission."""
+    """Quarterly / YTD attendance by campus — CSV (database). Requires data_export permission."""
     if not current_user.has_permission('data_export'):
         return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
     try:
@@ -17344,9 +17415,10 @@ def report_q1_attendance_csv():
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
         compare = _parse_include_previous_year()
-        data = _q1_report_with_optional_yoy(year, region, campuses, compare)
+        period = _parse_report_period()
+        data = _q1_report_with_optional_yoy(year, region, campuses, compare, period=period)
         payload = build_q1_csv_bytes(data)
-        fname = _q1_report_filename(year, region, campuses, compare=compare)
+        fname = _q1_report_filename(year, region, campuses, compare=compare, period=period)
         resp = Response(payload, mimetype='text/csv; charset=utf-8')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.csv'
         return resp
@@ -17360,7 +17432,7 @@ def report_q1_attendance_csv():
 @app.route('/api/reports/q1-attendance.pdf', methods=['GET'])
 @login_required
 def report_q1_attendance_pdf():
-    """Q1 Jan–Mar attendance — PDF with charts and table (database). Requires data_export permission."""
+    """Quarterly / YTD attendance — PDF with charts and table (database). Requires data_export permission."""
     if not current_user.has_permission('data_export'):
         return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
     try:
@@ -17372,9 +17444,10 @@ def report_q1_attendance_pdf():
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
         compare = _parse_include_previous_year()
-        data = _q1_report_with_optional_yoy(year, region, campuses, compare)
+        period = _parse_report_period()
+        data = _q1_report_with_optional_yoy(year, region, campuses, compare, period=period)
         payload = build_q1_pdf_bytes(data)
-        fname = _q1_report_filename(year, region, campuses, compare=compare)
+        fname = _q1_report_filename(year, region, campuses, compare=compare, period=period)
         resp = Response(payload, mimetype='application/pdf')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.pdf'
         return resp

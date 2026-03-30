@@ -103,7 +103,7 @@ const DataExport = () => {
           </h1>
           <p className="text-slate-400">Export data for reporting and analysis</p>
           <p className="mt-3 text-sm text-slate-500">
-            For Q1 attendance summaries (PDF/CSV from the database), use{' '}
+            For quarterly / YTD attendance summaries (PDF/CSV from the database), use{' '}
             <Link to="/reports" className="text-violet-400 hover:text-violet-300 underline">
               Reports
             </Link>

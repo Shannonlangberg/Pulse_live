@@ -10,6 +10,17 @@ const currentCalendarYear = new Date().getFullYear();
 const YEAR_MIN = 2015;
 const YEAR_MAX = currentCalendarYear + 1;
 
+const PERIOD_OPTIONS = [
+  { value: 'q1', label: 'Q1 — Jan–Mar' },
+  { value: 'q2', label: 'Q2 — Apr–Jun' },
+  { value: 'q3', label: 'Q3 — Jul–Sep' },
+  { value: 'q4', label: 'Q4 — Oct–Dec' },
+  {
+    value: 'ytd',
+    label: 'YTD — Jan 1 through today (selected year)',
+  },
+];
+
 const buildYearOptions = () => {
   const out = [];
   for (let y = YEAR_MAX; y >= YEAR_MIN; y -= 1) out.push(y);
@@ -23,6 +34,7 @@ const Reports = () => {
   const [regionCode, setRegionCode] = useState('');
   const [selectedCampusSlugs, setSelectedCampusSlugs] = useState(() => new Set());
   const [loadError, setLoadError] = useState('');
+  const [period, setPeriod] = useState('q1');
   const [includePreviousYear, setIncludePreviousYear] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loadingCsv, setLoadingCsv] = useState(false);
@@ -100,6 +112,7 @@ const Reports = () => {
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     params.set('year', String(year));
+    if (period && period !== 'q1') params.set('period', period);
     if (regionCode) params.set('region', regionCode);
     if (selectedCampusSlugs.size > 0) {
       params.set('campuses', Array.from(selectedCampusSlugs).join(','));
@@ -108,14 +121,20 @@ const Reports = () => {
       params.set('include_previous_year', 'true');
     }
     return params.toString();
-  }, [year, regionCode, selectedCampusSlugs, includePreviousYear]);
+  }, [year, period, regionCode, selectedCampusSlugs, includePreviousYear]);
 
   const pdfUrl = `/api/reports/q1-attendance.pdf?${queryString}`;
   const csvUrl = `/api/reports/q1-attendance.csv?${queryString}`;
 
+  const periodLabel = useMemo(
+    () => PERIOD_OPTIONS.find((o) => o.value === period)?.label || period,
+    [period],
+  );
+
   const filterHint = useMemo(() => {
     const parts = [];
-    parts.push(`Year: ${year} (Jan 1 – Mar 31)`);
+    parts.push(`Year: ${year}`);
+    parts.push(periodLabel);
     if (regionCode) {
       const r = regions.find((x) => x.code === regionCode);
       parts.push(`Region: ${r ? r.display_name : regionCode}`);
@@ -125,10 +144,11 @@ const Reports = () => {
     } else if (regionCode) parts.push('Campuses: all in region');
     else parts.push('Campuses: all');
     if (includePreviousYear) {
-      parts.push(`YoY: Q1 ${year - 1} vs Q1 ${year}`);
+      const pl = period === 'ytd' ? 'YTD' : period.toUpperCase();
+      parts.push(`YoY: ${pl} ${year - 1} vs ${pl} ${year}`);
     }
     return parts.join(' · ');
-  }, [year, regionCode, selectedCampusSlugs, regions, includePreviousYear]);
+  }, [year, period, periodLabel, regionCode, selectedCampusSlugs, regions, includePreviousYear]);
 
   const downloadFile = async (url, defaultName, setLoading) => {
     setError('');
@@ -186,13 +206,14 @@ const Reports = () => {
         </div>
 
         <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-8 shadow-xl">
-          <h2 className="text-xl font-semibold text-white mb-2">Q1 attendance report</h2>
+          <h2 className="text-xl font-semibold text-white mb-2">Quarterly &amp; YTD attendance</h2>
           <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-            January 1 through March 31 for the selected year. Filter by region and/or specific campuses.
-            Sunday total = adults + saints + kids (regional dashboard logic). Weekend = Sunday + youth +
-            youth leaders. PDF and CSV also include Q1 totals for new people and salvations (same field mix
-            as the regional dashboard), plus a subtotal row per region code (for example AU for Australia)
-            before the all-campuses total.
+            Choose <strong className="text-slate-300">Q1–Q4</strong> or{' '}
+            <strong className="text-slate-300">YTD</strong> (year-to-date: Jan 1 through today when the
+            report year is the current calendar year; full Jan–Dec for past years). Filter by region and/or
+            campuses. Sunday = adults + saints + kids; weekend = Sunday + youth + youth leaders. PDF/CSV
+            include period totals for new people and salvations (regional dashboard field mix), plus region
+            subtotals before the all-campuses total.
           </p>
 
           {loadError && (
@@ -204,7 +225,7 @@ const Reports = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                Year (Q1 report)
+                Report year
               </label>
               <select
                 value={year}
@@ -223,6 +244,22 @@ const Reports = () => {
               </select>
             </div>
             <div>
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                Period
+              </label>
+              <select
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              >
+                {PERIOD_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
                 Region
               </label>
@@ -254,8 +291,8 @@ const Reports = () => {
                 Include previous year (year-over-year)
               </span>
               <span className="block text-slate-500 text-sm mt-0.5">
-                Adds Q1 {year > 2000 ? year - 1 : '—'} alongside Q1 {year} with the same region and campus filters. PDF/CSV
-                show both side by side.
+                Same period in the prior year (for YTD, the same calendar end date in {year > 2000 ? year - 1 : '—'}).
+                PDF/CSV show both years side by side.
               </span>
             </span>
           </label>
@@ -342,7 +379,7 @@ const Reports = () => {
           <Link to="/export" className="text-violet-400 hover:text-violet-300 underline">
             Data Export
           </Link>
-          . Q1 reports use <strong className="text-slate-400">attendance_records</strong> only.
+          . These reports use <strong className="text-slate-400">attendance_records</strong> only.
         </p>
       </div>
     </div>

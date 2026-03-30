@@ -1,14 +1,81 @@
 """
-Q1 (Jan–Mar) attendance aggregates for PDF/CSV reports.
+Quarterly / YTD attendance aggregates for PDF/CSV reports (Q1–Q4 and YTD).
 Sunday total and weekend total match regional dashboard per-record logic.
 """
 from __future__ import annotations
 
+import calendar
 import csv
 import io
 from collections import defaultdict
 from datetime import date, timedelta
 from typing import Any, Dict, List, Tuple
+
+# API / UI: ?period=q1|q2|q3|q4|ytd
+VALID_REPORT_PERIODS = frozenset({"q1", "q2", "q3", "q4", "ytd"})
+PERIOD_LABELS = {"q1": "Q1", "q2": "Q2", "q3": "Q3", "q4": "Q4", "ytd": "YTD"}
+
+
+def normalized_report_period(raw: str | None) -> str:
+    p = (raw or "q1").strip().lower()
+    return p if p in VALID_REPORT_PERIODS else "q1"
+
+
+def format_period_caption(start: date, end: date, period_code: str) -> str:
+    """Short subtitle for PDF/CSV (e.g. Jan–Mar, or concrete dates for YTD)."""
+    y = start.year
+    if start.year == end.year:
+        if period_code == "q1" and start == date(y, 1, 1) and end == date(y, 3, 31):
+            return "Jan–Mar"
+        if period_code == "q2" and start == date(y, 4, 1) and end == date(y, 6, 30):
+            return "Apr–Jun"
+        if period_code == "q3" and start == date(y, 7, 1) and end == date(y, 9, 30):
+            return "Jul–Sep"
+        if period_code == "q4" and start == date(y, 10, 1) and end == date(y, 12, 31):
+            return "Oct–Dec"
+    return f"{start.strftime('%d %b')} – {end.strftime('%d %b %Y')}"
+
+
+def ytd_end_for_prior_year_yoy(end_current: date, prev_year: int) -> date:
+    """Align YTD YoY: same month/day in prior year (handles month length)."""
+    m, d = end_current.month, end_current.day
+    last = calendar.monthrange(prev_year, m)[1]
+    return date(prev_year, m, min(d, last))
+
+
+def report_range_for_year_period(
+    year: int,
+    period: str,
+    *,
+    today: date | None = None,
+) -> Tuple[date, date, str, str, str]:
+    """
+    Calendar range for the report year and period.
+    Returns (start, end, period_code, period_label, period_caption).
+    YTD: Jan 1 through min(today, Dec 31) when year is the current calendar year;
+         full Jan 1 – Dec 31 for past years; for future years, through Dec 31 of that year.
+    """
+    p = normalized_report_period(period)
+    t = today or date.today()
+    label = PERIOD_LABELS[p]
+    if p == "q1":
+        s, e = date(year, 1, 1), date(year, 3, 31)
+    elif p == "q2":
+        s, e = date(year, 4, 1), date(year, 6, 30)
+    elif p == "q3":
+        s, e = date(year, 7, 1), date(year, 9, 30)
+    elif p == "q4":
+        s, e = date(year, 10, 1), date(year, 12, 31)
+    else:
+        s = date(year, 1, 1)
+        if year < t.year:
+            e = date(year, 12, 31)
+        elif year > t.year:
+            e = date(year, 12, 31)
+        else:
+            e = min(t, date(year, 12, 31))
+    cap = format_period_caption(s, e, p)
+    return s, e, p, label, cap
 
 # Matplotlib non-interactive backend for servers
 import matplotlib
@@ -18,6 +85,7 @@ import matplotlib.pyplot as plt
 
 # Raster chart resolution for PDF embedding (higher = sharper when scaled to page width).
 _PDF_CHART_DPI = 200
+_PDF_CHART_DPI_SHARP = 280  # YoY bar + compact weekly (crisp axis labels in PDF)
 _PDF_CHART_DPI_LEGACY = 160  # non-compact charts (taller figures)
 
 
@@ -210,10 +278,18 @@ def build_q1_data(
     campuses_by_id: Dict[int, Any],
     filter_summary: str = "",
     sheet_enrichment: Dict[Tuple[str, date], Dict[str, int]] | None = None,
+    *,
+    start: date | None = None,
+    end: date | None = None,
+    period_code: str = "q1",
+    period_label: str = "Q1",
+    period_caption: str = "Jan–Mar",
 ) -> Dict[str, Any]:
-    """Aggregate by campus and by global week."""
-    start = date(year, 1, 1)
-    end = date(year, 3, 31)
+    """Aggregate by campus and by global week within ``start``..``end`` (inclusive)."""
+    if start is None:
+        start = date(year, 1, 1)
+    if end is None:
+        end = date(year, 3, 31)
 
     by_campus: Dict[int, Dict[str, Any]] = defaultdict(
         lambda: {
@@ -284,6 +360,9 @@ def build_q1_data(
         "year": year,
         "start": start,
         "end": end,
+        "period_code": period_code,
+        "period_label": period_label,
+        "period_caption": period_caption,
         "filter_summary": (filter_summary or "").strip(),
         "campus_rows": campus_rows,
         "region_aggregate_rows": region_aggregate_rows,
@@ -309,9 +388,10 @@ def build_q1_data(
 
 
 def build_compare_payload(data_curr: Dict[str, Any], data_prev: Dict[str, Any]) -> Dict[str, Any]:
-    """Merge two Q1 payloads for year-over-year."""
+    """Merge two period payloads for year-over-year."""
     y_curr = data_curr["year"]
     y_prev = data_prev["year"]
+    pl = data_curr.get("period_label") or "Q1"
     by_c = {r["campus_id"]: r for r in data_curr["campus_rows"]}
     by_p = {r["campus_id"]: r for r in data_prev["campus_rows"]}
     all_ids = set(by_c) | set(by_p)
@@ -351,7 +431,7 @@ def build_compare_payload(data_curr: Dict[str, Any], data_prev: Dict[str, Any]) 
     fs = (data_curr.get("filter_summary") or "").strip()
     if fs:
         fs += " · "
-    fs += f"Year-over-year: Q1 {y_prev} vs Q1 {y_curr}"
+    fs += f"Year-over-year: {pl} {y_prev} vs {pl} {y_curr}"
 
     region_aggregate_rows = _region_aggregate_rows_compare(merged)
 
@@ -361,6 +441,10 @@ def build_compare_payload(data_curr: Dict[str, Any], data_prev: Dict[str, Any]) 
         "prev_year": y_prev,
         "start": data_curr["start"],
         "end": data_curr["end"],
+        "period_code": data_curr.get("period_code", "q1"),
+        "period_label": pl,
+        "period_caption_curr": data_curr.get("period_caption", "Jan–Mar"),
+        "period_caption_prev": data_prev.get("period_caption", "Jan–Mar"),
         "filter_summary": fs,
         "campus_rows": merged,
         "region_aggregate_rows": region_aggregate_rows,
@@ -380,6 +464,7 @@ def build_q1_csv_bytes(data: Dict[str, Any]) -> bytes:
 def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
     buf = io.StringIO()
     w = csv.writer(buf)
+    pl = data.get("period_label") or "Q1"
     if data.get("filter_summary"):
         w.writerow(["Report filters", data["filter_summary"]])
         w.writerow([])
@@ -390,8 +475,8 @@ def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
             "Service rows",
             "Avg Sunday (no youth)",
             "Avg weekend (w/ youth)",
-            "New people (Q1 total)",
-            "Salvations (Q1 total)",
+            f"New people ({pl} total)",
+            f"Salvations ({pl} total)",
         ]
     )
     for row in data["campus_rows"]:
@@ -506,6 +591,7 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
 
 def _chart_bar_campus(data: Dict[str, Any]) -> io.BytesIO:
     rows = data["campus_rows"]
+    pl = data.get("period_label") or "Q1"
     fig, ax = plt.subplots(figsize=(10, max(4.0, 0.35 * len(rows) + 1.5)))
     if not rows:
         ax.text(0.5, 0.5, "No data", ha="center", va="center")
@@ -522,9 +608,9 @@ def _chart_bar_campus(data: Dict[str, Any]) -> io.BytesIO:
         ax.set_yticklabels(names, fontsize=8)
         ax.invert_yaxis()
         ax.legend(loc="lower right", fontsize=8)
-        ax.set_xlabel("Attendance (Q1 avg per service)")
+        ax.set_xlabel(f"Attendance ({pl} avg per service)")
     sub = (data.get("filter_summary") or "")[:80]
-    t = f"Q1 {data['year']} — by campus"
+    t = f"{pl} {data['year']} — by campus"
     if sub:
         t += f"\n({sub})"
     ax.set_title(t, fontsize=10, fontweight="bold")
@@ -538,6 +624,7 @@ def _chart_bar_campus(data: Dict[str, Any]) -> io.BytesIO:
 
 def _chart_bar_campus_compare(data: Dict[str, Any]) -> io.BytesIO:
     rows = data["campus_rows"]
+    pl = data.get("period_label") or "Q1"
     yp, yc = data["prev_year"], data["year"]
     fig_h = max(5.0, 0.45 * len(rows) + 2.0)
     fig, ax = plt.subplots(figsize=(11, fig_h))
@@ -560,9 +647,9 @@ def _chart_bar_campus_compare(data: Dict[str, Any]) -> io.BytesIO:
         ax.set_yticklabels(names, fontsize=8)
         ax.invert_yaxis()
         ax.legend(loc="lower right", fontsize=7, ncol=2)
-        ax.set_xlabel("Attendance (Q1 avg per service)")
+        ax.set_xlabel(f"Attendance ({pl} avg per service)")
     sub = (data.get("filter_summary") or "")[:75]
-    t = f"Q1 YoY — {yp} vs {yc}"
+    t = f"{pl} YoY — {yp} vs {yc}"
     if sub:
         t += f"\n({sub})"
     ax.set_title(t, fontsize=10, fontweight="bold")
@@ -576,6 +663,7 @@ def _chart_bar_campus_compare(data: Dict[str, Any]) -> io.BytesIO:
 
 def _chart_line_weekly(data: Dict[str, Any]) -> io.BytesIO:
     series = data["weekly_series"]
+    pl = data.get("period_label") or "Q1"
     fig, ax = plt.subplots(figsize=(10, 4))
     if not series:
         ax.text(0.5, 0.5, "No weekly data", ha="center", va="center")
@@ -594,7 +682,7 @@ def _chart_line_weekly(data: Dict[str, Any]) -> io.BytesIO:
         ax.set_ylabel("Attendance")
         ax.grid(True, alpha=0.3)
     subw = (data.get("filter_summary") or "")[:70]
-    tw = f"Q1 {data['year']} — weekly totals"
+    tw = f"{pl} {data['year']} — weekly totals"
     if subw:
         tw += f"\n({subw})"
     ax.set_title(tw, fontsize=10, fontweight="bold")
@@ -608,6 +696,7 @@ def _chart_line_weekly(data: Dict[str, Any]) -> io.BytesIO:
 
 def _chart_line_weekly_dual(data: Dict[str, Any]) -> io.BytesIO:
     yc, yp = data["year"], data["prev_year"]
+    pl = data.get("period_label") or "Q1"
     s_curr = data["weekly_series_current"]
     s_prev = data["weekly_series_previous"]
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6.5), sharex=False)
@@ -629,7 +718,7 @@ def _chart_line_weekly_dual(data: Dict[str, Any]) -> io.BytesIO:
         ax.legend(loc="upper right", fontsize=7)
         ax.set_ylabel("Attendance")
         ax.grid(True, alpha=0.3)
-        ax.set_title(f"Q1 {title_y} — weekly (same filters)", fontsize=9, fontweight="bold")
+        ax.set_title(f"{pl} {title_y} — weekly (same filters)", fontsize=9, fontweight="bold")
 
     _plot(ax1, s_prev, str(yp))
     _plot(ax2, s_curr, str(yc))
@@ -647,6 +736,7 @@ def _chart_bar_weekend_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
     Easier to read than stacked horizontal bars; high hue contrast (not two blues).
     """
     rows = data["campus_rows"]
+    pl = data.get("period_label") or "Q1"
     yp, yc = data["prev_year"], data["year"]
     n = len(rows)
     fig_h = min(6.0, max(4.0, 0.42 * n + 2.85))
@@ -679,14 +769,14 @@ def _chart_bar_weekend_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
             linewidth=0.7,
         )
         ax.set_xticks(x)
-        ax.set_xticklabels(names, rotation=42, ha="right", fontsize=9)
-        ax.set_ylabel("Weekend — Q1 avg per service", fontsize=10)
-        ax.tick_params(axis="y", labelsize=9)
+        ax.set_xticklabels(names, rotation=38, ha="right", fontsize=11)
+        ax.set_ylabel(f"Weekend — {pl} avg per service", fontsize=12)
+        ax.tick_params(axis="both", labelsize=11)
         ax.legend(
             title="Year",
             loc="upper right",
-            fontsize=9,
-            title_fontsize=9,
+            fontsize=10,
+            title_fontsize=10,
             ncol=2,
             framealpha=0.95,
         )
@@ -696,10 +786,17 @@ def _chart_bar_weekend_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
     t = f"Weekend (incl. youth) — {yp} vs {yc}"
     if sub:
         t += f"\n({sub})"
-    ax.set_title(t, fontsize=11, fontweight="bold", pad=8)
-    plt.tight_layout(pad=0.55)
+    ax.set_title(t, fontsize=13, fontweight="bold", pad=10)
+    plt.tight_layout(pad=0.65)
     out = io.BytesIO()
-    fig.savefig(out, format="png", dpi=_PDF_CHART_DPI, bbox_inches="tight", facecolor="white")
+    fig.savefig(
+        out,
+        format="png",
+        dpi=_PDF_CHART_DPI_SHARP,
+        bbox_inches="tight",
+        facecolor="white",
+        pad_inches=0.12,
+    )
     plt.close(fig)
     out.seek(0)
     return out
@@ -713,6 +810,7 @@ def _chart_bar_campus_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
 def _chart_line_weekly_dual_compact(data: Dict[str, Any]) -> io.BytesIO:
     """Two weekly charts side-by-side to save vertical space on PDF."""
     yc, yp = data["year"], data["prev_year"]
+    pl = data.get("period_label") or "Q1"
     s_curr = data["weekly_series_current"]
     s_prev = data["weekly_series_previous"]
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10.0, 2.05), sharey=False)
@@ -729,18 +827,25 @@ def _chart_line_weekly_dual_compact(data: Dict[str, Any]) -> io.BytesIO:
         ax.plot(x, sun, marker="o", markersize=4, label="Sunday", color="#2563eb", linewidth=1.6)
         ax.plot(x, wknd, marker="s", markersize=4, label="Weekend", color="#64748b", linewidth=1.6)
         ax.set_xticks(x)
-        ax.set_xticklabels(labels, rotation=35, ha="right", fontsize=6.5)
-        ax.set_xlabel("Month (ISO week Mon)", fontsize=7)
-        ax.legend(loc="upper right", fontsize=6)
-        ax.set_ylabel("Attendance", fontsize=7)
+        ax.set_xticklabels(labels, rotation=35, ha="right", fontsize=8)
+        ax.set_xlabel("Month (ISO week Mon)", fontsize=8)
+        ax.legend(loc="upper right", fontsize=7.5)
+        ax.set_ylabel("Attendance", fontsize=8)
         ax.grid(True, alpha=0.28)
-        ax.set_title(f"Q1 {title_y}", fontsize=8, fontweight="bold")
+        ax.set_title(f"{pl} {title_y}", fontsize=9, fontweight="bold")
 
     _plot(ax1, s_prev, str(yp))
     _plot(ax2, s_curr, str(yc))
     plt.tight_layout(pad=0.45)
     out = io.BytesIO()
-    fig.savefig(out, format="png", dpi=_PDF_CHART_DPI, bbox_inches="tight", facecolor="white")
+    fig.savefig(
+        out,
+        format="png",
+        dpi=_PDF_CHART_DPI_SHARP,
+        bbox_inches="tight",
+        facecolor="white",
+        pad_inches=0.1,
+    )
     plt.close(fig)
     out.seek(0)
     return out
@@ -778,8 +883,8 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
     meta_ps = ParagraphStyle(
         "Q1Meta",
         parent=styles["Normal"],
-        fontSize=8 if compare else 9,
-        leading=10 if compare else 11,
+        fontSize=10 if compare else 9,
+        leading=12 if compare else 11,
         textColor=colors.HexColor("#334155"),
         spaceAfter=2,
     )
@@ -808,45 +913,43 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
 
     story: List[Any] = []
 
+    pl = data.get("period_label") or "Q1"
+
+    def _esc_xml(s: str) -> str:
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
     if compare:
+        cap_p = _esc_xml(data.get("period_caption_prev") or "Jan–Mar")
+        cap_c = _esc_xml(data.get("period_caption_curr") or "Jan–Mar")
         title = (
-            f"Pulse &mdash; Q1 attendance year-over-year "
-            f"({data['prev_year']} Jan&ndash;Mar vs {data['year']} Jan&ndash;Mar)"
+            f"Pulse &mdash; {pl} attendance year-over-year "
+            f"({data['prev_year']} {cap_p} vs {data['year']} {cap_c})"
         )
     else:
-        title = f"Pulse — Q1 attendance report ({data['start']} to {data['end']})"
+        title = f"Pulse — {pl} attendance report ({data['start']} to {data['end']})"
     story.append(Paragraph(title, title_ps))
     fs = data.get("filter_summary") or ""
     if fs:
         safe = fs.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         story.append(Paragraph(f"<b>Filters:</b> {safe}", meta_ps))
-    metrics_common = (
-        "<b>Metrics:</b> "
-        "<b>Sunday</b> = adults + saints + kids. "
-        "<b>Weekend</b> = Sunday + youth + youth leaders. "
-        "<b>New people</b> = first-time visitors + visitors + youth new people; "
-        "if the DB breakdown is lower, the Google Stats <i>New People</i> column is used (legacy rows). "
-        "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
-        "when that sum is zero, <i>Salvation cards returned</i> and/or Stats <i>New Christians</i> apply. "
-    )
-    metrics_yoy = (
-        "<b>Sunday / Weekend</b> in the table = Q1 average per recorded service row. "
-        "<b>New people / Salvations</b> = Q1 totals. "
-        "<b>Region row</b> — Sunday/Weekend: pooled avg per service; New people &amp; Salvations: sums. "
-        "<b>Bar chart</b> = weekend (incl. youth) only: orange = prior Q1, blue = current Q1 (avg / service). "
-        "<b>Weekly charts</b> = per-week totals summed across this filter (not per-service averages). "
-    )
-    metrics_single = (
-        "<b>Region total</b> = sum of campuses in that region code. "
-        "<b>Weekly chart</b> = per-week totals summed across this filter. "
-    )
-    story.append(
-        Paragraph(
-            metrics_common + (metrics_yoy if compare else metrics_single),
-            meta_ps,
+    if not compare:
+        metrics_common = (
+            "<b>Metrics:</b> "
+            "<b>Sunday</b> = adults + saints + kids. "
+            "<b>Weekend</b> = Sunday + youth + youth leaders. "
+            "<b>New people</b> = first-time visitors + visitors + youth new people; "
+            "if the DB breakdown is lower, the Google Stats <i>New People</i> column is used (legacy rows). "
+            "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
+            "when that sum is zero, <i>Salvation cards returned</i> and/or Stats <i>New Christians</i> apply. "
         )
-    )
-    story.append(Spacer(1, 4))
+        metrics_single = (
+            "<b>Region total</b> = sum of campuses in that region code. "
+            "<b>Weekly chart</b> = per-week totals summed across this filter. "
+        )
+        story.append(Paragraph(metrics_common + metrics_single, meta_ps))
+        story.append(Spacer(1, 4))
+    else:
+        story.append(Spacer(1, 2))
 
     avail_w = page[0] - 56
 
@@ -863,31 +966,32 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
             Paragraph("<para align='center'><b>Campus</b></para>", hdr_white),
             Paragraph("<para align='center'><b>Region</b></para>", hdr_white),
             Paragraph(
-                f"<para align='center'><b>Q1 {yp}</b><br/><font size='5'>Jan–Mar</font></para>",
+                f"<para align='center'><b>{pl} {yp}</b><br/><font size='5'>{cap_p}</font></para>",
                 hdr_white,
             ),
             "",
             "",
             "",
             Paragraph(
-                f"<para align='center'><b>Q1 {yc}</b><br/><font size='5'>Jan–Mar</font></para>",
+                f"<para align='center'><b>{pl} {yc}</b><br/><font size='5'>{cap_c}</font></para>",
                 hdr_white,
             ),
             "",
             "",
             "",
         ]
+        tot_lbl = f"{pl} total"
         hdr_row1: List[Any] = [
             "",
             "",
             _hdr_compare_sub("Sunday", "avg / service row"),
             _hdr_compare_sub("Weekend", "avg / service row"),
-            _hdr_compare_sub("New people", "Q1 total"),
-            _hdr_compare_sub("Salvations", "Q1 total"),
+            _hdr_compare_sub("New people", tot_lbl),
+            _hdr_compare_sub("Salvations", tot_lbl),
             _hdr_compare_sub("Sunday", "avg / service row"),
             _hdr_compare_sub("Weekend", "avg / service row"),
-            _hdr_compare_sub("New people", "Q1 total"),
-            _hdr_compare_sub("Salvations", "Q1 total"),
+            _hdr_compare_sub("New people", tot_lbl),
+            _hdr_compare_sub("Salvations", tot_lbl),
         ]
         table_data: List[List[Any]] = [hdr_row0, hdr_row1]
         region_row_idx_compare: List[int] = []
@@ -998,7 +1102,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
         story.append(PageBreak())
         story.append(
             Paragraph(
-                f"<b>Data table</b> &mdash; Q1 {yp} vs Q1 {yc} "
+                f"<b>Data table</b> &mdash; {pl} {yp} vs {pl} {yc} "
                 f"<font color='#64748b'>(same filters as charts on previous page)</font>",
                 meta_ps,
             )
