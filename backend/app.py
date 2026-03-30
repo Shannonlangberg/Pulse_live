@@ -16726,63 +16726,160 @@ def _safe_int_q1_sheet(val) -> int:
         return 0
 
 
-def _build_q1_sheet_enrichment(year: int, campuses_by_id: dict) -> dict:
+def _q1_norm_campus_cell(s: str) -> str:
+    return " ".join((s or "").strip().lower().split())
+
+
+def _q1_stats_worksheet_for_region(region_obj):
     """
-    Map (campus_display_name_lower, date) -> {'new_people': int, 'new_christians': int}
-    from the Google Stats tab for Q1 only. Fills gaps when DB rows only had attendance
-    totals but 'New People' / 'New Christians' aggregates live on the sheet.
+    Use the region's own Stats spreadsheet when configured (same as dual-write);
+    otherwise the global Stats worksheet.
+    """
+    global sheet, client
+    if client and region_obj and getattr(region_obj, "sheets_spreadsheet_id", None):
+        sid = (region_obj.sheets_spreadsheet_id or "").strip()
+        if sid:
+            try:
+                ss = client.open_by_key(sid)
+                tab = (getattr(region_obj, "sheets_stats_tab", None) or "Stats").strip() or "Stats"
+                try:
+                    return ss.worksheet(tab)
+                except Exception:
+                    return ss.get_worksheet(0)
+            except Exception as e:
+                logger.warning(
+                    "[Q1_REPORT] Region %s: could not open sheets_spreadsheet_id Stats tab: %s",
+                    getattr(region_obj, "code", "?"),
+                    e,
+                )
+    return sheet
+
+
+def _q1_sheet_rows_as_dicts(ws) -> list:
+    """Like get_all_records but tolerates duplicate column headers (common on Stats tabs)."""
+    if not ws:
+        return []
+    try:
+        all_values = safe_sheets_request(ws.get_all_values)
+    except Exception as e:
+        logger.warning("[Q1_REPORT] Could not read sheet rows: %s", e)
+        return []
+    if not all_values or len(all_values) < 2:
+        return []
+    headers = all_values[0]
+    seen: dict = {}
+    unique_headers: list = []
+    for h in headers:
+        h = (h or "").strip()
+        if h not in seen:
+            seen[h] = 1
+            unique_headers.append(h)
+        else:
+            unique_headers.append(f"{h}_{seen[h]}")
+            seen[h] += 1
+    rows = []
+    n = len(unique_headers)
+    for raw in all_values[1:]:
+        padded = (raw + [""] * n)[:n]
+        rows.append(dict(zip(unique_headers, padded)))
+    return rows
+
+
+def _q1_parse_sheet_date_for_year(ds, year: int):
+    """Parse Stats Date cell; must fall in Q1 of ``year``."""
+    if ds is None or ds == "":
+        return None
+    date_str = str(ds).strip()
+    start_d = date(year, 1, 1)
+    end_d = date(year, 3, 31)
+    fmts = ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y/%m/%d", "%d-%m-%Y", "%m-%d-%Y")
+    for fmt in fmts:
+        try:
+            date_obj = datetime.strptime(date_str, fmt).date()
+            if date_obj.year == year and start_d <= date_obj <= end_d:
+                return date_obj
+        except (ValueError, TypeError):
+            continue
+    return None
+
+
+def _q1_row_new_people_from_sheet(row: dict) -> int:
+    """Max of aggregate 'New People' and FTV + Visitors + Youth NP from the sheet row."""
+    agg = max(_safe_int_q1_sheet(row.get("New People")), _safe_int_q1_sheet(row.get("new people")))
+    ftv = _safe_int_q1_sheet(row.get("First Time Visitors"))
+    if ftv == 0:
+        ftv = _safe_int_q1_sheet(row.get("First Time"))
+    detail = ftv + _safe_int_q1_sheet(row.get("Visitors")) + _safe_int_q1_sheet(row.get("Youth New People"))
+    return max(agg, detail)
+
+
+def _q1_row_salvations_from_sheet(row: dict) -> int:
+    """Max of detailed salvation columns, aggregate 'New Christians', and cards returned."""
+    detail = (
+        _safe_int_q1_sheet(row.get("First Time Christians"))
+        + _safe_int_q1_sheet(row.get("Rededications"))
+        + _safe_int_q1_sheet(row.get("Youth Salvations"))
+        + _safe_int_q1_sheet(row.get("New Kids Salvations"))
+        + _safe_int_q1_sheet(row.get("Kids Salvations"))
+    )
+    agg = max(_safe_int_q1_sheet(row.get("New Christians")), _safe_int_q1_sheet(row.get("new christians")))
+    cards = _safe_int_q1_sheet(row.get("Salvation Cards Returned"))
+    return max(detail, agg, cards)
+
+
+def _build_q1_sheet_enrichment(year: int, campuses_by_id: dict, region_obj=None) -> dict:
+    """
+    Map (campus_display_name_lower, date) -> {'new_people': int, 'salvations': int}
+    from Google Stats for Q1. Uses the region's spreadsheet when ``sheets_spreadsheet_id``
+    is set (AU data often lives there, not the global Stats workbook).
     """
     out: dict = {}
-    global sheet
-    if not sheet or not campuses_by_id:
+    if not campuses_by_id:
         return out
+    ws = _q1_stats_worksheet_for_region(region_obj)
+    if not ws:
+        return out
+    rows = _q1_sheet_rows_as_dicts(ws)
+    if not rows:
+        try:
+            rows = safe_sheets_request(ws.get_all_records)
+            if not isinstance(rows, list):
+                rows = []
+        except Exception as e:
+            logger.warning("[Q1_REPORT] Stats enrichment: get_all_records fallback failed: %s", e)
+            return out
+
     alias_to_canonical: dict = {}
     for c in campuses_by_id.values():
-        can = (getattr(c, "display_name", None) or "").strip().lower()
+        can = _q1_norm_campus_cell(getattr(c, "display_name", None) or "")
         if not can:
             continue
         for a in _q1_campus_name_aliases(c):
-            alias_to_canonical[a] = can
-    try:
-        rows = safe_sheets_request(sheet.get_all_records)
-    except Exception as e:
-        logger.warning("[Q1_REPORT] Stats sheet enrichment skipped: %s", e)
-        return out
+            alias_to_canonical[_q1_norm_campus_cell(a)] = can
+
     start_d = date(year, 1, 1)
     end_d = date(year, 3, 31)
     for row in rows:
         if not isinstance(row, dict):
             continue
-        campus_cell = (row.get("Campus") or "").strip().lower()
+        campus_cell = _q1_norm_campus_cell(row.get("Campus") or "")
         if not campus_cell:
             continue
         can = alias_to_canonical.get(campus_cell)
         if not can:
             continue
-        ds = row.get("Date")
-        if ds is None or ds == "":
+        date_obj = _q1_parse_sheet_date_for_year(row.get("Date"), year)
+        if not date_obj:
             continue
-        try:
-            date_str = str(ds).strip()
-            if "/" in date_str:
-                date_obj = datetime.strptime(date_str, "%m/%d/%Y").date()
-            else:
-                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-        except (ValueError, TypeError):
-            continue
-        if date_obj.year != year or not (start_d <= date_obj <= end_d):
+        if not (start_d <= date_obj <= end_d):
             continue
         k = (can, date_obj)
-        np = _safe_int_q1_sheet(row.get("New People"))
-        if np == 0:
-            np = _safe_int_q1_sheet(row.get("new people"))
-        nc = _safe_int_q1_sheet(row.get("New Christians"))
-        if nc == 0:
-            nc = _safe_int_q1_sheet(row.get("new christians"))
+        np = _q1_row_new_people_from_sheet(row)
+        nc = _q1_row_salvations_from_sheet(row)
         if k not in out:
-            out[k] = {"new_people": 0, "new_christians": 0}
+            out[k] = {"new_people": 0, "salvations": 0}
         out[k]["new_people"] += np
-        out[k]["new_christians"] += nc
+        out[k]["salvations"] += nc
     return out
 
 
@@ -16874,7 +16971,7 @@ def _q1_report_data(year: int, region_code: str | None = None, campuses_csv: str
         parts.append("Campuses: all")
 
     filter_summary = " · ".join(parts)
-    sheet_enrichment = _build_q1_sheet_enrichment(year, campuses_by_id)
+    sheet_enrichment = _build_q1_sheet_enrichment(year, campuses_by_id, region_obj)
     return build_q1_data(
         year,
         records,

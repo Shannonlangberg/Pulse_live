@@ -84,11 +84,11 @@ def record_new_people_total(record, sheet_new_people: int | None = None) -> int:
     return comp
 
 
-def record_salvations_total(record, sheet_new_christians: int | None = None) -> int:
+def record_salvations_total(record, sheet_salvations_fallback: int | None = None) -> int:
     """
     FTC + rededications + youth + kids salvations.
-    When that sum is zero, use salvation_cards_returned and/or Stats 'New Christians'
-    (legacy rows often only had those populated).
+    When that sum is zero, use salvation_cards_returned and/or sheet-derived salvations
+    (aggregates + detailed columns from Stats).
     """
     base = (
         (record.first_time_christians or 0)
@@ -99,8 +99,8 @@ def record_salvations_total(record, sheet_new_christians: int | None = None) -> 
     if base > 0:
         return base
     sc = int(record.salvation_cards_returned or 0)
-    nc = int(sheet_new_christians or 0)
-    return max(sc, nc)
+    sh = int(sheet_salvations_fallback or 0)
+    return max(sc, sh)
 
 
 def _region_aggregate_rows(campus_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -241,7 +241,7 @@ def build_q1_data(
             r, sheet_new_people=ex.get("new_people") if ex else None
         )
         by_campus[cid]["total_salvations"] += record_salvations_total(
-            r, sheet_new_christians=ex.get("new_christians") if ex else None
+            r, sheet_salvations_fallback=ex.get("salvations") if ex else None
         )
         wkey = _week_key_chart(d)
         weekly[wkey]["sunday"] += sun
