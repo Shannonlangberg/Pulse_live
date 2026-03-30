@@ -71,6 +71,118 @@ def record_sunday_and_weekend_totals(record) -> Tuple[int, int]:
     return sunday, weekend
 
 
+def record_new_people_total(record) -> int:
+    """Matches regional dashboard: FTV + visitors + youth new people."""
+    return (record.first_time_visitors or 0) + (record.visitors or 0) + (record.youth_new_people or 0)
+
+
+def record_salvations_total(record) -> int:
+    """Matches regional dashboard: FTC + rededications + youth + kids salvations."""
+    return (
+        (record.first_time_christians or 0)
+        + (record.rededications or 0)
+        + (record.youth_salvations or 0)
+        + (record.new_kids_salvations or 0)
+    )
+
+
+def _region_aggregate_rows(campus_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """One subtotal row per region code present in campus rows."""
+    by_reg: Dict[str, Dict[str, int]] = defaultdict(
+        lambda: {
+            "service_rows": 0,
+            "total_sunday": 0,
+            "total_weekend": 0,
+            "total_new_people": 0,
+            "total_salvations": 0,
+        }
+    )
+    for r in campus_rows:
+        reg = (r.get("region") or "").strip() or "—"
+        b = by_reg[reg]
+        b["service_rows"] += r["service_rows"]
+        b["total_sunday"] += r["total_sunday"]
+        b["total_weekend"] += r["total_weekend"]
+        b["total_new_people"] += r["total_new_people"]
+        b["total_salvations"] += r["total_salvations"]
+    out: List[Dict[str, Any]] = []
+    for reg in sorted(by_reg.keys(), key=lambda x: (x == "—", x)):
+        agg = by_reg[reg]
+        n = agg["service_rows"] or 1
+        out.append(
+            {
+                "is_region_subtotal": True,
+                "campus_name": f"Region total — {reg}",
+                "region": reg,
+                "service_rows": agg["service_rows"],
+                "total_sunday": agg["total_sunday"],
+                "total_weekend": agg["total_weekend"],
+                "avg_sunday": round(agg["total_sunday"] / n, 1),
+                "avg_weekend": round(agg["total_weekend"] / n, 1),
+                "total_new_people": agg["total_new_people"],
+                "total_salvations": agg["total_salvations"],
+            }
+        )
+    return out
+
+
+def _region_aggregate_rows_compare(merged_campus_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    by_reg: Dict[str, Dict[str, int]] = defaultdict(
+        lambda: {
+            "prev_service_rows": 0,
+            "service_rows": 0,
+            "prev_total_sunday": 0,
+            "prev_total_weekend": 0,
+            "prev_total_new_people": 0,
+            "prev_total_salvations": 0,
+            "total_sunday": 0,
+            "total_weekend": 0,
+            "total_new_people": 0,
+            "total_salvations": 0,
+        }
+    )
+    for r in merged_campus_rows:
+        reg = (r.get("region") or "").strip() or "—"
+        b = by_reg[reg]
+        b["prev_service_rows"] += r["prev_service_rows"]
+        b["service_rows"] += r["service_rows"]
+        b["prev_total_sunday"] += r["prev_total_sunday"]
+        b["prev_total_weekend"] += r["prev_total_weekend"]
+        b["prev_total_new_people"] += r["prev_total_new_people"]
+        b["prev_total_salvations"] += r["prev_total_salvations"]
+        b["total_sunday"] += r["total_sunday"]
+        b["total_weekend"] += r["total_weekend"]
+        b["total_new_people"] += r["total_new_people"]
+        b["total_salvations"] += r["total_salvations"]
+    out: List[Dict[str, Any]] = []
+    for reg in sorted(by_reg.keys(), key=lambda x: (x == "—", x)):
+        agg = by_reg[reg]
+        n_p = agg["prev_service_rows"] or 1
+        n_c = agg["service_rows"] or 1
+        out.append(
+            {
+                "is_region_subtotal": True,
+                "campus_name": f"Region total — {reg}",
+                "region": reg,
+                "prev_service_rows": agg["prev_service_rows"],
+                "service_rows": agg["service_rows"],
+                "prev_total_sunday": agg["prev_total_sunday"],
+                "prev_total_weekend": agg["prev_total_weekend"],
+                "prev_avg_sunday": round(agg["prev_total_sunday"] / n_p, 1) if agg["prev_service_rows"] else 0.0,
+                "prev_avg_weekend": round(agg["prev_total_weekend"] / n_p, 1) if agg["prev_service_rows"] else 0.0,
+                "prev_total_new_people": agg["prev_total_new_people"],
+                "prev_total_salvations": agg["prev_total_salvations"],
+                "total_sunday": agg["total_sunday"],
+                "total_weekend": agg["total_weekend"],
+                "avg_sunday": round(agg["total_sunday"] / n_c, 1) if agg["service_rows"] else 0.0,
+                "avg_weekend": round(agg["total_weekend"] / n_c, 1) if agg["service_rows"] else 0.0,
+                "total_new_people": agg["total_new_people"],
+                "total_salvations": agg["total_salvations"],
+            }
+        )
+    return out
+
+
 def build_q1_data(
     year: int,
     records: List[Any],
@@ -86,6 +198,8 @@ def build_q1_data(
             "service_rows": 0,
             "total_sunday": 0,
             "total_weekend": 0,
+            "total_new_people": 0,
+            "total_salvations": 0,
         }
     )
     weekly: Dict[str, Dict[str, int]] = defaultdict(lambda: {"sunday": 0, "weekend": 0})
@@ -99,6 +213,8 @@ def build_q1_data(
         by_campus[cid]["service_rows"] += 1
         by_campus[cid]["total_sunday"] += sun
         by_campus[cid]["total_weekend"] += wknd
+        by_campus[cid]["total_new_people"] += record_new_people_total(r)
+        by_campus[cid]["total_salvations"] += record_salvations_total(r)
         wkey = _week_key_chart(d)
         weekly[wkey]["sunday"] += sun
         weekly[wkey]["weekend"] += wknd
@@ -121,6 +237,8 @@ def build_q1_data(
                 "total_weekend": agg["total_weekend"],
                 "avg_sunday": round(agg["total_sunday"] / n, 1),
                 "avg_weekend": round(agg["total_weekend"] / n, 1),
+                "total_new_people": agg["total_new_people"],
+                "total_salvations": agg["total_salvations"],
             }
         )
     campus_rows.sort(key=lambda x: x["campus_name"].lower())
@@ -128,17 +246,22 @@ def build_q1_data(
     sorted_week_keys = sorted(weekly.keys())
     weekly_series = [(k, weekly[k]["sunday"], weekly[k]["weekend"]) for k in sorted_week_keys]
 
+    region_aggregate_rows = _region_aggregate_rows(campus_rows)
+
     return {
         "year": year,
         "start": start,
         "end": end,
         "filter_summary": (filter_summary or "").strip(),
         "campus_rows": campus_rows,
+        "region_aggregate_rows": region_aggregate_rows,
         "weekly_series": weekly_series,
         "totals": {
             "service_rows": sum(r["service_rows"] for r in campus_rows),
             "sunday": sum(r["total_sunday"] for r in campus_rows),
             "weekend": sum(r["total_weekend"] for r in campus_rows),
+            "new_people": sum(r["total_new_people"] for r in campus_rows),
+            "salvations": sum(r["total_salvations"] for r in campus_rows),
         },
     }
 
@@ -171,11 +294,15 @@ def build_compare_payload(data_curr: Dict[str, Any], data_prev: Dict[str, Any]) 
                 "total_weekend": rc["total_weekend"] if rc else 0,
                 "avg_sunday": rc["avg_sunday"] if rc else 0.0,
                 "avg_weekend": rc["avg_weekend"] if rc else 0.0,
+                "total_new_people": rc["total_new_people"] if rc else 0,
+                "total_salvations": rc["total_salvations"] if rc else 0,
                 "prev_service_rows": rp["service_rows"] if rp else 0,
                 "prev_total_sunday": rp["total_sunday"] if rp else 0,
                 "prev_total_weekend": rp["total_weekend"] if rp else 0,
                 "prev_avg_sunday": round((rp["total_sunday"] if rp else 0) / n_p, 1) if rp and rp["service_rows"] else 0.0,
                 "prev_avg_weekend": round((rp["total_weekend"] if rp else 0) / n_p, 1) if rp and rp["service_rows"] else 0.0,
+                "prev_total_new_people": rp["total_new_people"] if rp else 0,
+                "prev_total_salvations": rp["total_salvations"] if rp else 0,
             }
         )
 
@@ -183,6 +310,8 @@ def build_compare_payload(data_curr: Dict[str, Any], data_prev: Dict[str, Any]) 
     if fs:
         fs += " · "
     fs += f"Year-over-year: Q1 {y_prev} vs Q1 {y_curr}"
+
+    region_aggregate_rows = _region_aggregate_rows_compare(merged)
 
     return {
         "compare": True,
@@ -192,6 +321,7 @@ def build_compare_payload(data_curr: Dict[str, Any], data_prev: Dict[str, Any]) 
         "end": data_curr["end"],
         "filter_summary": fs,
         "campus_rows": merged,
+        "region_aggregate_rows": region_aggregate_rows,
         "weekly_series_current": data_curr["weekly_series"],
         "weekly_series_previous": data_prev["weekly_series"],
         "totals": dict(data_curr["totals"]),
@@ -220,6 +350,8 @@ def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
             "Total weekend (w/ youth)",
             "Avg Sunday",
             "Avg weekend",
+            "New people (Q1 total)",
+            "Salvations (Q1 total)",
         ]
     )
     for row in data["campus_rows"]:
@@ -232,6 +364,22 @@ def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
                 row["total_weekend"],
                 row["avg_sunday"],
                 row["avg_weekend"],
+                row["total_new_people"],
+                row["total_salvations"],
+            ]
+        )
+    for rrow in data.get("region_aggregate_rows") or []:
+        w.writerow(
+            [
+                rrow["campus_name"],
+                rrow["region"],
+                rrow["service_rows"],
+                rrow["total_sunday"],
+                rrow["total_weekend"],
+                rrow["avg_sunday"],
+                rrow["avg_weekend"],
+                rrow["total_new_people"],
+                rrow["total_salvations"],
             ]
         )
     w.writerow([])
@@ -244,6 +392,8 @@ def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
             data["totals"]["weekend"],
             "",
             "",
+            data["totals"]["new_people"],
+            data["totals"]["salvations"],
         ]
     )
     return buf.getvalue().encode("utf-8-sig")
@@ -265,10 +415,14 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
             f"Total Wknd {yp}",
             f"Avg Sun {yp}",
             f"Avg Wknd {yp}",
+            f"New people {yp}",
+            f"Salvations {yp}",
             f"Total Sun {yc}",
             f"Total Wknd {yc}",
             f"Avg Sun {yc}",
             f"Avg Wknd {yc}",
+            f"New people {yc}",
+            f"Salvations {yc}",
         ]
     )
     for row in data["campus_rows"]:
@@ -280,25 +434,53 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
                 row["prev_total_weekend"],
                 row["prev_avg_sunday"],
                 row["prev_avg_weekend"],
+                row["prev_total_new_people"],
+                row["prev_total_salvations"],
                 row["total_sunday"],
                 row["total_weekend"],
                 row["avg_sunday"],
                 row["avg_weekend"],
+                row["total_new_people"],
+                row["total_salvations"],
+            ]
+        )
+    for rrow in data.get("region_aggregate_rows") or []:
+        w.writerow(
+            [
+                rrow["campus_name"],
+                rrow["region"],
+                rrow["prev_total_sunday"],
+                rrow["prev_total_weekend"],
+                rrow["prev_avg_sunday"],
+                rrow["prev_avg_weekend"],
+                rrow["prev_total_new_people"],
+                rrow["prev_total_salvations"],
+                rrow["total_sunday"],
+                rrow["total_weekend"],
+                rrow["avg_sunday"],
+                rrow["avg_weekend"],
+                rrow["total_new_people"],
+                rrow["total_salvations"],
             ]
         )
     w.writerow([])
+    tp, tc = data["totals_previous"], data["totals"]
     w.writerow(
         [
             "ALL CAMPUSES",
             "",
-            data["totals_previous"]["sunday"],
-            data["totals_previous"]["weekend"],
+            tp["sunday"],
+            tp["weekend"],
             "",
             "",
-            data["totals"]["sunday"],
-            data["totals"]["weekend"],
+            tp.get("new_people", 0),
+            tp.get("salvations", 0),
+            tc["sunday"],
+            tc["weekend"],
             "",
             "",
+            tc.get("new_people", 0),
+            tc.get("salvations", 0),
         ]
     )
     return buf.getvalue().encode("utf-8-sig")
@@ -474,7 +656,10 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
     story.append(
         Paragraph(
             "Sunday = adults + saints + kids (same logic as regional dashboard). "
-            "Weekend = Sunday + youth + youth leaders.",
+            "Weekend = Sunday + youth + youth leaders. "
+            "New people = first-time visitors + visitors + youth new people (Q1 sums). "
+            "Salvations = first-time Christians + rededications + youth salvations + new kids salvations (Q1 sums). "
+            "Region total rows sum campuses in that region code (e.g. AU).",
             styles["Normal"],
         )
     )
@@ -489,35 +674,66 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
         story.append(Image(line_buf, width=9.5 * inch, height=4.8 * inch))
         story.append(Spacer(1, 16))
         yp, yc = data["prev_year"], data["year"]
+        tp, tc = data["totals_previous"], data["totals"]
         table_data = [
             [
                 "Campus",
                 "Region",
                 f"Sun {yp}",
                 f"Wk {yp}",
+                f"New {yp}",
+                f"Sal {yp}",
                 f"Sun {yc}",
                 f"Wk {yc}",
+                f"New {yc}",
+                f"Sal {yc}",
             ]
         ]
+        region_row_idx_compare: List[int] = []
         for row in data["campus_rows"]:
             table_data.append(
                 [
-                    row["campus_name"][:32],
+                    row["campus_name"][:28],
                     row["region"] or "—",
                     str(row["prev_total_sunday"]),
                     str(row["prev_total_weekend"]),
+                    str(row["prev_total_new_people"]),
+                    str(row["prev_total_salvations"]),
                     str(row["total_sunday"]),
                     str(row["total_weekend"]),
+                    str(row["total_new_people"]),
+                    str(row["total_salvations"]),
+                ]
+            )
+        base_c = len(table_data)
+        for j, rrow in enumerate(data.get("region_aggregate_rows") or []):
+            region_row_idx_compare.append(base_c + j)
+            table_data.append(
+                [
+                    rrow["campus_name"][:28],
+                    rrow["region"] or "—",
+                    str(rrow["prev_total_sunday"]),
+                    str(rrow["prev_total_weekend"]),
+                    str(rrow["prev_total_new_people"]),
+                    str(rrow["prev_total_salvations"]),
+                    str(rrow["total_sunday"]),
+                    str(rrow["total_weekend"]),
+                    str(rrow["total_new_people"]),
+                    str(rrow["total_salvations"]),
                 ]
             )
         table_data.append(
             [
                 "TOTAL",
                 "",
-                str(data["totals_previous"]["sunday"]),
-                str(data["totals_previous"]["weekend"]),
-                str(data["totals"]["sunday"]),
-                str(data["totals"]["weekend"]),
+                str(tp["sunday"]),
+                str(tp["weekend"]),
+                str(tp.get("new_people", 0)),
+                str(tp.get("salvations", 0)),
+                str(tc["sunday"]),
+                str(tc["weekend"]),
+                str(tc.get("new_people", 0)),
+                str(tc.get("salvations", 0)),
             ]
         )
     else:
@@ -537,18 +753,39 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
                 "Total Wknd",
                 "Avg Sun",
                 "Avg Wknd",
+                "New ppl",
+                "Salv",
             ]
         ]
+        region_row_idx_single: List[int] = []
         for row in data["campus_rows"]:
             table_data.append(
                 [
-                    row["campus_name"][:40],
+                    row["campus_name"][:36],
                     row["region"] or "—",
                     str(row["service_rows"]),
                     str(row["total_sunday"]),
                     str(row["total_weekend"]),
                     str(row["avg_sunday"]),
                     str(row["avg_weekend"]),
+                    str(row["total_new_people"]),
+                    str(row["total_salvations"]),
+                ]
+            )
+        base_s = len(table_data)
+        for j, rrow in enumerate(data.get("region_aggregate_rows") or []):
+            region_row_idx_single.append(base_s + j)
+            table_data.append(
+                [
+                    rrow["campus_name"][:36],
+                    rrow["region"] or "—",
+                    str(rrow["service_rows"]),
+                    str(rrow["total_sunday"]),
+                    str(rrow["total_weekend"]),
+                    str(rrow["avg_sunday"]),
+                    str(rrow["avg_weekend"]),
+                    str(rrow["total_new_people"]),
+                    str(rrow["total_salvations"]),
                 ]
             )
         table_data.append(
@@ -560,24 +797,28 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
                 str(data["totals"]["weekend"]),
                 "",
                 "",
+                str(data["totals"]["new_people"]),
+                str(data["totals"]["salvations"]),
             ]
         )
 
     t = Table(table_data, repeatRows=1)
-    t.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 7 if data.get("compare") else 8),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f1f5f9")]),
-                ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#e2e8f0")),
-                ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-            ]
-        )
-    )
+    fs_pdf = 6 if data.get("compare") else 7
+    tbl_cmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), fs_pdf),
+        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f1f5f9")]),
+        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#e2e8f0")),
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+    ]
+    reg_idx = region_row_idx_compare if data.get("compare") else region_row_idx_single
+    for ri in reg_idx:
+        tbl_cmds.append(("BACKGROUND", (0, ri), (-1, ri), colors.HexColor("#dbeafe")))
+        tbl_cmds.append(("FONTNAME", (0, ri), (-1, ri), "Helvetica-Bold"))
+    t.setStyle(TableStyle(tbl_cmds))
     story.append(t)
 
     doc.build(story)

@@ -190,7 +190,9 @@ const Reports = () => {
           <p className="text-slate-400 text-sm mb-6 leading-relaxed">
             January 1 through March 31 for the selected year. Filter by region and/or specific campuses.
             Sunday total = adults + saints + kids (regional dashboard logic). Weekend = Sunday + youth +
-            youth leaders.
+            youth leaders. PDF and CSV also include Q1 totals for new people and salvations (same field mix
+            as the regional dashboard), plus a subtotal row per region code (for example AU for Australia)
+            before the all-campuses total.
           </p>
 
           {loadError && (
