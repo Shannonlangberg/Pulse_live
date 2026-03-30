@@ -93,6 +93,55 @@ _YOY_WEEKEND_BAR_SINGLE_FIG_W = 4.9
 _YOY_WEEKEND_BAR_SINGLE_FIG_H = 3.05
 
 
+def _yoy_pct_change_str(prev: Any, curr: Any) -> str:
+    """Year-over-year percent change; handles zero baseline."""
+    try:
+        p = float(prev)
+        c = float(curr)
+    except (TypeError, ValueError):
+        return "—"
+    if p == 0:
+        if c == 0:
+            return "—"
+        return "new"
+    delta_pct = (c - p) / p * 100.0
+    if abs(delta_pct) < 0.05:
+        return "0%"
+    if delta_pct > 0:
+        return f"+{delta_pct:.1f}%"
+    return f"{delta_pct:.1f}%"
+
+
+def _yoy_pct_markup_for_pdf(pct_str: str) -> str:
+    """ReportLab Paragraph XML: green up / red down for YoY % cells."""
+    esc = pct_str.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    if pct_str in ("—", "new"):
+        return f'<para align="right">{esc}</para>'
+    if pct_str.startswith("+"):
+        return f'<para align="right"><font name="Helvetica-Bold" color="#15803d">{esc}</font></para>'
+    if pct_str.startswith("-"):
+        return f'<para align="right"><font name="Helvetica-Bold" color="#b91c1c">{esc}</font></para>'
+    return f'<para align="right">{esc}</para>'
+
+
+def _compare_row_yoy_pct_strings(row: Dict[str, Any]) -> Tuple[str, str, str, str]:
+    return (
+        _yoy_pct_change_str(row["prev_avg_sunday"], row["avg_sunday"]),
+        _yoy_pct_change_str(row["prev_avg_weekend"], row["avg_weekend"]),
+        _yoy_pct_change_str(row["prev_total_new_people"], row["total_new_people"]),
+        _yoy_pct_change_str(row["prev_total_salvations"], row["total_salvations"]),
+    )
+
+
+def _totals_yoy_pct_strings(tp: Dict[str, Any], tc: Dict[str, Any]) -> Tuple[str, str, str, str]:
+    return (
+        _yoy_pct_change_str(tp.get("avg_sunday", 0), tc.get("avg_sunday", 0)),
+        _yoy_pct_change_str(tp.get("avg_weekend", 0), tc.get("avg_weekend", 0)),
+        _yoy_pct_change_str(tp.get("new_people", 0), tc.get("new_people", 0)),
+        _yoy_pct_change_str(tp.get("salvations", 0), tc.get("salvations", 0)),
+    )
+
+
 def _rl_image_yoy_weekend_bar_single(buf: io.BytesIO, target_w: float, *, max_h: float) -> Any:
     """
     ReportLab Image with explicit W×H from figure aspect ratio.
@@ -574,9 +623,14 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
             f"Avg Wknd {yc}",
             f"New people {yc}",
             f"Salvations {yc}",
+            "% Δ Sun",
+            "% Δ Wknd",
+            "% Δ New people",
+            "% Δ Salvations",
         ]
     )
     for row in data["campus_rows"]:
+        ps, pw, pn, pz = _compare_row_yoy_pct_strings(row)
         w.writerow(
             [
                 row["campus_name"],
@@ -589,9 +643,14 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
                 row["avg_weekend"],
                 row["total_new_people"],
                 row["total_salvations"],
+                ps,
+                pw,
+                pn,
+                pz,
             ]
         )
     for rrow in data.get("region_aggregate_rows") or []:
+        rs, rw, rn, rz = _compare_row_yoy_pct_strings(rrow)
         w.writerow(
             [
                 rrow["campus_name"],
@@ -604,10 +663,15 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
                 rrow["avg_weekend"],
                 rrow["total_new_people"],
                 rrow["total_salvations"],
+                rs,
+                rw,
+                rn,
+                rz,
             ]
         )
     w.writerow([])
     tp, tc = data["totals_previous"], data["totals"]
+    fts, ftw, ftn, ftz = _totals_yoy_pct_strings(tp, tc)
     w.writerow(
         [
             "ALL CAMPUSES",
@@ -620,6 +684,10 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
             tc.get("avg_weekend", 0),
             tc.get("new_people", 0),
             tc.get("salvations", 0),
+            fts,
+            ftw,
+            ftn,
+            ftz,
         ]
     )
     return buf.getvalue().encode("utf-8-sig")
@@ -775,6 +843,7 @@ def _pdf_compare_table_single_campus(
     cap_p: str,
     cap_c: str,
     hdr_white,
+    yoy_ps,
     _hdr_compare_sub,
     avail_w: float,
     colors,
@@ -784,7 +853,7 @@ def _pdf_compare_table_single_campus(
     Table,
     TableStyle,
 ):
-    """Two header rows + one campus row; year column shading (no grand-total row)."""
+    """Two header rows + one campus row; YoY % columns; year column shading (no grand-total row)."""
     tot_lbl = f"{pl} total"
     hdr_row0: List[Any] = [
         Paragraph("<para align='center'><b>Campus</b></para>", hdr_white),
@@ -803,6 +872,13 @@ def _pdf_compare_table_single_campus(
         "",
         "",
         "",
+        Paragraph(
+            f"<para align='center'><b>YoY change</b><br/><font size='5'>vs {yp}</font></para>",
+            hdr_white,
+        ),
+        "",
+        "",
+        "",
     ]
     hdr_row1: List[Any] = [
         "",
@@ -815,7 +891,12 @@ def _pdf_compare_table_single_campus(
         _hdr_compare_sub("Weekend", "avg / service row"),
         _hdr_compare_sub("New people", tot_lbl),
         _hdr_compare_sub("Salvations", tot_lbl),
+        _hdr_compare_sub("Sunday", "% change"),
+        _hdr_compare_sub("Weekend", "% change"),
+        _hdr_compare_sub("New people", "% change"),
+        _hdr_compare_sub("Salvations", "% change"),
     ]
+    ps, pw, pn, pz = _compare_row_yoy_pct_strings(row)
     body = [
         row["campus_name"][:26],
         row["region"] or "—",
@@ -827,12 +908,17 @@ def _pdf_compare_table_single_campus(
         str(row["avg_weekend"]),
         str(row["total_new_people"]),
         str(row["total_salvations"]),
+        Paragraph(_yoy_pct_markup_for_pdf(ps), yoy_ps),
+        Paragraph(_yoy_pct_markup_for_pdf(pw), yoy_ps),
+        Paragraph(_yoy_pct_markup_for_pdf(pn), yoy_ps),
+        Paragraph(_yoy_pct_markup_for_pdf(pz), yoy_ps),
     ]
     table_data = [hdr_row0, hdr_row1, body]
-    col_widths = [avail_w * 0.14, avail_w * 0.06] + [avail_w * 0.10] * 8
-    t = Table(table_data, colWidths=col_widths, repeatRows=2)
+    cw = [avail_w * 0.11, avail_w * 0.048] + [avail_w * 0.076] * 8 + [avail_w * 0.051] * 4
+    t = Table(table_data, colWidths=cw, repeatRows=2)
     band_prev = colors.HexColor("#bfdbfe")
     band_curr = colors.HexColor("#bbf7d0")
+    band_yoy = colors.HexColor("#f5f3ff")
     tbl_cmds: List[Any] = [
         ("BACKGROUND", (0, 0), (-1, 1), colors.HexColor("#1e3a5f")),
         ("TEXTCOLOR", (0, 0), (-1, 1), colors.white),
@@ -847,15 +933,17 @@ def _pdf_compare_table_single_campus(
         ("SPAN", (1, 0), (1, 1)),
         ("SPAN", (2, 0), (5, 0)),
         ("SPAN", (6, 0), (9, 0)),
+        ("SPAN", (10, 0), (13, 0)),
         ("LINEBELOW", (0, 0), (-1, 0), 0.75, colors.HexColor("#0f172a")),
         ("ALIGN", (2, 0), (-1, 1), "CENTER"),
         ("FONTSIZE", (0, 2), (-1, -1), fs_pdf),
         ("FONTNAME", (0, 2), (-1, -1), "Helvetica"),
-        ("ALIGN", (2, 2), (-1, -1), "RIGHT"),
+        ("ALIGN", (2, 2), (9, 2), "RIGHT"),
         ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
         ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
         ("BACKGROUND", (2, 2), (5, 2), band_prev),
         ("BACKGROUND", (6, 2), (9, 2), band_curr),
+        ("BACKGROUND", (10, 2), (13, 2), band_yoy),
     ]
     t.setStyle(TableStyle(tbl_cmds))
     return t
@@ -1049,7 +1137,7 @@ def _chart_line_weekly_dual_compact(data: Dict[str, Any]) -> io.BytesIO:
 
 def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) -> bytes:
     from reportlab.lib import colors
-    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
@@ -1100,6 +1188,15 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
         leading=8,
         alignment=TA_CENTER,
         textColor=colors.white,
+    )
+    yoy_ps = ParagraphStyle(
+        "Q1YoyCell",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=7,
+        leading=8,
+        alignment=TA_RIGHT,
+        textColor=colors.HexColor("#0f172a"),
     )
 
     def _hdr_metric(label: str, year: int) -> Paragraph:
@@ -1403,6 +1500,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                     cap_p=cap_p,
                     cap_c=cap_c,
                     hdr_white=hdr_white,
+                    yoy_ps=yoy_ps,
                     _hdr_compare_sub=_hdr_compare_sub,
                     avail_w=avail_w,
                     colors=colors,
@@ -1418,6 +1516,22 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
             bar_wk_buf = _chart_bar_weekend_compare_compact(data)
             line_buf = _chart_line_weekly_dual_compact(data)
             line_disp_h = 1.72 * inch
+
+            n_body_rows = (
+                len(data["campus_rows"])
+                + len(data.get("region_aggregate_rows") or [])
+                + 1
+            )
+            fs_pdf_cmp = 6 if n_body_rows > 20 else 7
+            yoy_cell_compare_ps = ParagraphStyle(
+                "Q1YoyCellCmp",
+                parent=styles["Normal"],
+                fontName="Helvetica",
+                fontSize=fs_pdf_cmp,
+                leading=fs_pdf_cmp + 1,
+                alignment=TA_RIGHT,
+                textColor=colors.HexColor("#0f172a"),
+            )
 
             hdr_row0: List[Any] = [
                 Paragraph("<para align='center'><b>Campus</b></para>", hdr_white),
@@ -1436,6 +1550,13 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 "",
                 "",
                 "",
+                Paragraph(
+                    f"<para align='center'><b>YoY change</b><br/><font size='5'>vs {yp}</font></para>",
+                    hdr_white,
+                ),
+                "",
+                "",
+                "",
             ]
             tot_lbl = f"{pl} total"
             hdr_row1: List[Any] = [
@@ -1449,10 +1570,15 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 _hdr_compare_sub("Weekend", "avg / service row"),
                 _hdr_compare_sub("New people", tot_lbl),
                 _hdr_compare_sub("Salvations", tot_lbl),
+                _hdr_compare_sub("Sunday", "% change"),
+                _hdr_compare_sub("Weekend", "% change"),
+                _hdr_compare_sub("New people", "% change"),
+                _hdr_compare_sub("Salvations", "% change"),
             ]
             table_data: List[List[Any]] = [hdr_row0, hdr_row1]
             region_row_idx_compare: List[int] = []
             for row in data["campus_rows"]:
+                ps, pw, pn, pz = _compare_row_yoy_pct_strings(row)
                 table_data.append(
                     [
                         row["campus_name"][:26],
@@ -1465,11 +1591,16 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                         str(row["avg_weekend"]),
                         str(row["total_new_people"]),
                         str(row["total_salvations"]),
+                        Paragraph(_yoy_pct_markup_for_pdf(ps), yoy_cell_compare_ps),
+                        Paragraph(_yoy_pct_markup_for_pdf(pw), yoy_cell_compare_ps),
+                        Paragraph(_yoy_pct_markup_for_pdf(pn), yoy_cell_compare_ps),
+                        Paragraph(_yoy_pct_markup_for_pdf(pz), yoy_cell_compare_ps),
                     ]
                 )
             base_c = len(table_data)
             for j, rrow in enumerate(data.get("region_aggregate_rows") or []):
                 region_row_idx_compare.append(base_c + j)
+                rs, rw, rn, rz = _compare_row_yoy_pct_strings(rrow)
                 table_data.append(
                     [
                         rrow["campus_name"][:26],
@@ -1482,8 +1613,13 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                         str(rrow["avg_weekend"]),
                         str(rrow["total_new_people"]),
                         str(rrow["total_salvations"]),
+                        Paragraph(_yoy_pct_markup_for_pdf(rs), yoy_cell_compare_ps),
+                        Paragraph(_yoy_pct_markup_for_pdf(rw), yoy_cell_compare_ps),
+                        Paragraph(_yoy_pct_markup_for_pdf(rn), yoy_cell_compare_ps),
+                        Paragraph(_yoy_pct_markup_for_pdf(rz), yoy_cell_compare_ps),
                     ]
                 )
+            fts, ftw, ftn, ftz = _totals_yoy_pct_strings(tp, tc)
             table_data.append(
                 [
                     "ALL CAMPUSES — TOTAL",
@@ -1496,17 +1632,22 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                     str(tc.get("avg_weekend", 0)),
                     str(tc.get("new_people", 0)),
                     str(tc.get("salvations", 0)),
+                    fts,
+                    ftw,
+                    ftn,
+                    ftz,
                 ]
             )
 
-            col_widths = [avail_w * 0.14, avail_w * 0.06] + [avail_w * 0.10] * 8
+            cw_cmp = [avail_w * 0.11, avail_w * 0.048] + [avail_w * 0.076] * 8 + [avail_w * 0.051] * 4
+            col_widths = cw_cmp
 
             t = Table(table_data, colWidths=col_widths, repeatRows=2)
-            n_rows = len(table_data) - 2
-            fs_pdf = 6 if n_rows > 20 else 7
+            fs_pdf = fs_pdf_cmp
             # Distinct year bands (body rows only): prior = blue tint, current = green tint.
             band_prev = colors.HexColor("#bfdbfe")
             band_curr = colors.HexColor("#bbf7d0")
+            band_yoy = colors.HexColor("#f5f3ff")
             footer_ri = len(table_data) - 1
             region_set = set(region_row_idx_compare)
             tbl_cmds = [
@@ -1523,11 +1664,14 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 ("SPAN", (1, 0), (1, 1)),
                 ("SPAN", (2, 0), (5, 0)),
                 ("SPAN", (6, 0), (9, 0)),
+                ("SPAN", (10, 0), (13, 0)),
                 ("LINEBELOW", (0, 0), (-1, 0), 0.75, colors.HexColor("#0f172a")),
                 ("ALIGN", (2, 0), (-1, 1), "CENTER"),
                 ("FONTSIZE", (0, 2), (-1, -1), fs_pdf),
                 ("FONTNAME", (0, 2), (-1, -2), "Helvetica"),
-                ("ALIGN", (2, 2), (-1, -1), "RIGHT"),
+                ("ALIGN", (2, 2), (9, -1), "RIGHT"),
+                ("ALIGN", (10, 2), (13, footer_ri - 1), "RIGHT"),
+                ("ALIGN", (10, footer_ri), (13, footer_ri), "RIGHT"),
                 ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
                 ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
             ]
@@ -1537,6 +1681,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                     continue
                 tbl_cmds.append(("BACKGROUND", (2, r), (5, r), band_prev))
                 tbl_cmds.append(("BACKGROUND", (6, r), (9, r), band_curr))
+                tbl_cmds.append(("BACKGROUND", (10, r), (13, r), band_yoy))
             tbl_cmds.extend(
                 [
                     ("BACKGROUND", (0, footer_ri), (-1, footer_ri), colors.HexColor("#0f172a")),
