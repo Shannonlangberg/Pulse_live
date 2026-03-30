@@ -27,6 +27,33 @@ def _week_key_chart(record_date: date) -> str:
     return f"{year}-W{week_num:02d}"
 
 
+def _week_key_to_month_label(week_key: str) -> str:
+    """Map '2025-W01' to short month (ISO Monday's month), e.g. Jan."""
+    try:
+        parts = week_key.split("-W")
+        if len(parts) != 2:
+            return week_key
+        y, wn = int(parts[0]), int(parts[1])
+        monday = date.fromisocalendar(y, wn, 1)
+        return monday.strftime("%b")
+    except (ValueError, IndexError, OSError):
+        return week_key
+
+
+def _week_series_xtick_labels(series: List[Tuple]) -> List[str]:
+    """Month labels; repeat months blanked so the axis stays readable."""
+    labels: List[str] = []
+    prev_m: str | None = None
+    for s in series:
+        m = _week_key_to_month_label(s[0])
+        if m == prev_m:
+            labels.append("")
+        else:
+            labels.append(m)
+            prev_m = m
+    return labels
+
+
 def record_sunday_and_weekend_totals(record) -> Tuple[int, int]:
     """
     Sunday attendance (adults+saints+kids, no youth) and weekend (+ youth + youth leaders).
@@ -234,12 +261,10 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
         [
             "Campus",
             "Region",
-            f"Rows {yp}",
             f"Total Sun {yp}",
             f"Total Wknd {yp}",
             f"Avg Sun {yp}",
             f"Avg Wknd {yp}",
-            f"Rows {yc}",
             f"Total Sun {yc}",
             f"Total Wknd {yc}",
             f"Avg Sun {yc}",
@@ -251,12 +276,10 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
             [
                 row["campus_name"],
                 row["region"],
-                row["prev_service_rows"],
                 row["prev_total_sunday"],
                 row["prev_total_weekend"],
                 row["prev_avg_sunday"],
                 row["prev_avg_weekend"],
-                row["service_rows"],
                 row["total_sunday"],
                 row["total_weekend"],
                 row["avg_sunday"],
@@ -268,12 +291,10 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
         [
             "ALL CAMPUSES",
             "",
-            data["totals_previous"]["service_rows"],
             data["totals_previous"]["sunday"],
             data["totals_previous"]["weekend"],
             "",
             "",
-            data["totals"]["service_rows"],
             data["totals"]["sunday"],
             data["totals"]["weekend"],
             "",
@@ -360,7 +381,7 @@ def _chart_line_weekly(data: Dict[str, Any]) -> io.BytesIO:
         ax.text(0.5, 0.5, "No weekly data", ha="center", va="center")
         ax.set_axis_off()
     else:
-        labels = [s[0] for s in series]
+        labels = _week_series_xtick_labels(series)
         sun = [s[1] for s in series]
         wknd = [s[2] for s in series]
         x = range(len(labels))
@@ -368,6 +389,7 @@ def _chart_line_weekly(data: Dict[str, Any]) -> io.BytesIO:
         ax.plot(x, wknd, marker="s", label="Weekend (scope)", color="#64748b", linewidth=2)
         ax.set_xticks(x)
         ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
+        ax.set_xlabel("Month (Monday of ISO week)")
         ax.legend(loc="upper right", fontsize=8)
         ax.set_ylabel("Attendance")
         ax.grid(True, alpha=0.3)
@@ -395,7 +417,7 @@ def _chart_line_weekly_dual(data: Dict[str, Any]) -> io.BytesIO:
             ax.text(0.5, 0.5, "No weekly data", ha="center", va="center")
             ax.set_axis_off()
             return
-        labels = [s[0] for s in series]
+        labels = _week_series_xtick_labels(series)
         sun = [s[1] for s in series]
         wknd = [s[2] for s in series]
         x = range(len(labels))
@@ -403,6 +425,7 @@ def _chart_line_weekly_dual(data: Dict[str, Any]) -> io.BytesIO:
         ax.plot(x, wknd, marker="s", label="Weekend", color="#64748b", linewidth=2)
         ax.set_xticks(x)
         ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=6)
+        ax.set_xlabel("Month (Monday of ISO week)")
         ax.legend(loc="upper right", fontsize=7)
         ax.set_ylabel("Attendance")
         ax.grid(True, alpha=0.3)
@@ -470,10 +493,8 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
             [
                 "Campus",
                 "Region",
-                f"R {yp}",
                 f"Sun {yp}",
                 f"Wk {yp}",
-                f"R {yc}",
                 f"Sun {yc}",
                 f"Wk {yc}",
             ]
@@ -483,10 +504,8 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
                 [
                     row["campus_name"][:32],
                     row["region"] or "—",
-                    str(row["prev_service_rows"]),
                     str(row["prev_total_sunday"]),
                     str(row["prev_total_weekend"]),
-                    str(row["service_rows"]),
                     str(row["total_sunday"]),
                     str(row["total_weekend"]),
                 ]
@@ -495,10 +514,8 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
             [
                 "TOTAL",
                 "",
-                str(data["totals_previous"]["service_rows"]),
                 str(data["totals_previous"]["sunday"]),
                 str(data["totals_previous"]["weekend"]),
-                str(data["totals"]["service_rows"]),
                 str(data["totals"]["sunday"]),
                 str(data["totals"]["weekend"]),
             ]
