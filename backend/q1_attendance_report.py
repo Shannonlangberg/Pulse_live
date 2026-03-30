@@ -641,73 +641,63 @@ def _chart_line_weekly_dual(data: Dict[str, Any]) -> io.BytesIO:
     return out
 
 
-def _chart_bar_sunday_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
-    """Sunday only: two wider bars per campus (prior year vs current) for PDF clarity."""
-    rows = data["campus_rows"]
-    yp, yc = data["prev_year"], data["year"]
-    fig_h = min(2.65, max(1.75, 0.14 * len(rows) + 0.88))
-    fig, ax = plt.subplots(figsize=(10.0, fig_h))
-    if not rows:
-        ax.text(0.5, 0.5, "No data", ha="center", va="center")
-        ax.set_axis_off()
-    else:
-        names = [r["campus_name"][:26] for r in rows]
-        y = list(range(len(names)))
-        h = 0.38
-        off = 0.22
-        sun_p = [r["prev_avg_sunday"] for r in rows]
-        sun_c = [r["avg_sunday"] for r in rows]
-        ax.barh([i - off for i in y], sun_p, height=h, label=f"Sunday {yp}", color="#38bdf8")
-        ax.barh([i + off for i in y], sun_c, height=h, label=f"Sunday {yc}", color="#0c4a6e")
-        ax.set_yticks(y)
-        ax.set_yticklabels(names, fontsize=7.5)
-        ax.invert_yaxis()
-        ax.legend(loc="lower right", fontsize=7.5, ncol=2, framealpha=0.92)
-        ax.set_xlabel("Sunday attendance — Q1 average per service", fontsize=8)
-        ax.tick_params(axis="x", labelsize=7.5)
-    sub = (data.get("filter_summary") or "")[:68]
-    t = f"Sunday (no youth) — {yp} vs {yc}"
-    if sub:
-        t += f"\n({sub})"
-    ax.set_title(t, fontsize=9, fontweight="bold")
-    plt.tight_layout(pad=0.35)
-    out = io.BytesIO()
-    fig.savefig(out, format="png", dpi=_PDF_CHART_DPI, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    out.seek(0)
-    return out
-
-
 def _chart_bar_weekend_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
-    """Weekend (w/ youth): two wider bars per campus for PDF."""
+    """
+    YoY weekend (w/ youth) averages: vertical grouped bars — orange = prior year, blue = current.
+    Easier to read than stacked horizontal bars; high hue contrast (not two blues).
+    """
     rows = data["campus_rows"]
     yp, yc = data["prev_year"], data["year"]
-    fig_h = min(2.65, max(1.75, 0.14 * len(rows) + 0.88))
-    fig, ax = plt.subplots(figsize=(10.0, fig_h))
+    n = len(rows)
+    fig_h = min(6.0, max(4.0, 0.42 * n + 2.85))
+    fig, ax = plt.subplots(figsize=(11.0, fig_h))
     if not rows:
         ax.text(0.5, 0.5, "No data", ha="center", va="center")
         ax.set_axis_off()
     else:
-        names = [r["campus_name"][:26] for r in rows]
-        y = list(range(len(names)))
-        h = 0.38
-        off = 0.22
+        names = [r["campus_name"][:22] for r in rows]
         wk_p = [r["prev_avg_weekend"] for r in rows]
         wk_c = [r["avg_weekend"] for r in rows]
-        ax.barh([i - off for i in y], wk_p, height=h, label=f"Weekend {yp}", color="#94a3b8")
-        ax.barh([i + off for i in y], wk_c, height=h, label=f"Weekend {yc}", color="#334155")
-        ax.set_yticks(y)
-        ax.set_yticklabels(names, fontsize=7.5)
-        ax.invert_yaxis()
-        ax.legend(loc="lower right", fontsize=7.5, ncol=2, framealpha=0.92)
-        ax.set_xlabel("Weekend attendance — Q1 average per service", fontsize=8)
-        ax.tick_params(axis="x", labelsize=7.5)
+        x = list(range(n))
+        w = 0.38
+        ax.bar(
+            [i - w / 2 for i in x],
+            wk_p,
+            width=w,
+            label=str(yp),
+            color="#ea580c",
+            edgecolor="white",
+            linewidth=0.7,
+        )
+        ax.bar(
+            [i + w / 2 for i in x],
+            wk_c,
+            width=w,
+            label=str(yc),
+            color="#2563eb",
+            edgecolor="white",
+            linewidth=0.7,
+        )
+        ax.set_xticks(x)
+        ax.set_xticklabels(names, rotation=42, ha="right", fontsize=9)
+        ax.set_ylabel("Weekend — Q1 avg per service", fontsize=10)
+        ax.tick_params(axis="y", labelsize=9)
+        ax.legend(
+            title="Year",
+            loc="upper right",
+            fontsize=9,
+            title_fontsize=9,
+            ncol=2,
+            framealpha=0.95,
+        )
+        ax.yaxis.grid(True, alpha=0.38)
+        ax.set_axisbelow(True)
     sub = (data.get("filter_summary") or "")[:68]
     t = f"Weekend (incl. youth) — {yp} vs {yc}"
     if sub:
         t += f"\n({sub})"
-    ax.set_title(t, fontsize=9, fontweight="bold")
-    plt.tight_layout(pad=0.35)
+    ax.set_title(t, fontsize=11, fontweight="bold", pad=8)
+    plt.tight_layout(pad=0.55)
     out = io.BytesIO()
     fig.savefig(out, format="png", dpi=_PDF_CHART_DPI, bbox_inches="tight", facecolor="white")
     plt.close(fig)
@@ -716,8 +706,8 @@ def _chart_bar_weekend_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
 
 
 def _chart_bar_campus_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
-    """Backward-compatible alias: Sunday-only YoY chart (PDF uses sun + weekend separately)."""
-    return _chart_bar_sunday_compare_compact(data)
+    """Backward-compatible alias: YoY weekend vertical bars (same as PDF bar chart)."""
+    return _chart_bar_weekend_compare_compact(data)
 
 
 def _chart_line_weekly_dual_compact(data: Dict[str, Any]) -> io.BytesIO:
@@ -843,6 +833,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
         "<b>Sunday / Weekend</b> in the table = Q1 average per recorded service row. "
         "<b>New people / Salvations</b> = Q1 totals. "
         "<b>Region row</b> — Sunday/Weekend: pooled avg per service; New people &amp; Salvations: sums. "
+        "<b>Bar chart</b> = weekend (incl. youth) only: orange = prior Q1, blue = current Q1 (avg / service). "
         "<b>Weekly charts</b> = per-week totals summed across this filter (not per-service averages). "
     )
     metrics_single = (
@@ -863,9 +854,8 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
         yp, yc = data["prev_year"], data["year"]
         tp, tc = data["totals_previous"], data["totals"]
         n_camp = len(data["campus_rows"])
-        bar_sun_buf = _chart_bar_sunday_compare_compact(data)
         bar_wk_buf = _chart_bar_weekend_compare_compact(data)
-        bar_each_h = min(1.42 * inch, max(1.02 * inch, 0.058 * n_camp * inch + 0.72 * inch))
+        bar_wk_h = min(4.15 * inch, max(2.95 * inch, 0.16 * n_camp * inch + 2.35 * inch))
         line_buf = _chart_line_weekly_dual_compact(data)
         line_disp_h = 1.72 * inch
 
@@ -953,8 +943,9 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
         t = Table(table_data, colWidths=col_widths, repeatRows=2)
         n_rows = len(table_data) - 2
         fs_pdf = 6 if n_rows > 20 else 7
-        band_prev = colors.HexColor("#eff6ff")
-        band_curr = colors.HexColor("#f1f5f9")
+        # Distinct year bands (body rows only): prior = blue tint, current = green tint.
+        band_prev = colors.HexColor("#bfdbfe")
+        band_curr = colors.HexColor("#bbf7d0")
         tbl_cmds = [
             ("BACKGROUND", (0, 0), (-1, 1), colors.HexColor("#1e3a5f")),
             ("TEXTCOLOR", (0, 0), (-1, 1), colors.white),
@@ -992,10 +983,8 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
         story.append(
             KeepTogether(
                 [
-                    Image(bar_sun_buf, width=avail_w, height=bar_each_h),
-                    Spacer(1, 2),
-                    Image(bar_wk_buf, width=avail_w, height=bar_each_h),
-                    Spacer(1, 3),
+                    Image(bar_wk_buf, width=avail_w, height=bar_wk_h),
+                    Spacer(1, 4),
                     Image(line_buf, width=avail_w, height=line_disp_h),
                     Spacer(1, 4),
                     t,
