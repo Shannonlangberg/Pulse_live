@@ -1053,7 +1053,16 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
-    from reportlab.platypus import Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import (
+        Image,
+        KeepTogether,
+        PageBreak,
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
 
     buffer = io.BytesIO()
     page = landscape(A4)
@@ -1117,6 +1126,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
         spaceAfter=8,
     )
 
+    avail_w = page[0] - 56
     story: List[Any] = []
 
     pl = data.get("period_label") or "Q1"
@@ -1133,44 +1143,230 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
         )
     else:
         title = f"Pulse — {pl} attendance report ({data['start']} to {data['end']})"
-    story.append(Paragraph(title, title_ps))
-    fs = data.get("filter_summary") or ""
-    if fs:
-        safe = fs.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        story.append(Paragraph(f"<b>Filters:</b> {safe}", meta_ps))
-    if not compare:
-        metrics_common = (
-            "<b>Metrics:</b> "
-            "<b>Sunday</b> = adults + saints + kids. "
-            "<b>Weekend</b> = Sunday + youth + youth leaders. "
-            "<b>New people</b> = first-time visitors + visitors + youth new people; "
-            "if the DB breakdown is lower, the Google Stats <i>New People</i> column is used (legacy rows). "
-            "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
-            "when that sum is zero, <i>Salvation cards returned</i> and/or Stats <i>New Christians</i> apply. "
-        )
-        metrics_single = (
-            "<b>Region total</b> = sum of campuses in that region code. "
-            "<b>Weekly chart</b> = per-week totals summed across this filter. "
-        )
-        story.append(Paragraph(metrics_common + metrics_single, meta_ps))
-        story.append(Spacer(1, 4))
-    else:
-        story.append(Spacer(1, 2))
 
-    avail_w = page[0] - 56
+    if per_campus_pages:
+        navy = colors.HexColor("#1e3a5f")
+        slate_500 = colors.HexColor("#64748b")
+        slate_700 = colors.HexColor("#334155")
+        blue_accent = colors.HexColor("#2563eb")
+        ice = colors.HexColor("#f1f5f9")
+        border = colors.HexColor("#cbd5e1")
+
+        cov_eyebrow = ParagraphStyle(
+            "Q1CovEyebrow",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=9,
+            leading=11,
+            alignment=TA_CENTER,
+            textColor=colors.white,
+            spaceAfter=0,
+        )
+        cov_hero = ParagraphStyle(
+            "Q1CovHero",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=38,
+            leading=44,
+            alignment=TA_CENTER,
+            textColor=colors.HexColor("#0f172a"),
+            spaceAfter=0,
+        )
+        cov_kicker = ParagraphStyle(
+            "Q1CovKicker",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=16,
+            leading=21,
+            alignment=TA_CENTER,
+            textColor=blue_accent,
+            spaceAfter=0,
+        )
+        cov_dates = ParagraphStyle(
+            "Q1CovDates",
+            parent=styles["Normal"],
+            fontSize=11,
+            leading=15,
+            alignment=TA_CENTER,
+            textColor=slate_500,
+            spaceAfter=0,
+        )
+        cov_scope_title = ParagraphStyle(
+            "Q1CovScopeTitle",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            leading=13,
+            textColor=slate_700,
+            spaceAfter=4,
+        )
+        cov_scope_body = ParagraphStyle(
+            "Q1CovScopeBody",
+            parent=styles["Normal"],
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor("#475569"),
+            spaceAfter=0,
+        )
+        cov_note = ParagraphStyle(
+            "Q1CovNote",
+            parent=styles["Normal"],
+            fontSize=9,
+            leading=13,
+            alignment=TA_CENTER,
+            textColor=slate_500,
+            spaceAfter=0,
+        )
+        cov_foot = ParagraphStyle(
+            "Q1CovFoot",
+            parent=styles["Normal"],
+            fontSize=8,
+            leading=10,
+            alignment=TA_CENTER,
+            textColor=colors.HexColor("#94a3b8"),
+            spaceAfter=0,
+        )
+
+        story.append(Spacer(1, 0.55 * inch))
+        eyeb_row = Table(
+            [[Paragraph("ATTENDANCE REPORT", cov_eyebrow)]],
+            colWidths=[avail_w],
+        )
+        eyeb_row.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), navy),
+                    ("TOPPADDING", (0, 0), (-1, -1), 12),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+                ]
+            )
+        )
+        story.append(eyeb_row)
+        story.append(Spacer(1, 0.38 * inch))
+        story.append(Paragraph("Pulse", cov_hero))
+        story.append(Spacer(1, 14))
+        if compare:
+            story.append(Paragraph(_esc_xml(f"{pl} · Year-over-year"), cov_kicker))
+            story.append(Spacer(1, 8))
+            dates_line = (
+                f"{data['prev_year']} {cap_p} &nbsp;&nbsp;<font color='#94a3b8'>|</font>&nbsp;&nbsp; "
+                f"{data['year']} {cap_c}"
+            )
+            story.append(Paragraph(dates_line, cov_dates))
+        else:
+            story.append(Paragraph(_esc_xml(f"{pl} · Attendance"), cov_kicker))
+            story.append(Spacer(1, 8))
+            de = _esc_xml(str(data.get("start", "")))
+            dn = _esc_xml(str(data.get("end", "")))
+            story.append(Paragraph(f"{de} &nbsp;to&nbsp; {dn}", cov_dates))
+
+        story.append(Spacer(1, 0.42 * inch))
+        accent_w = min(2.6 * inch, avail_w * 0.36)
+        side = (avail_w - accent_w) / 2
+        accent_tbl = Table([[Paragraph("", meta_ps)]], colWidths=[accent_w])
+        accent_tbl.setStyle(
+            TableStyle(
+                [
+                    ("LINEABOVE", (0, 0), (-1, -1), 3, blue_accent),
+                    ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ]
+            )
+        )
+        story.append(Table([[Spacer(1, 1), accent_tbl, Spacer(1, 1)]], colWidths=[side, accent_w, side]))
+
+        fs = data.get("filter_summary") or ""
+        scope_inner: List[Any] = []
+        scope_inner.append(Paragraph("Scope &amp; filters", cov_scope_title))
+        if fs:
+            safe_fs = fs.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            scope_inner.append(Paragraph(safe_fs, cov_scope_body))
+        else:
+            scope_inner.append(Paragraph("All campuses in scope (no additional filters).", cov_scope_body))
+        if not compare:
+            scope_inner.append(Spacer(1, 8))
+            scope_inner.append(
+                Paragraph(
+                    "<b>Metrics</b> (each page): Sunday, Weekend (incl. youth), New people, Salvations "
+                    "&mdash; aligned with the regional attendance dashboard.",
+                    cov_scope_body,
+                )
+            )
+        else:
+            scope_inner.append(Spacer(1, 8))
+            scope_inner.append(
+                Paragraph(
+                    "<b>Each campus page</b> includes weekend year-over-year bars, weekly lines for both years, "
+                    "and a figures table.",
+                    cov_scope_body,
+                )
+            )
+
+        box_w = avail_w * 0.78
+        box_side = (avail_w - box_w) / 2
+        scope_tbl = Table([[KeepTogether(scope_inner)]], colWidths=[box_w])
+        scope_tbl.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), ice),
+                    ("BOX", (0, 0), (-1, -1), 0.75, border),
+                    ("TOPPADDING", (0, 0), (-1, -1), 16),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 16),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 18),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 18),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(Spacer(1, 0.36 * inch))
+        story.append(
+            Table(
+                [[Spacer(1, 1), scope_tbl, Spacer(1, 1)]],
+                colWidths=[box_side, box_w, box_side],
+            )
+        )
+
+        story.append(Spacer(1, 0.34 * inch))
+        story.append(
+            Paragraph(
+                "<i>Following pages</i> &mdash; one campus per page (charts and table for that location only).",
+                cov_note,
+            )
+        )
+        story.append(Spacer(1, 0.45 * inch))
+        story.append(
+            Paragraph("Source: <b>attendance_records</b> &nbsp;·&nbsp; Futures Link", cov_foot),
+        )
+        story.append(PageBreak())
+    else:
+        story.append(Paragraph(title, title_ps))
+        fs = data.get("filter_summary") or ""
+        if fs:
+            safe = fs.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            story.append(Paragraph(f"<b>Filters:</b> {safe}", meta_ps))
+        if not compare:
+            metrics_common = (
+                "<b>Metrics:</b> "
+                "<b>Sunday</b> = adults + saints + kids. "
+                "<b>Weekend</b> = Sunday + youth + youth leaders. "
+                "<b>New people</b> = first-time visitors + visitors + youth new people; "
+                "if the DB breakdown is lower, the Google Stats <i>New People</i> column is used (legacy rows). "
+                "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
+                "when that sum is zero, <i>Salvation cards returned</i> and/or Stats <i>New Christians</i> apply. "
+            )
+            metrics_single = (
+                "<b>Region total</b> = sum of campuses in that region code. "
+                "<b>Weekly chart</b> = per-week totals summed across this filter. "
+            )
+            story.append(Paragraph(metrics_common + metrics_single, meta_ps))
+            story.append(Spacer(1, 4))
+        else:
+            story.append(Spacer(1, 2))
 
     if compare:
         yp, yc = data["prev_year"], data["year"]
         tp, tc = data["totals_previous"], data["totals"]
         if per_campus_pages:
-            story.append(
-                Paragraph(
-                    "<b>Layout:</b> Each following page is one campus &mdash; that campus only "
-                    "(weekend year-over-year chart, weekly attendance lines, and figures).",
-                    meta_ps,
-                )
-            )
-            story.append(PageBreak())
             w_cur = data.get("weekly_series_current_by_campus") or {}
             w_prv = data.get("weekly_series_previous_by_campus") or {}
             for i, row in enumerate(data["campus_rows"]):
@@ -1387,14 +1583,6 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
             textColor=colors.white,
         )
         if per_campus_pages:
-            story.append(
-                Paragraph(
-                    "<b>Layout:</b> Each following page is one campus &mdash; that campus only "
-                    "(by-campus chart, weekly attendance line chart, and figures).",
-                    meta_ps,
-                )
-            )
-            story.append(PageBreak())
             w_by_c = data.get("weekly_series_by_campus") or {}
             for i, row in enumerate(data["campus_rows"]):
                 if i > 0:
