@@ -16699,6 +16699,75 @@ def export_attendance():
         logger.error(f"Export attendance error: {e}")
         return jsonify({"error": "Failed to export data"}), 500
 
+
+def _q1_report_for_year(year: int):
+    """Load Jan–Mar attendance and campus map for Q1 reports."""
+    from models import AttendanceRecord, CampusV2
+    from q1_attendance_report import build_q1_data
+
+    start_d = date(year, 1, 1)
+    end_d = date(year, 3, 31)
+    records = AttendanceRecord.query.filter(
+        AttendanceRecord.date >= start_d,
+        AttendanceRecord.date <= end_d
+    ).all()
+    campus_ids = {r.campus_id for r in records}
+    campuses_by_id = {}
+    for cid in campus_ids:
+        c = CampusV2.query.get(cid)
+        if c:
+            campuses_by_id[cid] = c
+    return build_q1_data(year, records, campuses_by_id)
+
+
+@app.route('/api/reports/q1-attendance.csv', methods=['GET'])
+@login_required
+def report_q1_attendance_csv():
+    """Q1 Jan–Mar attendance by campus — CSV (database). Requires data_export permission."""
+    if not current_user.has_permission('data_export'):
+        return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
+    try:
+        from q1_attendance_report import build_q1_csv_bytes
+
+        year = int(request.args.get('year', datetime.now().year))
+        if year < 2000 or year > 2100:
+            return jsonify({"error": "Invalid year"}), 400
+        data = _q1_report_for_year(year)
+        payload = build_q1_csv_bytes(data)
+        resp = Response(payload, mimetype='text/csv; charset=utf-8')
+        resp.headers['Content-Disposition'] = f'attachment; filename=pulse-q1-attendance-{year}.csv'
+        return resp
+    except ValueError:
+        return jsonify({"error": "Invalid year"}), 400
+    except Exception as e:
+        logger.error(f"Q1 attendance CSV report error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to build report"}), 500
+
+
+@app.route('/api/reports/q1-attendance.pdf', methods=['GET'])
+@login_required
+def report_q1_attendance_pdf():
+    """Q1 Jan–Mar attendance — PDF with charts and table (database). Requires data_export permission."""
+    if not current_user.has_permission('data_export'):
+        return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
+    try:
+        from q1_attendance_report import build_q1_pdf_bytes
+
+        year = int(request.args.get('year', datetime.now().year))
+        if year < 2000 or year > 2100:
+            return jsonify({"error": "Invalid year"}), 400
+        data = _q1_report_for_year(year)
+        payload = build_q1_pdf_bytes(data)
+        resp = Response(payload, mimetype='application/pdf')
+        resp.headers['Content-Disposition'] = f'attachment; filename=pulse-q1-attendance-{year}.pdf'
+        return resp
+    except ValueError:
+        return jsonify({"error": "Invalid year"}), 400
+    except Exception as e:
+        logger.error(f"Q1 attendance PDF report error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to build PDF report"}), 500
+
+
 @app.route('/api/export/finance', methods=['GET'])
 @login_required
 def export_finance():

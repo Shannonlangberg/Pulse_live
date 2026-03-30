@@ -13,7 +13,8 @@ import {
   PlayIcon,
   CalendarIcon,
   TableCellsIcon,
-  MegaphoneIcon
+  MegaphoneIcon,
+  PresentationChartLineIcon
 } from '@heroicons/react/24/outline';
 
 const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
@@ -137,6 +138,13 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
       href: '/attendance-data', 
       icon: DocumentChartBarIcon, 
       roles: ['superadmin', 'admin'],
+      featureKey: 'data_export'
+    },
+    { 
+      name: 'Reports', 
+      href: '/reports', 
+      icon: PresentationChartLineIcon, 
+      roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
       featureKey: 'data_export'
     }
   ];

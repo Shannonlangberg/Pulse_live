@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowDownTrayIcon, DocumentArrowDownIcon, CurrencyDollarIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 
 const DataExport = () => {
@@ -101,6 +102,13 @@ const DataExport = () => {
             Data Export
           </h1>
           <p className="text-slate-400">Export data for reporting and analysis</p>
+          <p className="mt-3 text-sm text-slate-500">
+            For Q1 attendance summaries (PDF/CSV from the database), use{' '}
+            <Link to="/reports" className="text-violet-400 hover:text-violet-300 underline">
+              Reports
+            </Link>
+            .
+          </p>
         </div>
 
         {/* Export Type Selection */}

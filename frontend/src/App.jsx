@@ -11,6 +11,7 @@ import CampusManagement from './pages/CampusManagement';
 import UserManagement from './pages/UserManagement';
 import RoleManager from './pages/RoleManager';
 import DataExport from './pages/DataExport';
+import Reports from './pages/Reports';
 import PlatformSettings from './pages/PlatformSettings';
 import MyProfile from './pages/MyProfile';
 import Passport from './pages/Passport';
@@ -412,6 +413,7 @@ function App() {
                   <Route path="/notifications" element={<NotificationManager />} />
                   <Route path="/role-manager" element={<RoleManager />} />
                   <Route path="/export" element={<DataExport />} />
+                  <Route path="/reports" element={<Reports />} />
                   <Route path="/attendance-data" element={<AttendanceDataViewer />} />
                   <Route path="/beacons" element={<BeaconManagement />} />
                   <Route path="/journeys" element={<PathwayManager />} />

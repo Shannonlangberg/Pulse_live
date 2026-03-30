@@ -19,7 +19,8 @@ import {
   PlayIcon,
   CalendarIcon,
   TableCellsIcon,
-  MegaphoneIcon
+  MegaphoneIcon,
+  PresentationChartLineIcon
 } from '@heroicons/react/24/outline';
 
 // Simplified main sections for left sidebar
@@ -166,6 +167,13 @@ const SETTINGS_ITEMS = [
     icon: DocumentChartBarIcon, 
     roles: ['superadmin', 'admin'],
     featureKey: 'data_export'
+  },
+  { 
+    name: 'Reports', 
+    href: '/reports', 
+    icon: PresentationChartLineIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
+    featureKey: 'data_export'
   }
 ];
 
@@ -195,7 +203,7 @@ const EnhancedNavigation = ({
                path.startsWith('/campuses') || path.startsWith('/profile') || 
                path.startsWith('/beacons') || path.startsWith('/resources/manage') ||
                path.startsWith('/tv/manage') || path.startsWith('/events/manage') ||
-               path.startsWith('/notifications') || path.startsWith('/export') || path.startsWith('/attendance-data') ||
+               path.startsWith('/notifications') || path.startsWith('/export') || path.startsWith('/reports') || path.startsWith('/attendance-data') ||
                path.startsWith('/homepage-manager')) {
       setActiveSection('settings');
     }
