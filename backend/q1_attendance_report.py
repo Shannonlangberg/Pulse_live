@@ -752,7 +752,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
-    from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     buffer = io.BytesIO()
     page = landscape(A4)
@@ -946,6 +946,8 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
         # Distinct year bands (body rows only): prior = blue tint, current = green tint.
         band_prev = colors.HexColor("#bfdbfe")
         band_curr = colors.HexColor("#bbf7d0")
+        footer_ri = len(table_data) - 1
+        region_set = set(region_row_idx_compare)
         tbl_cmds = [
             ("BACKGROUND", (0, 0), (-1, 1), colors.HexColor("#1e3a5f")),
             ("TEXTCOLOR", (0, 0), (-1, 1), colors.white),
@@ -967,30 +969,42 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
             ("ALIGN", (2, 2), (-1, -1), "RIGHT"),
             ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
             ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
-            ("BACKGROUND", (2, 2), (5, -2), band_prev),
-            ("BACKGROUND", (6, 2), (9, -2), band_curr),
-            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#0f172a")),
-            ("TEXTCOLOR", (0, -1), (-1, -1), colors.white),
-            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, -1), (-1, -1), fs_pdf),
         ]
+        # Per-row year bands (avoids missing tints when the table flows across pages).
+        for r in range(2, footer_ri):
+            if r in region_set:
+                continue
+            tbl_cmds.append(("BACKGROUND", (2, r), (5, r), band_prev))
+            tbl_cmds.append(("BACKGROUND", (6, r), (9, r), band_curr))
+        tbl_cmds.extend(
+            [
+                ("BACKGROUND", (0, footer_ri), (-1, footer_ri), colors.HexColor("#0f172a")),
+                ("TEXTCOLOR", (0, footer_ri), (-1, footer_ri), colors.white),
+                ("FONTNAME", (0, footer_ri), (-1, footer_ri), "Helvetica-Bold"),
+                ("FONTSIZE", (0, footer_ri), (-1, footer_ri), fs_pdf),
+            ]
+        )
         for ri in region_row_idx_compare:
             tbl_cmds.append(("BACKGROUND", (0, ri), (-1, ri), colors.HexColor("#fef3c7")))
             tbl_cmds.append(("TEXTCOLOR", (0, ri), (-1, ri), colors.HexColor("#422006")))
             tbl_cmds.append(("FONTNAME", (0, ri), (-1, ri), "Helvetica-Bold"))
         t.setStyle(TableStyle(tbl_cmds))
 
+        # Page 1: charts only. Page 2: full data table (fixes split-table band bugs and reduces clutter).
+        story.append(Image(bar_wk_buf, width=avail_w, height=bar_wk_h))
+        story.append(Spacer(1, 8))
+        story.append(Image(line_buf, width=avail_w, height=line_disp_h))
+        story.append(Spacer(1, 10))
+        story.append(PageBreak())
         story.append(
-            KeepTogether(
-                [
-                    Image(bar_wk_buf, width=avail_w, height=bar_wk_h),
-                    Spacer(1, 4),
-                    Image(line_buf, width=avail_w, height=line_disp_h),
-                    Spacer(1, 4),
-                    t,
-                ]
+            Paragraph(
+                f"<b>Data table</b> &mdash; Q1 {yp} vs Q1 {yc} "
+                f"<font color='#64748b'>(same filters as charts on previous page)</font>",
+                meta_ps,
             )
         )
+        story.append(Spacer(1, 10))
+        story.append(t)
     else:
         bar_buf = _chart_bar_campus(data)
         bar_h = min(3.6 * inch, max(1.9 * inch, 0.26 * len(data["campus_rows"]) * inch + 1.0 * inch))
