@@ -44,7 +44,12 @@ def record_sunday_and_weekend_totals(record) -> Tuple[int, int]:
     return sunday, weekend
 
 
-def build_q1_data(year: int, records: List[Any], campuses_by_id: Dict[int, Any]) -> Dict[str, Any]:
+def build_q1_data(
+    year: int,
+    records: List[Any],
+    campuses_by_id: Dict[int, Any],
+    filter_summary: str = "",
+) -> Dict[str, Any]:
     """Aggregate by campus and by global week."""
     start = date(year, 1, 1)
     end = date(year, 3, 31)
@@ -101,6 +106,7 @@ def build_q1_data(year: int, records: List[Any], campuses_by_id: Dict[int, Any])
         "year": year,
         "start": start,
         "end": end,
+        "filter_summary": (filter_summary or "").strip(),
         "campus_rows": campus_rows,
         "weekly_series": weekly_series,
         "totals": {
@@ -114,6 +120,9 @@ def build_q1_data(year: int, records: List[Any], campuses_by_id: Dict[int, Any])
 def build_q1_csv_bytes(data: Dict[str, Any]) -> bytes:
     buf = io.StringIO()
     w = csv.writer(buf)
+    if data.get("filter_summary"):
+        w.writerow(["Report filters", data["filter_summary"]])
+        w.writerow([])
     w.writerow(
         [
             "Campus",
@@ -171,7 +180,11 @@ def _chart_bar_campus(data: Dict[str, Any]) -> io.BytesIO:
         ax.invert_yaxis()
         ax.legend(loc="lower right", fontsize=8)
         ax.set_xlabel("Attendance (Q1 total)")
-    ax.set_title(f"Q1 {data['year']} — by campus", fontsize=11, fontweight="bold")
+    sub = (data.get("filter_summary") or "")[:80]
+    t = f"Q1 {data['year']} — by campus"
+    if sub:
+        t += f"\n({sub})"
+    ax.set_title(t, fontsize=10, fontweight="bold")
     plt.tight_layout()
     out = io.BytesIO()
     fig.savefig(out, format="png", dpi=120, bbox_inches="tight", facecolor="white")
@@ -191,14 +204,18 @@ def _chart_line_weekly(data: Dict[str, Any]) -> io.BytesIO:
         sun = [s[1] for s in series]
         wknd = [s[2] for s in series]
         x = range(len(labels))
-        ax.plot(x, sun, marker="o", label="All campuses — Sunday", color="#3b82f6", linewidth=2)
-        ax.plot(x, wknd, marker="s", label="All campuses — Weekend", color="#64748b", linewidth=2)
+        ax.plot(x, sun, marker="o", label="Sunday (scope)", color="#3b82f6", linewidth=2)
+        ax.plot(x, wknd, marker="s", label="Weekend (scope)", color="#64748b", linewidth=2)
         ax.set_xticks(x)
         ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
         ax.legend(loc="upper right", fontsize=8)
         ax.set_ylabel("Attendance")
         ax.grid(True, alpha=0.3)
-    ax.set_title(f"Q1 {data['year']} — weekly totals (all campuses)", fontsize=11, fontweight="bold")
+    subw = (data.get("filter_summary") or "")[:70]
+    tw = f"Q1 {data['year']} — weekly totals"
+    if subw:
+        tw += f"\n({subw})"
+    ax.set_title(tw, fontsize=10, fontweight="bold")
     plt.tight_layout()
     out = io.BytesIO()
     fig.savefig(out, format="png", dpi=120, bbox_inches="tight", facecolor="white")
@@ -228,6 +245,10 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
 
     title = f"Pulse — Q1 attendance report ({data['start']} to {data['end']})"
     story.append(Paragraph(title, styles["Title"]))
+    fs = data.get("filter_summary") or ""
+    if fs:
+        safe = fs.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        story.append(Paragraph(f"<b>Filters:</b> {safe}", styles["Normal"]))
     story.append(
         Paragraph(
             "Sunday = adults + saints + kids (same logic as regional dashboard). "

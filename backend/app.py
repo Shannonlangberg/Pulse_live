@@ -16700,24 +16700,100 @@ def export_attendance():
         return jsonify({"error": "Failed to export data"}), 500
 
 
-def _q1_report_for_year(year: int):
-    """Load Jan–Mar attendance and campus map for Q1 reports."""
-    from models import AttendanceRecord, CampusV2
+def _normalize_campus_slug_for_report(raw: str) -> str:
+    s = (raw or "").strip().lower().replace(" ", "_").replace("-", "_")
+    if s.endswith("_campus"):
+        s = s[:-7]
+    return s
+
+
+def _q1_report_filename(year: int, region_code: str, campuses_csv: str) -> str:
+    suf = ""
+    if region_code and region_code.strip():
+        suf += f"-{region_code.strip().upper()}"
+    if campuses_csv and campuses_csv.strip():
+        n = len([x for x in campuses_csv.split(",") if x.strip()])
+        if n:
+            suf += f"-{n}cx"
+    return f"pulse-q1-attendance-{year}{suf}"
+
+
+def _q1_report_data(year: int, region_code: str | None = None, campuses_csv: str | None = None):
+    """
+    Load Jan–Mar attendance for Q1 reports.
+    Optional filters: region code (e.g. AU), comma-separated campus_id slugs (campuses_v2.campus_id).
+    """
+    from models import AttendanceRecord, CampusV2, Region
+    from sqlalchemy import func
     from q1_attendance_report import build_q1_data
 
     start_d = date(year, 1, 1)
     end_d = date(year, 3, 31)
-    records = AttendanceRecord.query.filter(
+    q = AttendanceRecord.query.filter(
         AttendanceRecord.date >= start_d,
-        AttendanceRecord.date <= end_d
-    ).all()
+        AttendanceRecord.date <= end_d,
+    )
+
+    region_obj = None
+    rc = (region_code or "").strip()
+    if rc:
+        region_obj = Region.query.filter(
+            func.upper(Region.code) == rc.upper(),
+            Region.active.is_(True),
+        ).first()
+        if not region_obj:
+            raise ValueError(f"Unknown or inactive region code: {rc}")
+        q = q.filter(AttendanceRecord.region_id == region_obj.id)
+
+    campus_slugs_in = []
+    if campuses_csv and campuses_csv.strip():
+        campus_slugs_in = [s.strip() for s in campuses_csv.split(",") if s.strip()]
+
+    resolved_ids = []
+    display_names = []
+    if campus_slugs_in:
+        seen = set()
+        for raw in campus_slugs_in:
+            slug = _normalize_campus_slug_for_report(raw)
+            c = CampusV2.query.filter(func.lower(CampusV2.campus_id) == slug).first()
+            if not c:
+                raise ValueError(f"Unknown campus: {raw}")
+            if region_obj and c.region_id != region_obj.id:
+                raise ValueError(
+                    f"Campus '{c.display_name}' is not in the selected region ({region_obj.code})"
+                )
+            if c.id not in seen:
+                seen.add(c.id)
+                resolved_ids.append(c.id)
+                display_names.append(c.display_name)
+        q = q.filter(AttendanceRecord.campus_id.in_(resolved_ids))
+
+    records = q.all()
     campus_ids = {r.campus_id for r in records}
     campuses_by_id = {}
     for cid in campus_ids:
         c = CampusV2.query.get(cid)
         if c:
             campuses_by_id[cid] = c
-    return build_q1_data(year, records, campuses_by_id)
+
+    parts = []
+    if region_obj:
+        parts.append(f"Region: {region_obj.display_name} ({region_obj.code})")
+    else:
+        parts.append("Region: all")
+
+    if campus_slugs_in:
+        if len(display_names) <= 6:
+            parts.append("Campuses: " + ", ".join(display_names))
+        else:
+            parts.append(f"Campuses: {len(display_names)} selected")
+    elif region_obj:
+        parts.append("Campuses: all in region")
+    else:
+        parts.append("Campuses: all")
+
+    filter_summary = " · ".join(parts)
+    return build_q1_data(year, records, campuses_by_id, filter_summary=filter_summary)
 
 
 @app.route('/api/reports/q1-attendance.csv', methods=['GET'])
@@ -16732,13 +16808,16 @@ def report_q1_attendance_csv():
         year = int(request.args.get('year', datetime.now().year))
         if year < 2000 or year > 2100:
             return jsonify({"error": "Invalid year"}), 400
-        data = _q1_report_for_year(year)
+        region = request.args.get('region', '').strip()
+        campuses = request.args.get('campuses', '').strip()
+        data = _q1_report_data(year, region_code=region or None, campuses_csv=campuses or None)
         payload = build_q1_csv_bytes(data)
+        fname = _q1_report_filename(year, region, campuses)
         resp = Response(payload, mimetype='text/csv; charset=utf-8')
-        resp.headers['Content-Disposition'] = f'attachment; filename=pulse-q1-attendance-{year}.csv'
+        resp.headers['Content-Disposition'] = f'attachment; filename={fname}.csv'
         return resp
-    except ValueError:
-        return jsonify({"error": "Invalid year"}), 400
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
     except Exception as e:
         logger.error(f"Q1 attendance CSV report error: {e}", exc_info=True)
         return jsonify({"error": "Failed to build report"}), 500
@@ -16756,13 +16835,16 @@ def report_q1_attendance_pdf():
         year = int(request.args.get('year', datetime.now().year))
         if year < 2000 or year > 2100:
             return jsonify({"error": "Invalid year"}), 400
-        data = _q1_report_for_year(year)
+        region = request.args.get('region', '').strip()
+        campuses = request.args.get('campuses', '').strip()
+        data = _q1_report_data(year, region_code=region or None, campuses_csv=campuses or None)
         payload = build_q1_pdf_bytes(data)
+        fname = _q1_report_filename(year, region, campuses)
         resp = Response(payload, mimetype='application/pdf')
-        resp.headers['Content-Disposition'] = f'attachment; filename=pulse-q1-attendance-{year}.pdf'
+        resp.headers['Content-Disposition'] = f'attachment; filename={fname}.pdf'
         return resp
-    except ValueError:
-        return jsonify({"error": "Invalid year"}), 400
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
     except Exception as e:
         logger.error(f"Q1 attendance PDF report error: {e}", exc_info=True)
         return jsonify({"error": "Failed to build PDF report"}), 500

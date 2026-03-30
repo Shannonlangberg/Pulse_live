@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowDownTrayIcon,
@@ -7,9 +7,22 @@ import {
 } from '@heroicons/react/24/outline';
 
 const currentCalendarYear = new Date().getFullYear();
+const YEAR_MIN = 2015;
+const YEAR_MAX = currentCalendarYear + 1;
+
+const buildYearOptions = () => {
+  const out = [];
+  for (let y = YEAR_MAX; y >= YEAR_MIN; y -= 1) out.push(y);
+  return out;
+};
 
 const Reports = () => {
   const [year, setYear] = useState(currentCalendarYear);
+  const [regions, setRegions] = useState([]);
+  const [campuses, setCampuses] = useState([]);
+  const [regionCode, setRegionCode] = useState('');
+  const [selectedCampusSlugs, setSelectedCampusSlugs] = useState(() => new Set());
+  const [loadError, setLoadError] = useState('');
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loadingCsv, setLoadingCsv] = useState(false);
   const [error, setError] = useState('');
@@ -17,6 +30,98 @@ const Reports = () => {
   useEffect(() => {
     document.title = 'Reports — Pulse';
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [rRes, cRes] = await Promise.all([
+          fetch('/api/v2/regions', { credentials: 'include' }),
+          fetch('/api/v2/campuses', { credentials: 'include' }),
+        ]);
+        if (!rRes.ok || !cRes.ok) {
+          throw new Error('Could not load regions or campuses (check you are signed in).');
+        }
+        const rJson = await rRes.json();
+        const cJson = await cRes.json();
+        if (cancelled) return;
+        setRegions((rJson.regions || []).filter((x) => x.active));
+        setCampuses(cJson.campuses || []);
+        setLoadError('');
+      } catch (e) {
+        if (!cancelled) setLoadError(e.message || 'Failed to load filters');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredCampuses = useMemo(() => {
+    return campuses
+      .filter((c) => c.active)
+      .filter((c) => !regionCode || (c.region && c.region.code === regionCode))
+      .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
+  }, [campuses, regionCode]);
+
+  const onRegionChange = (code) => {
+    setRegionCode(code);
+    setSelectedCampusSlugs((prev) => {
+      const next = new Set();
+      const pool = campuses
+        .filter((c) => c.active)
+        .filter((c) => !code || (c.region && c.region.code === code));
+      const poolIds = new Set(pool.map((c) => c.campus_id));
+      prev.forEach((slug) => {
+        if (poolIds.has(slug)) next.add(slug);
+      });
+      return next;
+    });
+  };
+
+  const toggleCampus = useCallback((slug) => {
+    setSelectedCampusSlugs((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  }, []);
+
+  const selectAllVisible = useCallback(() => {
+    setSelectedCampusSlugs(new Set(filteredCampuses.map((c) => c.campus_id)));
+  }, [filteredCampuses]);
+
+  const clearCampusSelection = useCallback(() => {
+    setSelectedCampusSlugs(new Set());
+  }, []);
+
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('year', String(year));
+    if (regionCode) params.set('region', regionCode);
+    if (selectedCampusSlugs.size > 0) {
+      params.set('campuses', Array.from(selectedCampusSlugs).join(','));
+    }
+    return params.toString();
+  }, [year, regionCode, selectedCampusSlugs]);
+
+  const pdfUrl = `/api/reports/q1-attendance.pdf?${queryString}`;
+  const csvUrl = `/api/reports/q1-attendance.csv?${queryString}`;
+
+  const filterHint = useMemo(() => {
+    const parts = [];
+    parts.push(`Year: ${year} (Jan 1 – Mar 31)`);
+    if (regionCode) {
+      const r = regions.find((x) => x.code === regionCode);
+      parts.push(`Region: ${r ? r.display_name : regionCode}`);
+    } else parts.push('Region: all');
+    if (selectedCampusSlugs.size > 0) {
+      parts.push(`${selectedCampusSlugs.size} campus(es) selected`);
+    } else if (regionCode) parts.push('Campuses: all in region');
+    else parts.push('Campuses: all');
+    return parts.join(' · ');
+  }, [year, regionCode, selectedCampusSlugs, regions]);
 
   const downloadFile = async (url, defaultName, setLoading) => {
     setError('');
@@ -52,12 +157,9 @@ const Reports = () => {
     }
   };
 
-  const pdfUrl = `/api/reports/q1-attendance.pdf?year=${year}`;
-  const csvUrl = `/api/reports/q1-attendance.csv?year=${year}`;
-
   return (
     <div className="min-h-screen bg-slate-900 p-6">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <Link
           to="/"
           className="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-6"
@@ -77,29 +179,103 @@ const Reports = () => {
         </div>
 
         <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-8 shadow-xl">
-          <h2 className="text-xl font-semibold text-white mb-2">Q1 attendance — all campuses</h2>
+          <h2 className="text-xl font-semibold text-white mb-2">Q1 attendance report</h2>
           <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-            January 1 through March 31 for the selected year.{' '}
-            <span className="text-slate-300">
-              Sunday total = adults + saints + kids (regional dashboard logic). Weekend = Sunday + youth + youth leaders.
-            </span>
+            January 1 through March 31 for the selected year. Filter by region and/or specific campuses.
+            Sunday total = adults + saints + kids (regional dashboard logic). Weekend = Sunday + youth +
+            youth leaders.
           </p>
 
-          <div className="flex flex-wrap items-end gap-4 mb-8">
+          {loadError && (
+            <div className="mb-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 px-4 py-3 text-sm">
+              {loadError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
                 Year
               </label>
-              <input
-                type="number"
-                min={2000}
-                max={2100}
+              <select
                 value={year}
-                onChange={(e) => setYear(parseInt(e.target.value, 10) || currentCalendarYear)}
-                className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white w-32 focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-              />
+                onChange={(e) => setYear(parseInt(e.target.value, 10))}
+                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              >
+                {buildYearOptions().map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                Region
+              </label>
+              <select
+                value={regionCode}
+                onChange={(e) => onRegionChange(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              >
+                <option value="">All regions</option>
+                {regions.map((r) => (
+                  <option key={r.code} value={r.code}>
+                    {r.display_name} ({r.code})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+
+          <div className="mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Campuses (optional — leave none checked for all in scope)
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={selectAllVisible}
+                  className="text-xs text-violet-400 hover:text-violet-300"
+                >
+                  Select all listed
+                </button>
+                <span className="text-slate-600">|</span>
+                <button
+                  type="button"
+                  onClick={clearCampusSelection}
+                  className="text-xs text-slate-400 hover:text-slate-300"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+            <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-600 bg-slate-900/80 p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {filteredCampuses.length === 0 ? (
+                <p className="text-slate-500 text-sm col-span-full">No campuses match this region.</p>
+              ) : (
+                filteredCampuses.map((c) => (
+                  <label
+                    key={c.campus_id}
+                    className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer hover:text-white"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedCampusSlugs.has(c.campus_id)}
+                      onChange={() => toggleCampus(c.campus_id)}
+                      className="rounded border-slate-500 text-violet-600 focus:ring-violet-500"
+                    />
+                    <span className="truncate" title={c.display_name}>
+                      {c.display_name}
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+
+          <p className="text-slate-500 text-xs mb-6 border-l-2 border-violet-500/50 pl-3">{filterHint}</p>
 
           {error && (
             <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 px-4 py-3 text-sm">
@@ -111,7 +287,7 @@ const Reports = () => {
             <button
               type="button"
               disabled={loadingPdf || loadingCsv}
-              onClick={() => downloadFile(pdfUrl, `pulse-q1-attendance-${year}.pdf`, setLoadingPdf)}
+              onClick={() => downloadFile(pdfUrl, 'pulse-q1-attendance.pdf', setLoadingPdf)}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
@@ -120,7 +296,7 @@ const Reports = () => {
             <button
               type="button"
               disabled={loadingPdf || loadingCsv}
-              onClick={() => downloadFile(csvUrl, `pulse-q1-attendance-${year}.csv`, setLoadingCsv)}
+              onClick={() => downloadFile(csvUrl, 'pulse-q1-attendance.csv', setLoadingCsv)}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 border border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
@@ -134,8 +310,7 @@ const Reports = () => {
           <Link to="/export" className="text-violet-400 hover:text-violet-300 underline">
             Data Export
           </Link>
-          . Q1 reports use{' '}
-          <strong className="text-slate-400">attendance_records</strong> only.
+          . Q1 reports use <strong className="text-slate-400">attendance_records</strong> only.
         </p>
       </div>
     </div>
