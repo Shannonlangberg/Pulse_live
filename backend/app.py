@@ -17218,6 +17218,7 @@ def _q1_report_filename(
     campuses_csv: str,
     compare: bool = False,
     period: str = "q1",
+    per_campus_pdf: bool = False,
 ) -> str:
     from q1_attendance_report import normalized_report_period
 
@@ -17231,6 +17232,8 @@ def _q1_report_filename(
             suf += f"-{n}cx"
     if compare:
         suf += "-yoy"
+    if per_campus_pdf:
+        suf += "-per-campus"
     return f"pulse-{p}-attendance-{year}{suf}"
 
 
@@ -17400,6 +17403,11 @@ def _parse_include_previous_year() -> bool:
     return v in ("1", "true", "yes", "on")
 
 
+def _parse_per_campus_pdf() -> bool:
+    v = (request.args.get("per_campus") or "").strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+
 @app.route('/api/reports/q1-attendance.csv', methods=['GET'])
 @login_required
 def report_q1_attendance_csv():
@@ -17444,10 +17452,18 @@ def report_q1_attendance_pdf():
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
         compare = _parse_include_previous_year()
+        per_campus = _parse_per_campus_pdf()
         period = _parse_report_period()
         data = _q1_report_with_optional_yoy(year, region, campuses, compare, period=period)
-        payload = build_q1_pdf_bytes(data)
-        fname = _q1_report_filename(year, region, campuses, compare=compare, period=period)
+        payload = build_q1_pdf_bytes(data, per_campus_pages=per_campus)
+        fname = _q1_report_filename(
+            year,
+            region,
+            campuses,
+            compare=compare,
+            period=period,
+            per_campus_pdf=per_campus,
+        )
         resp = Response(payload, mimetype='application/pdf')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.pdf'
         return resp

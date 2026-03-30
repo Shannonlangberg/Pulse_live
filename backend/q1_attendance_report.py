@@ -301,6 +301,9 @@ def build_q1_data(
         }
     )
     weekly: Dict[str, Dict[str, int]] = defaultdict(lambda: {"sunday": 0, "weekend": 0})
+    weekly_by_campus: Dict[int, Dict[str, Dict[str, int]]] = defaultdict(
+        lambda: defaultdict(lambda: {"sunday": 0, "weekend": 0})
+    )
 
     for r in records:
         d = r.date
@@ -326,6 +329,8 @@ def build_q1_data(
         wkey = _week_key_chart(d)
         weekly[wkey]["sunday"] += sun
         weekly[wkey]["weekend"] += wknd
+        weekly_by_campus[cid][wkey]["sunday"] += sun
+        weekly_by_campus[cid][wkey]["weekend"] += wknd
 
     campus_rows: List[Dict[str, Any]] = []
     for cid, agg in by_campus.items():
@@ -354,6 +359,12 @@ def build_q1_data(
     sorted_week_keys = sorted(weekly.keys())
     weekly_series = [(k, weekly[k]["sunday"], weekly[k]["weekend"]) for k in sorted_week_keys]
 
+    weekly_series_by_campus: Dict[int, List[Tuple[str, int, int]]] = {}
+    for cid in weekly_by_campus:
+        wk = weekly_by_campus[cid]
+        keys_sorted = sorted(wk.keys())
+        weekly_series_by_campus[cid] = [(k, wk[k]["sunday"], wk[k]["weekend"]) for k in keys_sorted]
+
     region_aggregate_rows = _region_aggregate_rows(campus_rows)
 
     return {
@@ -367,6 +378,7 @@ def build_q1_data(
         "campus_rows": campus_rows,
         "region_aggregate_rows": region_aggregate_rows,
         "weekly_series": weekly_series,
+        "weekly_series_by_campus": weekly_series_by_campus,
         "totals": {
             "service_rows": sum(r["service_rows"] for r in campus_rows),
             "sunday": sum(r["total_sunday"] for r in campus_rows),
@@ -450,6 +462,8 @@ def build_compare_payload(data_curr: Dict[str, Any], data_prev: Dict[str, Any]) 
         "region_aggregate_rows": region_aggregate_rows,
         "weekly_series_current": data_curr["weekly_series"],
         "weekly_series_previous": data_prev["weekly_series"],
+        "weekly_series_current_by_campus": dict(data_curr.get("weekly_series_by_campus") or {}),
+        "weekly_series_previous_by_campus": dict(data_prev.get("weekly_series_by_campus") or {}),
         "totals": dict(data_curr["totals"]),
         "totals_previous": dict(data_prev["totals"]),
     }
@@ -730,6 +744,156 @@ def _chart_line_weekly_dual(data: Dict[str, Any]) -> io.BytesIO:
     return out
 
 
+def _pdf_compare_table_single_campus(
+    row: Dict[str, Any],
+    *,
+    pl: str,
+    yp: int,
+    yc: int,
+    cap_p: str,
+    cap_c: str,
+    hdr_white,
+    _hdr_compare_sub,
+    avail_w: float,
+    colors,
+    inch,
+    fs_pdf: int,
+    Paragraph,
+    Table,
+    TableStyle,
+):
+    """Two header rows + one campus row; year column shading (no grand-total row)."""
+    tot_lbl = f"{pl} total"
+    hdr_row0: List[Any] = [
+        Paragraph("<para align='center'><b>Campus</b></para>", hdr_white),
+        Paragraph("<para align='center'><b>Region</b></para>", hdr_white),
+        Paragraph(
+            f"<para align='center'><b>{pl} {yp}</b><br/><font size='5'>{cap_p}</font></para>",
+            hdr_white,
+        ),
+        "",
+        "",
+        "",
+        Paragraph(
+            f"<para align='center'><b>{pl} {yc}</b><br/><font size='5'>{cap_c}</font></para>",
+            hdr_white,
+        ),
+        "",
+        "",
+        "",
+    ]
+    hdr_row1: List[Any] = [
+        "",
+        "",
+        _hdr_compare_sub("Sunday", "avg / service row"),
+        _hdr_compare_sub("Weekend", "avg / service row"),
+        _hdr_compare_sub("New people", tot_lbl),
+        _hdr_compare_sub("Salvations", tot_lbl),
+        _hdr_compare_sub("Sunday", "avg / service row"),
+        _hdr_compare_sub("Weekend", "avg / service row"),
+        _hdr_compare_sub("New people", tot_lbl),
+        _hdr_compare_sub("Salvations", tot_lbl),
+    ]
+    body = [
+        row["campus_name"][:26],
+        row["region"] or "—",
+        str(row["prev_avg_sunday"]),
+        str(row["prev_avg_weekend"]),
+        str(row["prev_total_new_people"]),
+        str(row["prev_total_salvations"]),
+        str(row["avg_sunday"]),
+        str(row["avg_weekend"]),
+        str(row["total_new_people"]),
+        str(row["total_salvations"]),
+    ]
+    table_data = [hdr_row0, hdr_row1, body]
+    col_widths = [avail_w * 0.14, avail_w * 0.06] + [avail_w * 0.10] * 8
+    t = Table(table_data, colWidths=col_widths, repeatRows=2)
+    band_prev = colors.HexColor("#bfdbfe")
+    band_curr = colors.HexColor("#bbf7d0")
+    tbl_cmds: List[Any] = [
+        ("BACKGROUND", (0, 0), (-1, 1), colors.HexColor("#1e3a5f")),
+        ("TEXTCOLOR", (0, 0), (-1, 1), colors.white),
+        ("FONTNAME", (0, 0), (-1, 1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 1), 6.5),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("SPAN", (0, 0), (0, 1)),
+        ("SPAN", (1, 0), (1, 1)),
+        ("SPAN", (2, 0), (5, 0)),
+        ("SPAN", (6, 0), (9, 0)),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.75, colors.HexColor("#0f172a")),
+        ("ALIGN", (2, 0), (-1, 1), "CENTER"),
+        ("FONTSIZE", (0, 2), (-1, -1), fs_pdf),
+        ("FONTNAME", (0, 2), (-1, -1), "Helvetica"),
+        ("ALIGN", (2, 2), (-1, -1), "RIGHT"),
+        ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
+        ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
+        ("BACKGROUND", (2, 2), (5, 2), band_prev),
+        ("BACKGROUND", (6, 2), (9, 2), band_curr),
+    ]
+    t.setStyle(TableStyle(tbl_cmds))
+    return t
+
+
+def _pdf_single_year_table_single_campus(
+    row: Dict[str, Any],
+    *,
+    avail_w: float,
+    colors,
+    hdr_single,
+    fs_pdf: int,
+    Paragraph,
+    Table,
+    TableStyle,
+):
+    """One header row + one campus row (no region subtotals or grand total)."""
+    table_data = [
+        [
+            Paragraph("<para align='center'><b>Campus</b></para>", hdr_single),
+            Paragraph("<para align='center'><b>Region</b></para>", hdr_single),
+            Paragraph("<para align='center'><b>Service<br/>rows</b></para>", hdr_single),
+            Paragraph("<para align='center'><b>Sunday<br/>total</b></para>", hdr_single),
+            Paragraph("<para align='center'><b>Weekend<br/>total</b></para>", hdr_single),
+            Paragraph("<para align='center'><b>Sunday<br/>avg</b></para>", hdr_single),
+            Paragraph("<para align='center'><b>Weekend<br/>avg</b></para>", hdr_single),
+            Paragraph("<para align='center'><b>New people<br/>total</b></para>", hdr_single),
+            Paragraph("<para align='center'><b>Salvations<br/>total</b></para>", hdr_single),
+        ],
+        [
+            row["campus_name"][:34],
+            row["region"] or "—",
+            str(row["service_rows"]),
+            str(row["total_sunday"]),
+            str(row["total_weekend"]),
+            str(row["avg_sunday"]),
+            str(row["avg_weekend"]),
+            str(row["total_new_people"]),
+            str(row["total_salvations"]),
+        ],
+    ]
+    col_widths_s = [avail_w * 0.17, avail_w * 0.06] + [avail_w * 0.11] * 7
+    t = Table(table_data, colWidths=col_widths_s, repeatRows=1)
+    tbl_cmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("FONTSIZE", (0, 1), (-1, -1), fs_pdf),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
+        ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
+        ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
+    ]
+    t.setStyle(TableStyle(tbl_cmds))
+    return t
+
+
 def _chart_bar_weekend_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
     """
     YoY weekend (w/ youth) averages: vertical grouped bars — orange = prior year, blue = current.
@@ -739,7 +903,7 @@ def _chart_bar_weekend_compare_compact(data: Dict[str, Any]) -> io.BytesIO:
     pl = data.get("period_label") or "Q1"
     yp, yc = data["prev_year"], data["year"]
     n = len(rows)
-    fig_h = min(6.0, max(4.0, 0.42 * n + 2.85))
+    fig_h = min(6.0, max(2.35 if n <= 1 else 4.0, 0.42 * max(n, 1) + (1.55 if n <= 1 else 2.85)))
     fig, ax = plt.subplots(figsize=(11.0, fig_h))
     if not rows:
         ax.text(0.5, 0.5, "No data", ha="center", va="center")
@@ -851,7 +1015,7 @@ def _chart_line_weekly_dual_compact(data: Dict[str, Any]) -> io.BytesIO:
     return out
 
 
-def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
+def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) -> bytes:
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER
     from reportlab.lib.pagesizes import A4, landscape
@@ -911,6 +1075,16 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
             hdr_white,
         )
 
+    campus_title_ps = ParagraphStyle(
+        "Q1CampusPage",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=14,
+        leading=17,
+        textColor=colors.HexColor("#0f172a"),
+        spaceAfter=8,
+    )
+
     story: List[Any] = []
 
     pl = data.get("period_label") or "Q1"
@@ -956,168 +1130,212 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
     if compare:
         yp, yc = data["prev_year"], data["year"]
         tp, tc = data["totals_previous"], data["totals"]
-        n_camp = len(data["campus_rows"])
-        bar_wk_buf = _chart_bar_weekend_compare_compact(data)
-        bar_wk_h = min(4.15 * inch, max(2.95 * inch, 0.16 * n_camp * inch + 2.35 * inch))
-        line_buf = _chart_line_weekly_dual_compact(data)
-        line_disp_h = 1.72 * inch
+        if per_campus_pages:
+            story.append(
+                Paragraph(
+                    "<b>Layout:</b> Each following page is one campus &mdash; that campus only "
+                    "(weekend year-over-year chart, weekly attendance lines, and figures).",
+                    meta_ps,
+                )
+            )
+            story.append(PageBreak())
+            w_cur = data.get("weekly_series_current_by_campus") or {}
+            w_prv = data.get("weekly_series_previous_by_campus") or {}
+            for i, row in enumerate(data["campus_rows"]):
+                if i > 0:
+                    story.append(PageBreak())
+                cid = row["campus_id"]
+                sub_chart = {
+                    "compare": True,
+                    "year": yc,
+                    "prev_year": yp,
+                    "campus_rows": [row],
+                    "period_label": pl,
+                    "filter_summary": data.get("filter_summary", ""),
+                    "weekly_series_current": w_cur.get(cid, []),
+                    "weekly_series_previous": w_prv.get(cid, []),
+                }
+                nm = _esc_xml(str(row["campus_name"])[:100])
+                story.append(Paragraph(f"<b>{nm}</b>", campus_title_ps))
+                bar_b = _chart_bar_weekend_compare_compact(sub_chart)
+                story.append(Image(bar_b, width=avail_w, height=2.15 * inch))
+                story.append(Spacer(1, 6))
+                line_b = _chart_line_weekly_dual_compact(sub_chart)
+                story.append(Image(line_b, width=avail_w, height=1.55 * inch))
+                story.append(Spacer(1, 10))
+                t_c = _pdf_compare_table_single_campus(
+                    row,
+                    pl=pl,
+                    yp=yp,
+                    yc=yc,
+                    cap_p=cap_p,
+                    cap_c=cap_c,
+                    hdr_white=hdr_white,
+                    _hdr_compare_sub=_hdr_compare_sub,
+                    avail_w=avail_w,
+                    colors=colors,
+                    inch=inch,
+                    fs_pdf=7,
+                    Paragraph=Paragraph,
+                    Table=Table,
+                    TableStyle=TableStyle,
+                )
+                story.append(t_c)
+        else:
+            n_camp = len(data["campus_rows"])
+            bar_wk_buf = _chart_bar_weekend_compare_compact(data)
+            bar_wk_h = min(4.15 * inch, max(2.95 * inch, 0.16 * n_camp * inch + 2.35 * inch))
+            line_buf = _chart_line_weekly_dual_compact(data)
+            line_disp_h = 1.72 * inch
 
-        hdr_row0: List[Any] = [
-            Paragraph("<para align='center'><b>Campus</b></para>", hdr_white),
-            Paragraph("<para align='center'><b>Region</b></para>", hdr_white),
-            Paragraph(
-                f"<para align='center'><b>{pl} {yp}</b><br/><font size='5'>{cap_p}</font></para>",
-                hdr_white,
-            ),
-            "",
-            "",
-            "",
-            Paragraph(
-                f"<para align='center'><b>{pl} {yc}</b><br/><font size='5'>{cap_c}</font></para>",
-                hdr_white,
-            ),
-            "",
-            "",
-            "",
-        ]
-        tot_lbl = f"{pl} total"
-        hdr_row1: List[Any] = [
-            "",
-            "",
-            _hdr_compare_sub("Sunday", "avg / service row"),
-            _hdr_compare_sub("Weekend", "avg / service row"),
-            _hdr_compare_sub("New people", tot_lbl),
-            _hdr_compare_sub("Salvations", tot_lbl),
-            _hdr_compare_sub("Sunday", "avg / service row"),
-            _hdr_compare_sub("Weekend", "avg / service row"),
-            _hdr_compare_sub("New people", tot_lbl),
-            _hdr_compare_sub("Salvations", tot_lbl),
-        ]
-        table_data: List[List[Any]] = [hdr_row0, hdr_row1]
-        region_row_idx_compare: List[int] = []
-        for row in data["campus_rows"]:
-            table_data.append(
-                [
-                    row["campus_name"][:26],
-                    row["region"] or "—",
-                    str(row["prev_avg_sunday"]),
-                    str(row["prev_avg_weekend"]),
-                    str(row["prev_total_new_people"]),
-                    str(row["prev_total_salvations"]),
-                    str(row["avg_sunday"]),
-                    str(row["avg_weekend"]),
-                    str(row["total_new_people"]),
-                    str(row["total_salvations"]),
-                ]
-            )
-        base_c = len(table_data)
-        for j, rrow in enumerate(data.get("region_aggregate_rows") or []):
-            region_row_idx_compare.append(base_c + j)
-            table_data.append(
-                [
-                    rrow["campus_name"][:26],
-                    rrow["region"] or "—",
-                    str(rrow["prev_avg_sunday"]),
-                    str(rrow["prev_avg_weekend"]),
-                    str(rrow["prev_total_new_people"]),
-                    str(rrow["prev_total_salvations"]),
-                    str(rrow["avg_sunday"]),
-                    str(rrow["avg_weekend"]),
-                    str(rrow["total_new_people"]),
-                    str(rrow["total_salvations"]),
-                ]
-            )
-        table_data.append(
-            [
-                "ALL CAMPUSES — TOTAL",
+            hdr_row0: List[Any] = [
+                Paragraph("<para align='center'><b>Campus</b></para>", hdr_white),
+                Paragraph("<para align='center'><b>Region</b></para>", hdr_white),
+                Paragraph(
+                    f"<para align='center'><b>{pl} {yp}</b><br/><font size='5'>{cap_p}</font></para>",
+                    hdr_white,
+                ),
                 "",
-                str(tp.get("avg_sunday", 0)),
-                str(tp.get("avg_weekend", 0)),
-                str(tp.get("new_people", 0)),
-                str(tp.get("salvations", 0)),
-                str(tc.get("avg_sunday", 0)),
-                str(tc.get("avg_weekend", 0)),
-                str(tc.get("new_people", 0)),
-                str(tc.get("salvations", 0)),
+                "",
+                "",
+                Paragraph(
+                    f"<para align='center'><b>{pl} {yc}</b><br/><font size='5'>{cap_c}</font></para>",
+                    hdr_white,
+                ),
+                "",
+                "",
+                "",
             ]
-        )
-
-        col_widths = [avail_w * 0.14, avail_w * 0.06] + [avail_w * 0.10] * 8
-
-        t = Table(table_data, colWidths=col_widths, repeatRows=2)
-        n_rows = len(table_data) - 2
-        fs_pdf = 6 if n_rows > 20 else 7
-        # Distinct year bands (body rows only): prior = blue tint, current = green tint.
-        band_prev = colors.HexColor("#bfdbfe")
-        band_curr = colors.HexColor("#bbf7d0")
-        footer_ri = len(table_data) - 1
-        region_set = set(region_row_idx_compare)
-        tbl_cmds = [
-            ("BACKGROUND", (0, 0), (-1, 1), colors.HexColor("#1e3a5f")),
-            ("TEXTCOLOR", (0, 0), (-1, 1), colors.white),
-            ("FONTNAME", (0, 0), (-1, 1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, 1), 6.5),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-            ("SPAN", (0, 0), (0, 1)),
-            ("SPAN", (1, 0), (1, 1)),
-            ("SPAN", (2, 0), (5, 0)),
-            ("SPAN", (6, 0), (9, 0)),
-            ("LINEBELOW", (0, 0), (-1, 0), 0.75, colors.HexColor("#0f172a")),
-            ("ALIGN", (2, 0), (-1, 1), "CENTER"),
-            ("FONTSIZE", (0, 2), (-1, -1), fs_pdf),
-            ("FONTNAME", (0, 2), (-1, -2), "Helvetica"),
-            ("ALIGN", (2, 2), (-1, -1), "RIGHT"),
-            ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
-            ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
-        ]
-        # Per-row year bands (avoids missing tints when the table flows across pages).
-        for r in range(2, footer_ri):
-            if r in region_set:
-                continue
-            tbl_cmds.append(("BACKGROUND", (2, r), (5, r), band_prev))
-            tbl_cmds.append(("BACKGROUND", (6, r), (9, r), band_curr))
-        tbl_cmds.extend(
-            [
-                ("BACKGROUND", (0, footer_ri), (-1, footer_ri), colors.HexColor("#0f172a")),
-                ("TEXTCOLOR", (0, footer_ri), (-1, footer_ri), colors.white),
-                ("FONTNAME", (0, footer_ri), (-1, footer_ri), "Helvetica-Bold"),
-                ("FONTSIZE", (0, footer_ri), (-1, footer_ri), fs_pdf),
+            tot_lbl = f"{pl} total"
+            hdr_row1: List[Any] = [
+                "",
+                "",
+                _hdr_compare_sub("Sunday", "avg / service row"),
+                _hdr_compare_sub("Weekend", "avg / service row"),
+                _hdr_compare_sub("New people", tot_lbl),
+                _hdr_compare_sub("Salvations", tot_lbl),
+                _hdr_compare_sub("Sunday", "avg / service row"),
+                _hdr_compare_sub("Weekend", "avg / service row"),
+                _hdr_compare_sub("New people", tot_lbl),
+                _hdr_compare_sub("Salvations", tot_lbl),
             ]
-        )
-        for ri in region_row_idx_compare:
-            tbl_cmds.append(("BACKGROUND", (0, ri), (-1, ri), colors.HexColor("#fef3c7")))
-            tbl_cmds.append(("TEXTCOLOR", (0, ri), (-1, ri), colors.HexColor("#422006")))
-            tbl_cmds.append(("FONTNAME", (0, ri), (-1, ri), "Helvetica-Bold"))
-        t.setStyle(TableStyle(tbl_cmds))
-
-        # Page 1: charts only. Page 2: full data table (fixes split-table band bugs and reduces clutter).
-        story.append(Image(bar_wk_buf, width=avail_w, height=bar_wk_h))
-        story.append(Spacer(1, 8))
-        story.append(Image(line_buf, width=avail_w, height=line_disp_h))
-        story.append(Spacer(1, 10))
-        story.append(PageBreak())
-        story.append(
-            Paragraph(
-                f"<b>Data table</b> &mdash; {pl} {yp} vs {pl} {yc} "
-                f"<font color='#64748b'>(same filters as charts on previous page)</font>",
-                meta_ps,
+            table_data: List[List[Any]] = [hdr_row0, hdr_row1]
+            region_row_idx_compare: List[int] = []
+            for row in data["campus_rows"]:
+                table_data.append(
+                    [
+                        row["campus_name"][:26],
+                        row["region"] or "—",
+                        str(row["prev_avg_sunday"]),
+                        str(row["prev_avg_weekend"]),
+                        str(row["prev_total_new_people"]),
+                        str(row["prev_total_salvations"]),
+                        str(row["avg_sunday"]),
+                        str(row["avg_weekend"]),
+                        str(row["total_new_people"]),
+                        str(row["total_salvations"]),
+                    ]
+                )
+            base_c = len(table_data)
+            for j, rrow in enumerate(data.get("region_aggregate_rows") or []):
+                region_row_idx_compare.append(base_c + j)
+                table_data.append(
+                    [
+                        rrow["campus_name"][:26],
+                        rrow["region"] or "—",
+                        str(rrow["prev_avg_sunday"]),
+                        str(rrow["prev_avg_weekend"]),
+                        str(rrow["prev_total_new_people"]),
+                        str(rrow["prev_total_salvations"]),
+                        str(rrow["avg_sunday"]),
+                        str(rrow["avg_weekend"]),
+                        str(rrow["total_new_people"]),
+                        str(rrow["total_salvations"]),
+                    ]
+                )
+            table_data.append(
+                [
+                    "ALL CAMPUSES — TOTAL",
+                    "",
+                    str(tp.get("avg_sunday", 0)),
+                    str(tp.get("avg_weekend", 0)),
+                    str(tp.get("new_people", 0)),
+                    str(tp.get("salvations", 0)),
+                    str(tc.get("avg_sunday", 0)),
+                    str(tc.get("avg_weekend", 0)),
+                    str(tc.get("new_people", 0)),
+                    str(tc.get("salvations", 0)),
+                ]
             )
-        )
-        story.append(Spacer(1, 10))
-        story.append(t)
-    else:
-        bar_buf = _chart_bar_campus(data)
-        bar_h = min(3.6 * inch, max(1.9 * inch, 0.26 * len(data["campus_rows"]) * inch + 1.0 * inch))
-        story.append(Image(bar_buf, width=avail_w, height=bar_h))
-        story.append(Spacer(1, 8))
-        line_buf = _chart_line_weekly(data)
-        story.append(Image(line_buf, width=avail_w, height=2.45 * inch))
-        story.append(Spacer(1, 10))
 
+            col_widths = [avail_w * 0.14, avail_w * 0.06] + [avail_w * 0.10] * 8
+
+            t = Table(table_data, colWidths=col_widths, repeatRows=2)
+            n_rows = len(table_data) - 2
+            fs_pdf = 6 if n_rows > 20 else 7
+            # Distinct year bands (body rows only): prior = blue tint, current = green tint.
+            band_prev = colors.HexColor("#bfdbfe")
+            band_curr = colors.HexColor("#bbf7d0")
+            footer_ri = len(table_data) - 1
+            region_set = set(region_row_idx_compare)
+            tbl_cmds = [
+                ("BACKGROUND", (0, 0), (-1, 1), colors.HexColor("#1e3a5f")),
+                ("TEXTCOLOR", (0, 0), (-1, 1), colors.white),
+                ("FONTNAME", (0, 0), (-1, 1), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 1), 6.5),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("SPAN", (0, 0), (0, 1)),
+                ("SPAN", (1, 0), (1, 1)),
+                ("SPAN", (2, 0), (5, 0)),
+                ("SPAN", (6, 0), (9, 0)),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.75, colors.HexColor("#0f172a")),
+                ("ALIGN", (2, 0), (-1, 1), "CENTER"),
+                ("FONTSIZE", (0, 2), (-1, -1), fs_pdf),
+                ("FONTNAME", (0, 2), (-1, -2), "Helvetica"),
+                ("ALIGN", (2, 2), (-1, -1), "RIGHT"),
+                ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
+                ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
+            ]
+            # Per-row year bands (avoids missing tints when the table flows across pages).
+            for r in range(2, footer_ri):
+                if r in region_set:
+                    continue
+                tbl_cmds.append(("BACKGROUND", (2, r), (5, r), band_prev))
+                tbl_cmds.append(("BACKGROUND", (6, r), (9, r), band_curr))
+            tbl_cmds.extend(
+                [
+                    ("BACKGROUND", (0, footer_ri), (-1, footer_ri), colors.HexColor("#0f172a")),
+                    ("TEXTCOLOR", (0, footer_ri), (-1, footer_ri), colors.white),
+                    ("FONTNAME", (0, footer_ri), (-1, footer_ri), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, footer_ri), (-1, footer_ri), fs_pdf),
+                ]
+            )
+            for ri in region_row_idx_compare:
+                tbl_cmds.append(("BACKGROUND", (0, ri), (-1, ri), colors.HexColor("#fef3c7")))
+                tbl_cmds.append(("TEXTCOLOR", (0, ri), (-1, ri), colors.HexColor("#422006")))
+                tbl_cmds.append(("FONTNAME", (0, ri), (-1, ri), "Helvetica-Bold"))
+            t.setStyle(TableStyle(tbl_cmds))
+
+            # Page 1: charts only. Page 2: full data table (fixes split-table band bugs and reduces clutter).
+            story.append(Image(bar_wk_buf, width=avail_w, height=bar_wk_h))
+            story.append(Spacer(1, 8))
+            story.append(Image(line_buf, width=avail_w, height=line_disp_h))
+            story.append(Spacer(1, 10))
+            story.append(PageBreak())
+            story.append(
+                Paragraph(
+                    f"<b>Data table</b> &mdash; {pl} {yp} vs {pl} {yc} "
+                    f"<font color='#64748b'>(same filters as charts on previous page)</font>",
+                    meta_ps,
+                )
+            )
+            story.append(Spacer(1, 10))
+            story.append(t)
+    else:
         hdr_single = ParagraphStyle(
             "Q1HdrSingle",
             parent=styles["Normal"],
@@ -1127,90 +1345,140 @@ def build_q1_pdf_bytes(data: Dict[str, Any]) -> bytes:
             alignment=TA_CENTER,
             textColor=colors.white,
         )
-        table_data = [
-            [
-                Paragraph("<para align='center'><b>Campus</b></para>", hdr_single),
-                Paragraph("<para align='center'><b>Region</b></para>", hdr_single),
-                Paragraph("<para align='center'><b>Service<br/>rows</b></para>", hdr_single),
-                Paragraph("<para align='center'><b>Sunday<br/>total</b></para>", hdr_single),
-                Paragraph("<para align='center'><b>Weekend<br/>total</b></para>", hdr_single),
-                Paragraph("<para align='center'><b>Sunday<br/>avg</b></para>", hdr_single),
-                Paragraph("<para align='center'><b>Weekend<br/>avg</b></para>", hdr_single),
-                Paragraph("<para align='center'><b>New people<br/>total</b></para>", hdr_single),
-                Paragraph("<para align='center'><b>Salvations<br/>total</b></para>", hdr_single),
-            ]
-        ]
-        region_row_idx_single: List[int] = []
-        for row in data["campus_rows"]:
-            table_data.append(
-                [
-                    row["campus_name"][:34],
-                    row["region"] or "—",
-                    str(row["service_rows"]),
-                    str(row["total_sunday"]),
-                    str(row["total_weekend"]),
-                    str(row["avg_sunday"]),
-                    str(row["avg_weekend"]),
-                    str(row["total_new_people"]),
-                    str(row["total_salvations"]),
-                ]
+        if per_campus_pages:
+            story.append(
+                Paragraph(
+                    "<b>Layout:</b> Each following page is one campus &mdash; that campus only "
+                    "(by-campus chart, weekly attendance line chart, and figures).",
+                    meta_ps,
+                )
             )
-        base_s = len(table_data)
-        for j, rrow in enumerate(data.get("region_aggregate_rows") or []):
-            region_row_idx_single.append(base_s + j)
-            table_data.append(
-                [
-                    rrow["campus_name"][:34],
-                    rrow["region"] or "—",
-                    str(rrow["service_rows"]),
-                    str(rrow["total_sunday"]),
-                    str(rrow["total_weekend"]),
-                    str(rrow["avg_sunday"]),
-                    str(rrow["avg_weekend"]),
-                    str(rrow["total_new_people"]),
-                    str(rrow["total_salvations"]),
-                ]
-            )
-        table_data.append(
-            [
-                "ALL CAMPUSES — TOTAL",
-                "",
-                str(data["totals"]["service_rows"]),
-                str(data["totals"]["sunday"]),
-                str(data["totals"]["weekend"]),
-                "",
-                "",
-                str(data["totals"]["new_people"]),
-                str(data["totals"]["salvations"]),
-            ]
-        )
+            story.append(PageBreak())
+            w_by_c = data.get("weekly_series_by_campus") or {}
+            for i, row in enumerate(data["campus_rows"]):
+                if i > 0:
+                    story.append(PageBreak())
+                cid = row["campus_id"]
+                sub_chart = {
+                    "year": data["year"],
+                    "campus_rows": [row],
+                    "period_label": pl,
+                    "filter_summary": data.get("filter_summary", ""),
+                    "weekly_series": w_by_c.get(cid, []),
+                }
+                nm = _esc_xml(str(row["campus_name"])[:100])
+                story.append(Paragraph(f"<b>{nm}</b>", campus_title_ps))
+                bar_b = _chart_bar_campus(sub_chart)
+                bar_h_one = min(3.6 * inch, max(1.9 * inch, 0.26 * inch + 1.0 * inch))
+                story.append(Image(bar_b, width=avail_w, height=max(2.0 * inch, min(bar_h_one, 2.85 * inch))))
+                story.append(Spacer(1, 8))
+                line_b = _chart_line_weekly(sub_chart)
+                story.append(Image(line_b, width=avail_w, height=2.45 * inch))
+                story.append(Spacer(1, 10))
+                t_one = _pdf_single_year_table_single_campus(
+                    row,
+                    avail_w=avail_w,
+                    colors=colors,
+                    hdr_single=hdr_single,
+                    fs_pdf=8,
+                    Paragraph=Paragraph,
+                    Table=Table,
+                    TableStyle=TableStyle,
+                )
+                story.append(t_one)
+        else:
+            bar_buf = _chart_bar_campus(data)
+            bar_h = min(3.6 * inch, max(1.9 * inch, 0.26 * len(data["campus_rows"]) * inch + 1.0 * inch))
+            story.append(Image(bar_buf, width=avail_w, height=bar_h))
+            story.append(Spacer(1, 8))
+            line_buf = _chart_line_weekly(data)
+            story.append(Image(line_buf, width=avail_w, height=2.45 * inch))
+            story.append(Spacer(1, 10))
 
-        col_widths_s = [avail_w * 0.17, avail_w * 0.06] + [avail_w * 0.11] * 7
-        t = Table(table_data, colWidths=col_widths_s, repeatRows=1)
-        fs_pdf = 8
-        tbl_cmds = [
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ("FONTSIZE", (0, 1), (-1, -1), fs_pdf),
-            ("FONTNAME", (0, 1), (-1, -2), "Helvetica"),
-            ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
-            ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f8fafc")]),
-            ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
-            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#0f172a")),
-            ("TEXTCOLOR", (0, -1), (-1, -1), colors.white),
-            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-        ]
-        for ri in region_row_idx_single:
-            tbl_cmds.append(("BACKGROUND", (0, ri), (-1, ri), colors.HexColor("#fef3c7")))
-            tbl_cmds.append(("TEXTCOLOR", (0, ri), (-1, ri), colors.HexColor("#422006")))
-            tbl_cmds.append(("FONTNAME", (0, ri), (-1, ri), "Helvetica-Bold"))
-        t.setStyle(TableStyle(tbl_cmds))
-        story.append(t)
+            table_data = [
+                [
+                    Paragraph("<para align='center'><b>Campus</b></para>", hdr_single),
+                    Paragraph("<para align='center'><b>Region</b></para>", hdr_single),
+                    Paragraph("<para align='center'><b>Service<br/>rows</b></para>", hdr_single),
+                    Paragraph("<para align='center'><b>Sunday<br/>total</b></para>", hdr_single),
+                    Paragraph("<para align='center'><b>Weekend<br/>total</b></para>", hdr_single),
+                    Paragraph("<para align='center'><b>Sunday<br/>avg</b></para>", hdr_single),
+                    Paragraph("<para align='center'><b>Weekend<br/>avg</b></para>", hdr_single),
+                    Paragraph("<para align='center'><b>New people<br/>total</b></para>", hdr_single),
+                    Paragraph("<para align='center'><b>Salvations<br/>total</b></para>", hdr_single),
+                ]
+            ]
+            region_row_idx_single: List[int] = []
+            for row in data["campus_rows"]:
+                table_data.append(
+                    [
+                        row["campus_name"][:34],
+                        row["region"] or "—",
+                        str(row["service_rows"]),
+                        str(row["total_sunday"]),
+                        str(row["total_weekend"]),
+                        str(row["avg_sunday"]),
+                        str(row["avg_weekend"]),
+                        str(row["total_new_people"]),
+                        str(row["total_salvations"]),
+                    ]
+                )
+            base_s = len(table_data)
+            for j, rrow in enumerate(data.get("region_aggregate_rows") or []):
+                region_row_idx_single.append(base_s + j)
+                table_data.append(
+                    [
+                        rrow["campus_name"][:34],
+                        rrow["region"] or "—",
+                        str(rrow["service_rows"]),
+                        str(rrow["total_sunday"]),
+                        str(rrow["total_weekend"]),
+                        str(rrow["avg_sunday"]),
+                        str(rrow["avg_weekend"]),
+                        str(rrow["total_new_people"]),
+                        str(rrow["total_salvations"]),
+                    ]
+                )
+            table_data.append(
+                [
+                    "ALL CAMPUSES — TOTAL",
+                    "",
+                    str(data["totals"]["service_rows"]),
+                    str(data["totals"]["sunday"]),
+                    str(data["totals"]["weekend"]),
+                    "",
+                    "",
+                    str(data["totals"]["new_people"]),
+                    str(data["totals"]["salvations"]),
+                ]
+            )
+
+            col_widths_s = [avail_w * 0.17, avail_w * 0.06] + [avail_w * 0.11] * 7
+            t = Table(table_data, colWidths=col_widths_s, repeatRows=1)
+            fs_pdf = 8
+            tbl_cmds = [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("FONTSIZE", (0, 1), (-1, -1), fs_pdf),
+                ("FONTNAME", (0, 1), (-1, -2), "Helvetica"),
+                ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
+                ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f8fafc")]),
+                ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
+                ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#0f172a")),
+                ("TEXTCOLOR", (0, -1), (-1, -1), colors.white),
+                ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ]
+            for ri in region_row_idx_single:
+                tbl_cmds.append(("BACKGROUND", (0, ri), (-1, ri), colors.HexColor("#fef3c7")))
+                tbl_cmds.append(("TEXTCOLOR", (0, ri), (-1, ri), colors.HexColor("#422006")))
+                tbl_cmds.append(("FONTNAME", (0, ri), (-1, ri), "Helvetica-Bold"))
+            t.setStyle(TableStyle(tbl_cmds))
+            story.append(t)
 
     doc.build(story)
     pdf = buffer.getvalue()

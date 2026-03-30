@@ -36,6 +36,7 @@ const Reports = () => {
   const [loadError, setLoadError] = useState('');
   const [period, setPeriod] = useState('q1');
   const [includePreviousYear, setIncludePreviousYear] = useState(false);
+  const [pdfOnePagePerCampus, setPdfOnePagePerCampus] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loadingCsv, setLoadingCsv] = useState(false);
   const [error, setError] = useState('');
@@ -123,7 +124,14 @@ const Reports = () => {
     return params.toString();
   }, [year, period, regionCode, selectedCampusSlugs, includePreviousYear]);
 
-  const pdfUrl = `/api/reports/q1-attendance.pdf?${queryString}`;
+  const pdfQueryString = useMemo(() => {
+    const params = new URLSearchParams(queryString);
+    if (pdfOnePagePerCampus) params.set('per_campus', 'true');
+    else params.delete('per_campus');
+    return params.toString();
+  }, [queryString, pdfOnePagePerCampus]);
+
+  const pdfUrl = `/api/reports/q1-attendance.pdf?${pdfQueryString}`;
   const csvUrl = `/api/reports/q1-attendance.csv?${queryString}`;
 
   const periodLabel = useMemo(
@@ -293,6 +301,23 @@ const Reports = () => {
               <span className="block text-slate-500 text-sm mt-0.5">
                 Same period in the prior year (for YTD, the same calendar end date in {year > 2000 ? year - 1 : '—'}).
                 PDF/CSV show both years side by side.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 mb-6 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={pdfOnePagePerCampus}
+              onChange={(e) => setPdfOnePagePerCampus(e.target.checked)}
+              className="mt-1 rounded border-slate-500 text-violet-600 focus:ring-violet-500"
+            />
+            <span>
+              <span className="text-white font-medium group-hover:text-violet-200 transition-colors">
+                PDF: one page per campus
+              </span>
+              <span className="block text-slate-500 text-sm mt-0.5">
+                Each campus gets its own charts and table instead of one combined report. CSV is unchanged.
               </span>
             </span>
           </label>
