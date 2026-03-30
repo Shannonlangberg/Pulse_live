@@ -314,7 +314,7 @@ const DatabaseViewer = () => {
   };
 
   const handleImportFromSheets = async () => {
-    if (!confirm('This will import new records from your Google Sheet (e.g. 2025 Australia Key Stats) into the database. Existing records will be skipped. Continue?')) {
+    if (!confirm('Import from your configured Google Sheet: new campus+date rows are added; existing rows are updated from the sheet (including New People and Salvations columns). Continue?')) {
       return;
     }
     setImporting(true);
@@ -331,6 +331,7 @@ const DatabaseViewer = () => {
           success: true,
           message: data.message,
           imported: data.imported,
+          updated: data.updated,
           skipped: data.skipped,
           errors: data.errors,
           sheet_name: data.sheet_name
@@ -719,7 +720,8 @@ const DatabaseViewer = () => {
             </div>
             {importResult.success && importResult.imported !== undefined && (
               <p className="text-slate-300 text-sm mt-1">
-                {importResult.imported} imported, {importResult.skipped} skipped, {importResult.errors} errors
+                {importResult.imported} new, {importResult.updated ?? 0} updated, {importResult.skipped} skipped,{' '}
+                {importResult.errors} errors
                 {importResult.sheet_name && ` (from "${importResult.sheet_name}")`}
               </p>
             )}

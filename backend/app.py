@@ -10969,7 +10969,12 @@ def sync_pending_records():
 @app.route('/api/attendance/import-from-sheets', methods=['POST'])
 @login_required
 def import_from_sheets():
-    """Import attendance records from Google Sheet (uses GOOGLE_SHEET_IMPORT_NAME or GOOGLE_SHEET_NAME)"""
+    """
+    Import / upsert attendance from Google Sheet (GOOGLE_SHEET_IMPORT_ID or GOOGLE_SHEET_IMPORT_NAME / GOOGLE_SHEET_NAME).
+    Inserts new campus+date rows; updates existing rows with sheet values. Maps aggregate columns
+    New People -> visitors (when detail columns empty) and Salvations / New Christians -> first_time_christians
+    when detail salvation columns are empty.
+    """
     try:
         from utils.rbac import rbac_manager
         from datetime import datetime
@@ -11061,93 +11066,414 @@ def import_from_sheets():
                 "errors": 0
             })
 
+        import sqlite3
+
         conn = get_db()
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(attendance_records)")
+        _att_cols = {r[1] for r in cursor.fetchall()}
+        _has_saints_col = "saints" in _att_cols
+
         cursor.execute("SELECT id, display_name, campus_id, service_times, region_id FROM campuses_v2")
         campuses_db = cursor.fetchall()
         campus_lookup = {}
         for cid, display_name, campus_code, service_times_json, region_id in campuses_db:
             campus_lookup[display_name.lower()] = {
-                'id': cid, 'display_name': display_name, 'service_times': json.loads(service_times_json) if service_times_json else [],
-                'region_id': region_id
+                "id": cid,
+                "display_name": display_name,
+                "service_times": json.loads(service_times_json) if service_times_json else [],
+                "region_id": region_id,
             }
             campus_lookup[campus_code.lower()] = campus_lookup[display_name.lower()]
 
         def safe_int(val):
             try:
                 return int(val) if val else 0
-            except:
+            except Exception:
                 return 0
 
-        imported = skipped = errors = 0
+        def safe_float_val(val):
+            try:
+                return float(val) if val not in (None, "") else 0.0
+            except Exception:
+                return 0.0
+
+        def _cell_nonempty(row_dict, key):
+            if key not in row_dict:
+                return False
+            v = row_dict.get(key)
+            return v is not None and str(v).strip() != ""
+
+        def _parse_import_date(date_raw):
+            if date_raw is None or str(date_raw).strip() == "":
+                return None
+            s = str(date_raw).strip()
+            for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%d-%m-%Y", "%m-%d-%Y"):
+                try:
+                    return datetime.strptime(s, fmt).date()
+                except ValueError:
+                    continue
+            return None
+
+        def _pick_merge_int(row_dict, key, existing_row, col_name):
+            if _cell_nonempty(row_dict, key):
+                return safe_int(row_dict.get(key))
+            if existing_row is not None:
+                return int(existing_row[col_name] or 0)
+            return 0
+
+        def _merge_visitor_fields(row_dict, existing_row):
+            """Map sheet New People + detailed columns -> first_time_visitors, visitors, youth_new_people."""
+            sf_tv = safe_int(row_dict.get("First Time Visitors")) or safe_int(row_dict.get("First Time"))
+            s_vis = safe_int(row_dict.get("Visitors"))
+            s_ynp = safe_int(row_dict.get("Youth New People"))
+            agg_np = safe_int(row_dict.get("New People"))
+            touched = (
+                _cell_nonempty(row_dict, "New People")
+                or _cell_nonempty(row_dict, "First Time Visitors")
+                or _cell_nonempty(row_dict, "First Time")
+                or _cell_nonempty(row_dict, "Visitors")
+                or _cell_nonempty(row_dict, "Youth New People")
+            )
+            if touched:
+                if agg_np > 0 and (sf_tv + s_vis + s_ynp) == 0:
+                    return (sf_tv, agg_np, s_ynp)
+                return (sf_tv, s_vis, s_ynp)
+            if existing_row is not None:
+                return (
+                    int(existing_row["first_time_visitors"] or 0),
+                    int(existing_row["visitors"] or 0),
+                    int(existing_row["youth_new_people"] or 0),
+                )
+            return (sf_tv, s_vis, s_ynp)
+
+        def _merge_salvation_fields(row_dict, existing_row):
+            """Map sheet Salvations / New Christians + detail columns -> DB salvation fields."""
+            s_ftc = safe_int(row_dict.get("First Time Christians"))
+            s_red = safe_int(row_dict.get("Rededications"))
+            s_ys = safe_int(row_dict.get("Youth Salvations"))
+            s_nks = safe_int(row_dict.get("New Kids Salvations")) or safe_int(row_dict.get("Kids Salvations"))
+            s_cards = safe_int(row_dict.get("Salvation Cards Returned"))
+            agg = max(safe_int(row_dict.get("Salvations")), safe_int(row_dict.get("New Christians")))
+            detail = s_ftc + s_red + s_ys + s_nks
+            touched = (
+                _cell_nonempty(row_dict, "Salvations")
+                or _cell_nonempty(row_dict, "New Christians")
+                or _cell_nonempty(row_dict, "First Time Christians")
+                or _cell_nonempty(row_dict, "Rededications")
+                or _cell_nonempty(row_dict, "Youth Salvations")
+                or _cell_nonempty(row_dict, "New Kids Salvations")
+                or _cell_nonempty(row_dict, "Kids Salvations")
+                or _cell_nonempty(row_dict, "Salvation Cards Returned")
+            )
+            if touched:
+                if agg > 0 and detail == 0:
+                    return (agg, 0, 0, 0, s_cards)
+                return (s_ftc, s_red, s_ys, s_nks, s_cards)
+            if existing_row is not None:
+                return (
+                    int(existing_row["first_time_christians"] or 0),
+                    int(existing_row["rededications"] or 0),
+                    int(existing_row["youth_salvations"] or 0),
+                    int(existing_row["new_kids_salvations"] or 0),
+                    int(existing_row["salvation_cards_returned"] or 0),
+                )
+            return (s_ftc, s_red, s_ys, s_nks, s_cards)
+
+        imported = updated = skipped = errors = 0
         for row in all_rows:
             try:
-                campus_name = row.get('Campus', '').strip().lower()
+                campus_name = row.get("Campus", "").strip().lower()
                 if not campus_name or campus_name not in campus_lookup:
                     skipped += 1
                     continue
                 campus_info = campus_lookup[campus_name]
-                campus_id = campus_info['id']
-                region_id = campus_info['region_id']
-                service_times = campus_info['service_times']
+                campus_id = campus_info["id"]
+                region_id = campus_info["region_id"]
+                service_times = campus_info["service_times"]
 
-                date_str = str(row.get('Date', '')).strip()
-                if not date_str:
+                date_val = _parse_import_date(row.get("Date"))
+                if not date_val:
                     skipped += 1
                     continue
-                try:
-                    date_val = datetime.strptime(date_str, '%Y-%m-%d').date()
-                except:
+
+                cursor.execute(
+                    "SELECT * FROM attendance_records WHERE campus_id = ? AND date = ?",
+                    (campus_id, date_val.isoformat()),
+                )
+                existing = cursor.fetchone()
+
+                old_adult = {}
+                if existing and existing["adult_service_breakdown"]:
                     try:
-                        date_val = datetime.strptime(date_str, '%m/%d/%Y').date()
-                    except:
-                        skipped += 1
-                        continue
-
-                cursor.execute("SELECT id FROM attendance_records WHERE campus_id = ? AND date = ?", (campus_id, date_val.isoformat()))
-                if cursor.fetchone():
-                    skipped += 1
-                    continue
+                        old_adult = json.loads(existing["adult_service_breakdown"])
+                    except Exception:
+                        old_adult = {}
+                old_kids = {}
+                if existing and existing["kids_service_breakdown"]:
+                    try:
+                        old_kids = json.loads(existing["kids_service_breakdown"])
+                    except Exception:
+                        old_kids = {}
 
                 adult_breakdown = {}
-                kids_breakdown = {}
+                any_adult_cell = False
                 for st in service_times:
-                    if st in row and row[st]:
-                        adult_breakdown[st] = int(row[st])
-                    kids_key = f'Kids {st}'
-                    if kids_key in row and row[kids_key]:
-                        kids_breakdown[kids_key] = int(row[kids_key])
+                    if _cell_nonempty(row, st):
+                        any_adult_cell = True
+                        adult_breakdown[st] = safe_int(row.get(st))
+                if not any_adult_cell:
+                    adult_breakdown = dict(old_adult)
 
-                cursor.execute("""
-                    INSERT INTO attendance_records (
-                        campus_id, region_id, date, total_attendance, total_people_in_campus,
-                        adult_service_breakdown, kids_service_breakdown,
-                        kids_attendance, kids_leaders, new_kids, new_kids_salvations, packs_out,
-                        youth_attendance, youth_salvations, youth_new_people, youth_leaders,
-                        first_time_visitors, visitors, hands_up, cards_back,
-                        first_time_christians, rededications, salvation_cards_returned,
-                        baptisms, child_dedications, connect_groups, dream_team, tithe,
-                        synced_to_sheets, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-                """, (
-                    campus_id, region_id, date_val.isoformat(),
-                    safe_int(row.get('Total Attendance')), safe_int(row.get('Total People in Campus')),
-                    json.dumps(adult_breakdown) if adult_breakdown else None,
-                    json.dumps(kids_breakdown) if kids_breakdown else None,
-                    safe_int(row.get('Kids Attendance')), safe_int(row.get('Kids Leaders')),
-                    safe_int(row.get('New Kids')), safe_int(row.get('New Kids Salvations')),
-                    safe_int(row.get('Packs Out')),
-                    safe_int(row.get('Youth Attendance')), safe_int(row.get('Youth Salvations')),
-                    safe_int(row.get('Youth New People')), safe_int(row.get('Youth Leaders')),
-                    safe_int(row.get('First Time Visitors')), safe_int(row.get('Visitors')),
-                    safe_int(row.get('Hands up')), safe_int(row.get('Cards Back')),
-                    safe_int(row.get('First Time Christians')), safe_int(row.get('Rededications')),
-                    safe_int(row.get('Salvation Cards Returned')),
-                    safe_int(row.get('Baptisms')), safe_int(row.get('Child Dedications')),
-                    safe_int(row.get('Connect Groups')), safe_int(row.get('Dream Team')),
-                    float(row.get('Tithe', 0) or 0)
-                ))
-                imported += 1
+                kids_breakdown = {}
+                any_kids_cell = False
+                for st in service_times:
+                    kids_key = f"Kids {st}"
+                    if _cell_nonempty(row, kids_key):
+                        any_kids_cell = True
+                        kids_breakdown[kids_key] = safe_int(row.get(kids_key))
+                if not any_kids_cell:
+                    kids_breakdown = dict(old_kids)
+
+                if _cell_nonempty(row, "Total Attendance"):
+                    tot = safe_int(row.get("Total Attendance"))
+                elif existing:
+                    tot = int(existing["total_attendance"] or 0)
+                else:
+                    tot = 0
+
+                if _cell_nonempty(row, "Total People in Campus"):
+                    tpc = safe_int(row.get("Total People in Campus"))
+                elif _cell_nonempty(row, "Total Attendance"):
+                    tpc = tot
+                elif existing:
+                    tpc = int(existing["total_people_in_campus"] or 0)
+                else:
+                    tpc = tot
+
+                kids_att = _pick_merge_int(row, "Kids Attendance", existing, "kids_attendance")
+                kids_lead = _pick_merge_int(row, "Kids Leaders", existing, "kids_leaders")
+                new_kids_v = _pick_merge_int(row, "New Kids", existing, "new_kids")
+                if _cell_nonempty(row, "New Kids Salvations"):
+                    nks_v = safe_int(row.get("New Kids Salvations"))
+                elif _cell_nonempty(row, "Kids Salvations"):
+                    nks_v = safe_int(row.get("Kids Salvations"))
+                elif existing is not None:
+                    nks_v = int(existing["new_kids_salvations"] or 0)
+                else:
+                    nks_v = 0
+                packs = _pick_merge_int(row, "Packs Out", existing, "packs_out")
+                youth_att = _pick_merge_int(row, "Youth Attendance", existing, "youth_attendance")
+                youth_sal = _pick_merge_int(row, "Youth Salvations", existing, "youth_salvations")
+                youth_lead = _pick_merge_int(row, "Youth Leaders", existing, "youth_leaders")
+                hands = _pick_merge_int(row, "Hands up", existing, "hands_up")
+                cards_b = _pick_merge_int(row, "Cards Back", existing, "cards_back")
+                bapt = _pick_merge_int(row, "Baptisms", existing, "baptisms")
+                child_d = _pick_merge_int(row, "Child Dedications", existing, "child_dedications")
+                cg = _pick_merge_int(row, "Connect Groups", existing, "connect_groups")
+                dt = _pick_merge_int(row, "Dream Team", existing, "dream_team")
+
+                if _cell_nonempty(row, "Tithe"):
+                    tithe_v = safe_float_val(row.get("Tithe"))
+                elif existing:
+                    tithe_v = float(existing["tithe"] or 0)
+                else:
+                    tithe_v = 0.0
+
+                ftv, visitors_v, ynp = _merge_visitor_fields(row, existing)
+                ftc, reded, ys_v, nks_m, cards_ret = _merge_salvation_fields(row, existing)
+
+                saints_v = 0
+                if _has_saints_col:
+                    saints_v = _pick_merge_int(row, "Saints", existing, "saints")
+
+                adult_json = json.dumps(adult_breakdown) if adult_breakdown else None
+                kids_json = json.dumps(kids_breakdown) if kids_breakdown else None
+
+                if existing:
+                    eid = int(existing["id"])
+                    if _has_saints_col:
+                        cursor.execute(
+                            """
+                            UPDATE attendance_records SET
+                                total_attendance = ?, total_people_in_campus = ?,
+                                adult_service_breakdown = ?, kids_service_breakdown = ?,
+                                kids_attendance = ?, kids_leaders = ?, new_kids = ?, new_kids_salvations = ?, packs_out = ?,
+                                youth_attendance = ?, youth_salvations = ?, youth_new_people = ?, youth_leaders = ?,
+                                first_time_visitors = ?, visitors = ?, hands_up = ?, cards_back = ?,
+                                first_time_christians = ?, rededications = ?, salvation_cards_returned = ?,
+                                baptisms = ?, child_dedications = ?, connect_groups = ?, dream_team = ?, tithe = ?,
+                                saints = ?, synced_to_sheets = 1, updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                            """,
+                            (
+                                tot,
+                                tpc,
+                                adult_json,
+                                kids_json,
+                                kids_att,
+                                kids_lead,
+                                new_kids_v,
+                                nks_v,
+                                packs,
+                                youth_att,
+                                youth_sal,
+                                ynp,
+                                youth_lead,
+                                ftv,
+                                visitors_v,
+                                hands,
+                                cards_b,
+                                ftc,
+                                reded,
+                                cards_ret,
+                                bapt,
+                                child_d,
+                                cg,
+                                dt,
+                                tithe_v,
+                                saints_v,
+                                eid,
+                            ),
+                        )
+                    else:
+                        cursor.execute(
+                            """
+                            UPDATE attendance_records SET
+                                total_attendance = ?, total_people_in_campus = ?,
+                                adult_service_breakdown = ?, kids_service_breakdown = ?,
+                                kids_attendance = ?, kids_leaders = ?, new_kids = ?, new_kids_salvations = ?, packs_out = ?,
+                                youth_attendance = ?, youth_salvations = ?, youth_new_people = ?, youth_leaders = ?,
+                                first_time_visitors = ?, visitors = ?, hands_up = ?, cards_back = ?,
+                                first_time_christians = ?, rededications = ?, salvation_cards_returned = ?,
+                                baptisms = ?, child_dedications = ?, connect_groups = ?, dream_team = ?, tithe = ?,
+                                synced_to_sheets = 1, updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                            """,
+                            (
+                                tot,
+                                tpc,
+                                adult_json,
+                                kids_json,
+                                kids_att,
+                                kids_lead,
+                                new_kids_v,
+                                nks_v,
+                                packs,
+                                youth_att,
+                                youth_sal,
+                                ynp,
+                                youth_lead,
+                                ftv,
+                                visitors_v,
+                                hands,
+                                cards_b,
+                                ftc,
+                                reded,
+                                cards_ret,
+                                bapt,
+                                child_d,
+                                cg,
+                                dt,
+                                tithe_v,
+                                eid,
+                            ),
+                        )
+                    updated += 1
+                else:
+                    if _has_saints_col:
+                        cursor.execute(
+                            """
+                            INSERT INTO attendance_records (
+                                campus_id, region_id, date, total_attendance, total_people_in_campus,
+                                adult_service_breakdown, kids_service_breakdown,
+                                kids_attendance, kids_leaders, new_kids, new_kids_salvations, packs_out,
+                                youth_attendance, youth_salvations, youth_new_people, youth_leaders,
+                                first_time_visitors, visitors, hands_up, cards_back,
+                                first_time_christians, rededications, salvation_cards_returned,
+                                baptisms, child_dedications, connect_groups, dream_team, tithe, saints,
+                                synced_to_sheets, created_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                            """,
+                            (
+                                campus_id,
+                                region_id,
+                                date_val.isoformat(),
+                                tot,
+                                tpc,
+                                adult_json,
+                                kids_json,
+                                kids_att,
+                                kids_lead,
+                                new_kids_v,
+                                nks_v,
+                                packs,
+                                youth_att,
+                                youth_sal,
+                                ynp,
+                                youth_lead,
+                                ftv,
+                                visitors_v,
+                                hands,
+                                cards_b,
+                                ftc,
+                                reded,
+                                cards_ret,
+                                bapt,
+                                child_d,
+                                cg,
+                                dt,
+                                tithe_v,
+                                saints_v,
+                            ),
+                        )
+                    else:
+                        cursor.execute(
+                            """
+                            INSERT INTO attendance_records (
+                                campus_id, region_id, date, total_attendance, total_people_in_campus,
+                                adult_service_breakdown, kids_service_breakdown,
+                                kids_attendance, kids_leaders, new_kids, new_kids_salvations, packs_out,
+                                youth_attendance, youth_salvations, youth_new_people, youth_leaders,
+                                first_time_visitors, visitors, hands_up, cards_back,
+                                first_time_christians, rededications, salvation_cards_returned,
+                                baptisms, child_dedications, connect_groups, dream_team, tithe,
+                                synced_to_sheets, created_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                            """,
+                            (
+                                campus_id,
+                                region_id,
+                                date_val.isoformat(),
+                                tot,
+                                tpc,
+                                adult_json,
+                                kids_json,
+                                kids_att,
+                                kids_lead,
+                                new_kids_v,
+                                nks_v,
+                                packs,
+                                youth_att,
+                                youth_sal,
+                                ynp,
+                                youth_lead,
+                                ftv,
+                                visitors_v,
+                                hands,
+                                cards_b,
+                                ftc,
+                                reded,
+                                cards_ret,
+                                bapt,
+                                child_d,
+                                cg,
+                                dt,
+                                tithe_v,
+                            ),
+                        )
+                    imported += 1
             except Exception as e:
                 errors += 1
                 logger.warning(f"[IMPORT_SHEETS] Row error: {e}")
@@ -11155,15 +11481,20 @@ def import_from_sheets():
         conn.commit()
         conn.close()
 
-        logger.info(f"[IMPORT_SHEETS] Imported {imported}, skipped {skipped}, errors {errors} from '{sheet_name}'")
-        return jsonify({
-            "success": True,
-            "message": f"Import completed: {imported} imported, {skipped} skipped, {errors} errors",
-            "imported": imported,
-            "skipped": skipped,
-            "errors": errors,
-            "sheet_name": sheet_name
-        })
+        logger.info(
+            f"[IMPORT_SHEETS] imported={imported} updated={updated} skipped={skipped} errors={errors} from '{sheet_name}'"
+        )
+        return jsonify(
+            {
+                "success": True,
+                "message": f"Import completed: {imported} new, {updated} updated, {skipped} skipped, {errors} errors",
+                "imported": imported,
+                "updated": updated,
+                "skipped": skipped,
+                "errors": errors,
+                "sheet_name": sheet_name,
+            }
+        )
     except Exception as e:
         logger.error(f"[IMPORT_SHEETS] Error: {e}", exc_info=True)
         err_str = str(e)
