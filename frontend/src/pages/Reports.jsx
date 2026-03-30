@@ -36,6 +36,7 @@ const Reports = () => {
   const [loadError, setLoadError] = useState('');
   const [period, setPeriod] = useState('q1');
   const [includePreviousYear, setIncludePreviousYear] = useState(false);
+  const [excludeYouthNewPeople, setExcludeYouthNewPeople] = useState(false);
   const [pdfOnePagePerCampus, setPdfOnePagePerCampus] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loadingCsv, setLoadingCsv] = useState(false);
@@ -121,8 +122,11 @@ const Reports = () => {
     if (includePreviousYear) {
       params.set('include_previous_year', 'true');
     }
+    if (excludeYouthNewPeople) {
+      params.set('exclude_youth_new_people', 'true');
+    }
     return params.toString();
-  }, [year, period, regionCode, selectedCampusSlugs, includePreviousYear]);
+  }, [year, period, regionCode, selectedCampusSlugs, includePreviousYear, excludeYouthNewPeople]);
 
   const pdfQueryString = useMemo(() => {
     const params = new URLSearchParams(queryString);
@@ -155,8 +159,20 @@ const Reports = () => {
       const pl = period === 'ytd' ? 'YTD' : period.toUpperCase();
       parts.push(`YoY: ${pl} ${year - 1} vs ${pl} ${year}`);
     }
+    if (excludeYouthNewPeople) {
+      parts.push('New people: excl. youth (FTV + visitors only)');
+    }
     return parts.join(' · ');
-  }, [year, period, periodLabel, regionCode, selectedCampusSlugs, regions, includePreviousYear]);
+  }, [
+    year,
+    period,
+    periodLabel,
+    regionCode,
+    selectedCampusSlugs,
+    regions,
+    includePreviousYear,
+    excludeYouthNewPeople,
+  ]);
 
   const downloadFile = async (url, defaultName, setLoading) => {
     setError('');
@@ -221,7 +237,8 @@ const Reports = () => {
             report year is the current calendar year; full Jan–Dec for past years). Filter by region and/or
             campuses. Sunday = adults + saints + kids; weekend = Sunday + youth + youth leaders. PDF/CSV
             include period totals for new people and salvations (regional dashboard field mix), plus region
-            subtotals before the all-campuses total.
+            subtotals before the all-campuses total. Optionally exclude <strong className="text-slate-300">youth new
+            people</strong> so &quot;new people&quot; is first-time visitors + visitors only.
           </p>
 
           {loadError && (
@@ -318,6 +335,24 @@ const Reports = () => {
               </span>
               <span className="block text-slate-500 text-sm mt-0.5">
                 Each campus gets its own charts and table instead of one combined report. CSV is unchanged.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 mb-6 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={excludeYouthNewPeople}
+              onChange={(e) => setExcludeYouthNewPeople(e.target.checked)}
+              className="mt-1 rounded border-slate-500 text-violet-600 focus:ring-violet-500"
+            />
+            <span>
+              <span className="text-white font-medium group-hover:text-violet-200 transition-colors">
+                New people: exclude youth new people
+              </span>
+              <span className="block text-slate-500 text-sm mt-0.5">
+                Default counts match the dashboard (first-time visitors + visitors + youth new people). When checked,
+                totals use first-time visitors + visitors only; Google Stats &quot;New People&quot; is not blended in.
               </span>
             </span>
           </label>

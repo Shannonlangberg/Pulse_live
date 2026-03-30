@@ -214,17 +214,33 @@ def record_sunday_and_weekend_totals(record) -> Tuple[int, int]:
     return sunday, weekend
 
 
-def record_new_people_total(record, sheet_new_people: int | None = None) -> int:
+def record_new_people_total(
+    record,
+    sheet_new_people: int | None = None,
+    *,
+    include_youth_new_people: bool = True,
+) -> int:
     """
-    FTV + visitors + youth new people (same components as regional dashboard).
-    If Google Stats has a 'New People' aggregate and the DB breakdown is lower
-    (common for legacy imports), use max(component_sum, sheet) so Q1 matches the sheet.
+    New people total from attendance_records.
+
+    Default (``include_youth_new_people=True``): FTV + visitors + youth new people
+    (same components as regional dashboard). If Google Stats has a *New People*
+    aggregate and the DB breakdown is lower (legacy imports), use
+    ``max(component_sum, sheet)`` so totals can match the sheet.
+
+    When ``include_youth_new_people=False``: FTV + visitors only; sheet totals are
+    not applied (they usually include youth).
     """
-    comp = (record.first_time_visitors or 0) + (record.visitors or 0) + (record.youth_new_people or 0)
-    sp = int(sheet_new_people or 0)
-    if sp > 0:
-        return max(comp, sp)
-    return comp
+    ftv = record.first_time_visitors or 0
+    vis = record.visitors or 0
+    yn = record.youth_new_people or 0
+    if include_youth_new_people:
+        comp = ftv + vis + yn
+        sp = int(sheet_new_people or 0)
+        if sp > 0:
+            return max(comp, sp)
+        return comp
+    return ftv + vis
 
 
 def record_salvations_total(record, sheet_salvations_fallback: int | None = None) -> int:
@@ -355,6 +371,7 @@ def build_q1_data(
     period_code: str = "q1",
     period_label: str = "Q1",
     period_caption: str = "Jan–Mar",
+    include_youth_new_people: bool = True,
 ) -> Dict[str, Any]:
     """Aggregate by campus and by global week within ``start``..``end`` (inclusive)."""
     if start is None:
@@ -392,7 +409,9 @@ def build_q1_data(
         by_campus[cid]["total_sunday"] += sun
         by_campus[cid]["total_weekend"] += wknd
         by_campus[cid]["total_new_people"] += record_new_people_total(
-            r, sheet_new_people=ex.get("new_people") if ex else None
+            r,
+            sheet_new_people=ex.get("new_people") if ex else None,
+            include_youth_new_people=include_youth_new_people,
         )
         by_campus[cid]["total_salvations"] += record_salvations_total(
             r, sheet_salvations_fallback=ex.get("salvations") if ex else None
@@ -445,6 +464,7 @@ def build_q1_data(
         "period_code": period_code,
         "period_label": period_label,
         "period_caption": period_caption,
+        "include_youth_new_people": include_youth_new_people,
         "filter_summary": (filter_summary or "").strip(),
         "campus_rows": campus_rows,
         "region_aggregate_rows": region_aggregate_rows,
@@ -528,6 +548,7 @@ def build_compare_payload(data_curr: Dict[str, Any], data_prev: Dict[str, Any]) 
         "period_label": pl,
         "period_caption_curr": data_curr.get("period_caption", "Jan–Mar"),
         "period_caption_prev": data_prev.get("period_caption", "Jan–Mar"),
+        "include_youth_new_people": data_curr.get("include_youth_new_people", True),
         "filter_summary": fs,
         "campus_rows": merged,
         "region_aggregate_rows": region_aggregate_rows,
@@ -546,10 +567,17 @@ def build_q1_csv_bytes(data: Dict[str, Any]) -> bytes:
     return _build_q1_csv_single_bytes(data)
 
 
+def _np_csv_header_period_total(pl: str, *, include_youth: bool) -> str:
+    if include_youth:
+        return f"New people ({pl} total)"
+    return f"New people excl. youth ({pl} total)"
+
+
 def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
     buf = io.StringIO()
     w = csv.writer(buf)
     pl = data.get("period_label") or "Q1"
+    inc_y = data.get("include_youth_new_people", True)
     if data.get("filter_summary"):
         w.writerow(["Report filters", data["filter_summary"]])
         w.writerow([])
@@ -560,7 +588,7 @@ def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
             "Service rows",
             "Avg Sunday (no youth)",
             "Avg weekend (w/ youth)",
-            f"New people ({pl} total)",
+            _np_csv_header_period_total(pl, include_youth=inc_y),
             f"Salvations ({pl} total)",
         ]
     )
@@ -608,6 +636,10 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
     yp = data["prev_year"]
     buf = io.StringIO()
     w = csv.writer(buf)
+    inc_y = data.get("include_youth_new_people", True)
+    np_yp = f"New people {yp}" + ("" if inc_y else " (excl. youth)")
+    np_yc = f"New people {yc}" + ("" if inc_y else " (excl. youth)")
+    d_np = "% Δ New people" + ("" if inc_y else " (excl. youth)")
     if data.get("filter_summary"):
         w.writerow(["Report filters", data["filter_summary"]])
         w.writerow([])
@@ -617,15 +649,15 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
             "Region",
             f"Avg Sun {yp}",
             f"Avg Wknd {yp}",
-            f"New people {yp}",
+            np_yp,
             f"Salvations {yp}",
             f"Avg Sun {yc}",
             f"Avg Wknd {yc}",
-            f"New people {yc}",
+            np_yc,
             f"Salvations {yc}",
             "% Δ Sun",
             "% Δ Wknd",
-            "% Δ New people",
+            d_np,
             "% Δ Salvations",
         ]
     )
@@ -1154,6 +1186,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
     buffer = io.BytesIO()
     page = landscape(A4)
     compare = bool(data.get("compare"))
+    inc_youth_np = data.get("include_youth_new_people", True)
     doc = SimpleDocTemplate(
         buffer,
         pagesize=page,
@@ -1382,21 +1415,36 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
         else:
             scope_rows.append([Paragraph("All campuses in scope (no additional filters).", cov_scope_body)])
         if not compare:
+            np_cov = (
+                "New people = first-time visitors + visitors + youth new people (dashboard mix)."
+                if inc_youth_np
+                else "New people = first-time visitors + visitors only (youth new people excluded)."
+            )
+            dash_tail = (
+                " Salvations &mdash; aligned with the regional attendance dashboard."
+                if inc_youth_np
+                else " Salvations."
+            )
             scope_rows.append(
                 [
                     Paragraph(
-                        "<b>Metrics</b> (each page): Sunday, Weekend (incl. youth), New people, Salvations "
-                        "&mdash; aligned with the regional attendance dashboard.",
+                        "<b>Metrics</b> (each page): Sunday, Weekend (incl. youth), "
+                        f"{np_cov}{dash_tail}",
                         cov_scope_body,
                     )
                 ]
             )
         else:
+            np_cov_c = (
+                " New people include youth new people (dashboard mix)."
+                if inc_youth_np
+                else " New people exclude youth new people (visitors + first-time visitors only)."
+            )
             scope_rows.append(
                 [
                     Paragraph(
                         "<b>Each campus page</b> includes weekend year-over-year bars, weekly lines for both years, "
-                        "and a figures table.",
+                        f"and a figures table.{np_cov_c}",
                         cov_scope_body,
                     )
                 ]
@@ -1443,13 +1491,22 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
             safe = fs.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             story.append(Paragraph(f"<b>Filters:</b> {safe}", meta_ps))
         if not compare:
+            if inc_youth_np:
+                np_clause = (
+                    "<b>New people</b> = first-time visitors + visitors + youth new people; "
+                    "if the DB breakdown is lower, the Google Stats <i>New People</i> column is used (legacy rows). "
+                )
+            else:
+                np_clause = (
+                    "<b>New people</b> = first-time visitors + visitors only (youth new people excluded); "
+                    "Google Stats <i>New People</i> is not blended in. "
+                )
             metrics_common = (
                 "<b>Metrics:</b> "
                 "<b>Sunday</b> = adults + saints + kids. "
                 "<b>Weekend</b> = Sunday + youth + youth leaders. "
-                "<b>New people</b> = first-time visitors + visitors + youth new people; "
-                "if the DB breakdown is lower, the Google Stats <i>New People</i> column is used (legacy rows). "
-                "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
+                + np_clause
+                + "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
                 "when that sum is zero, <i>Salvation cards returned</i> and/or Stats <i>New Christians</i> apply. "
             )
             metrics_single = (
@@ -1459,7 +1516,26 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
             story.append(Paragraph(metrics_common + metrics_single, meta_ps))
             story.append(Spacer(1, 4))
         else:
-            story.append(Spacer(1, 2))
+            if inc_youth_np:
+                np_cmp = (
+                    "<b>New people</b> = first-time visitors + visitors + youth new people "
+                    "(with Stats sheet uplift when the DB breakdown is lower). "
+                )
+            else:
+                np_cmp = (
+                    "<b>New people</b> = first-time visitors + visitors only (excludes youth new people; "
+                    "no Stats sheet blend). "
+                )
+            story.append(
+                Paragraph(
+                    "<b>Metrics:</b> "
+                    + np_cmp
+                    + "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations "
+                    "(with fallbacks as in the single-year report).",
+                    meta_ps,
+                )
+            )
+            story.append(Spacer(1, 4))
 
     if compare:
         yp, yc = data["prev_year"], data["year"]

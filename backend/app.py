@@ -17219,6 +17219,7 @@ def _q1_report_filename(
     compare: bool = False,
     period: str = "q1",
     per_campus_pdf: bool = False,
+    exclude_youth_new_people: bool = False,
 ) -> str:
     from q1_attendance_report import normalized_report_period
 
@@ -17234,6 +17235,8 @@ def _q1_report_filename(
         suf += "-yoy"
     if per_campus_pdf:
         suf += "-per-campus"
+    if exclude_youth_new_people:
+        suf += "-newpeople-excl-youth"
     return f"pulse-{p}-attendance-{year}{suf}"
 
 
@@ -17247,6 +17250,7 @@ def _q1_report_data(
     period_code: str = "q1",
     period_label: str = "Q1",
     period_caption: str = "Jan–Mar",
+    include_youth_new_people: bool = True,
 ):
     """
     Load attendance for the given inclusive date range (quarter / YTD / custom).
@@ -17320,6 +17324,9 @@ def _q1_report_data(
     else:
         parts.append("Campuses: all")
 
+    if not include_youth_new_people:
+        parts.append("New people: excludes youth new people (first-time visitors + visitors only)")
+
     filter_summary = " · ".join(parts)
     sheet_enrichment = _build_q1_sheet_enrichment(start_d, end_d, campuses_by_id, region_obj)
     return build_q1_data(
@@ -17333,6 +17340,7 @@ def _q1_report_data(
         period_code=period_code,
         period_label=period_label,
         period_caption=period_caption,
+        include_youth_new_people=include_youth_new_people,
     )
 
 
@@ -17343,7 +17351,13 @@ def _parse_report_period() -> str:
 
 
 def _q1_report_with_optional_yoy(
-    year: int, region: str, campuses: str, include_previous_year: bool, period: str = "q1"
+    year: int,
+    region: str,
+    campuses: str,
+    include_previous_year: bool,
+    period: str = "q1",
+    *,
+    include_youth_new_people: bool = True,
 ):
     from q1_attendance_report import (
         build_compare_payload,
@@ -17364,6 +17378,7 @@ def _q1_report_with_optional_yoy(
         period_code=code,
         period_label=lbl,
         period_caption=cap_c,
+        include_youth_new_people=include_youth_new_people,
     )
     if not include_previous_year:
         return data_curr
@@ -17382,6 +17397,7 @@ def _q1_report_with_optional_yoy(
             period_code="ytd",
             period_label="YTD",
             period_caption=cap_p,
+            include_youth_new_people=include_youth_new_people,
         )
     else:
         s_p, e_p, code_p, lbl_p, cap_p = report_range_for_year_period(year - 1, p)
@@ -17394,6 +17410,7 @@ def _q1_report_with_optional_yoy(
             period_code=code_p,
             period_label=lbl_p,
             period_caption=cap_p,
+            include_youth_new_people=include_youth_new_people,
         )
     return build_compare_payload(data_curr, data_prev)
 
@@ -17405,6 +17422,12 @@ def _parse_include_previous_year() -> bool:
 
 def _parse_per_campus_pdf() -> bool:
     v = (request.args.get("per_campus") or "").strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+
+def _parse_exclude_youth_new_people() -> bool:
+    """When true, report new people as FTV + visitors only (omit youth new people)."""
+    v = (request.args.get("exclude_youth_new_people") or "").strip().lower()
     return v in ("1", "true", "yes", "on")
 
 
@@ -17424,9 +17447,20 @@ def report_q1_attendance_csv():
         campuses = request.args.get('campuses', '').strip()
         compare = _parse_include_previous_year()
         period = _parse_report_period()
-        data = _q1_report_with_optional_yoy(year, region, campuses, compare, period=period)
+        excl_youth_np = _parse_exclude_youth_new_people()
+        include_youth_np = not excl_youth_np
+        data = _q1_report_with_optional_yoy(
+            year, region, campuses, compare, period=period, include_youth_new_people=include_youth_np
+        )
         payload = build_q1_csv_bytes(data)
-        fname = _q1_report_filename(year, region, campuses, compare=compare, period=period)
+        fname = _q1_report_filename(
+            year,
+            region,
+            campuses,
+            compare=compare,
+            period=period,
+            exclude_youth_new_people=excl_youth_np,
+        )
         resp = Response(payload, mimetype='text/csv; charset=utf-8')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.csv'
         return resp
@@ -17454,7 +17488,11 @@ def report_q1_attendance_pdf():
         compare = _parse_include_previous_year()
         per_campus = _parse_per_campus_pdf()
         period = _parse_report_period()
-        data = _q1_report_with_optional_yoy(year, region, campuses, compare, period=period)
+        excl_youth_np = _parse_exclude_youth_new_people()
+        include_youth_np = not excl_youth_np
+        data = _q1_report_with_optional_yoy(
+            year, region, campuses, compare, period=period, include_youth_new_people=include_youth_np
+        )
         payload = build_q1_pdf_bytes(data, per_campus_pages=per_campus)
         fname = _q1_report_filename(
             year,
@@ -17463,6 +17501,7 @@ def report_q1_attendance_pdf():
             compare=compare,
             period=period,
             per_campus_pdf=per_campus,
+            exclude_youth_new_people=excl_youth_np,
         )
         resp = Response(payload, mimetype='application/pdf')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.pdf'
