@@ -168,6 +168,31 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Horizontal tab strips: visible thin scrollbar (mouse users can drag it) */
+  .top-nav-tabs-scroll::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .top-nav-tabs-scroll::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.45);
+    border-radius: 3px;
+  }
+
+  .top-nav-tabs-scroll::-webkit-scrollbar-thumb {
+    background: #64748b;
+    border-radius: 3px;
+  }
+
+  .top-nav-tabs-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  .top-nav-tabs-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #64748b rgba(30, 41, 59, 0.45);
+    overscroll-behavior-x: contain;
+  }
   
   /* Mobile touch optimization */
   .touch-manipulation {

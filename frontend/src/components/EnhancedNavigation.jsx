@@ -14,10 +14,6 @@ import {
   UserGroupIcon,
   BuildingOfficeIcon,
   ShieldCheckIcon,
-  SignalIcon,
-  BellIcon,
-  PlayIcon,
-  CalendarIcon,
   TableCellsIcon,
   MegaphoneIcon,
   PresentationChartLineIcon
@@ -126,40 +122,13 @@ const SETTINGS_ITEMS = [
     roles: ['superadmin', 'admin'],
     featureKey: 'campus_management'
   },
-  { 
-    name: 'Beacons', 
-    href: '/beacons', 
-    icon: SignalIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
-    featureKey: 'beacon_management'
-  },
+  /* Hidden until operational: Beacons, TV Manager, Events Manager, Notifications */
   { 
     name: 'Resource Manager', 
     href: '/resources/manage', 
     icon: BookOpenIcon, 
     roles: ['superadmin', 'admin'],
     featureKey: 'resource_manager'
-  },
-  { 
-    name: 'TV Manager', 
-    href: '/tv/manage', 
-    icon: PlayIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
-    featureKey: 'tv_manager'
-  },
-  { 
-    name: 'Events Manager', 
-    href: '/events/manage', 
-    icon: CalendarIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
-    featureKey: 'events_manager'
-  },
-  { 
-    name: 'Notifications', 
-    href: '/notifications', 
-    icon: BellIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
-    featureKey: 'notifications'
   },
   { 
     name: 'Attendance Data', 

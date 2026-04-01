@@ -131,6 +131,56 @@ def _yoy_pct_markup_for_pdf(pct_str: str) -> str:
     return f'<para align="right">{esc}</para>'
 
 
+def _share_of_total_pct_str(numer: Any, denom: Any) -> str:
+    """Share of grand total (one decimal), for single-period PDF/CSV columns."""
+    try:
+        n = float(numer)
+        d = float(denom)
+    except (TypeError, ValueError):
+        return "—"
+    if d <= 0:
+        return "—"
+    return f"{round(100.0 * n / d, 1)}%"
+
+
+def _share_pct_markup_for_pdf(pct_str: str) -> str:
+    """Right-aligned neutral text for share-of-total percentages."""
+    esc = pct_str.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return f'<para align="right">{esc}</para>'
+
+
+def _pdf_share_paragraph_cells(
+    row: Dict[str, Any],
+    totals: Dict[str, Any],
+    *,
+    Paragraph: Any,
+    para_style: Any,
+) -> List[Any]:
+    """Four ReportLab Paragraph cells: % share of ALL CAMPUSES totals for Sun / Wknd / NP / Salv."""
+    ts = float(totals.get("sunday") or 0)
+    tw = float(totals.get("weekend") or 0)
+    tn = float(totals.get("new_people") or 0)
+    tz = float(totals.get("salvations") or 0)
+    return [
+        Paragraph(
+            _share_pct_markup_for_pdf(_share_of_total_pct_str(row["total_sunday"], ts)),
+            para_style,
+        ),
+        Paragraph(
+            _share_pct_markup_for_pdf(_share_of_total_pct_str(row["total_weekend"], tw)),
+            para_style,
+        ),
+        Paragraph(
+            _share_pct_markup_for_pdf(_share_of_total_pct_str(row["total_new_people"], tn)),
+            para_style,
+        ),
+        Paragraph(
+            _share_pct_markup_for_pdf(_share_of_total_pct_str(row["total_salvations"], tz)),
+            para_style,
+        ),
+    ]
+
+
 def _compare_row_yoy_pct_strings(row: Dict[str, Any]) -> Tuple[str, str, str, str]:
     return (
         _yoy_pct_change_str(row["prev_avg_sunday"], row["avg_sunday"]),
@@ -572,6 +622,8 @@ def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
     if data.get("filter_summary"):
         w.writerow(["Report filters", data["filter_summary"]])
         w.writerow([])
+    gt = data["totals"]
+    ts, tw, tn, tz = gt.get("sunday", 0), gt.get("weekend", 0), gt.get("new_people", 0), gt.get("salvations", 0)
     w.writerow(
         [
             "Campus",
@@ -581,6 +633,10 @@ def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
             "Avg weekend (w/ youth)",
             _np_csv_header_period_total(pl, include_youth=inc_y),
             _salv_csv_header_period_total(pl, include_youth=inc_y),
+            "% share Sun total (all campuses)",
+            "% share Wknd total (all campuses)",
+            "% share New people (all campuses)",
+            "% share Salvations (all campuses)",
         ]
     )
     for row in data["campus_rows"]:
@@ -593,6 +649,10 @@ def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
                 row["avg_weekend"],
                 row["total_new_people"],
                 row["total_salvations"],
+                _share_of_total_pct_str(row["total_sunday"], ts),
+                _share_of_total_pct_str(row["total_weekend"], tw),
+                _share_of_total_pct_str(row["total_new_people"], tn),
+                _share_of_total_pct_str(row["total_salvations"], tz),
             ]
         )
     for rrow in data.get("region_aggregate_rows") or []:
@@ -605,6 +665,10 @@ def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
                 rrow["avg_weekend"],
                 rrow["total_new_people"],
                 rrow["total_salvations"],
+                _share_of_total_pct_str(rrow["total_sunday"], ts),
+                _share_of_total_pct_str(rrow["total_weekend"], tw),
+                _share_of_total_pct_str(rrow["total_new_people"], tn),
+                _share_of_total_pct_str(rrow["total_salvations"], tz),
             ]
         )
     w.writerow([])
@@ -617,6 +681,10 @@ def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
             data["totals"]["avg_weekend"],
             data["totals"]["new_people"],
             data["totals"]["salvations"],
+            "100.0%",
+            "100.0%",
+            "100.0%",
+            "100.0%",
         ]
     )
     return buf.getvalue().encode("utf-8-sig")
@@ -979,15 +1047,18 @@ def _pdf_compare_table_single_campus(
 def _pdf_single_year_table_single_campus(
     row: Dict[str, Any],
     *,
+    totals: Dict[str, Any],
     avail_w: float,
     colors,
     hdr_single,
+    yoy_ps: Any,
     fs_pdf: int,
-    Paragraph,
-    Table,
-    TableStyle,
+    Paragraph: Any,
+    Table: Any,
+    TableStyle: Any,
 ):
     """One header row + one campus row (no region subtotals or grand total)."""
+    hdr_sub = "<br/><font size='5'>of total</font>"
     table_data = [
         [
             Paragraph("<para align='center'><b>Campus</b></para>", hdr_single),
@@ -999,6 +1070,22 @@ def _pdf_single_year_table_single_campus(
             Paragraph("<para align='center'><b>Weekend<br/>avg</b></para>", hdr_single),
             Paragraph("<para align='center'><b>New people<br/>total</b></para>", hdr_single),
             Paragraph("<para align='center'><b>Salvations<br/>total</b></para>", hdr_single),
+            Paragraph(
+                f"<para align='center'><b>% share<br/>Sun</b>{hdr_sub}</para>",
+                hdr_single,
+            ),
+            Paragraph(
+                f"<para align='center'><b>% share<br/>Wknd</b>{hdr_sub}</para>",
+                hdr_single,
+            ),
+            Paragraph(
+                f"<para align='center'><b>% share<br/>NP</b>{hdr_sub}</para>",
+                hdr_single,
+            ),
+            Paragraph(
+                f"<para align='center'><b>% share<br/>Salv</b>{hdr_sub}</para>",
+                hdr_single,
+            ),
         ],
         [
             row["campus_name"][:34],
@@ -1010,9 +1097,16 @@ def _pdf_single_year_table_single_campus(
             str(row["avg_weekend"]),
             str(row["total_new_people"]),
             str(row["total_salvations"]),
-        ],
+        ]
+        + _pdf_share_paragraph_cells(
+            row, totals, Paragraph=Paragraph, para_style=yoy_ps
+        ),
     ]
-    col_widths_s = [avail_w * 0.17, avail_w * 0.06] + [avail_w * 0.11] * 7
+    col_widths_s = (
+        [avail_w * 0.12, avail_w * 0.045, avail_w * 0.052]
+        + [avail_w * 0.068] * 6
+        + [avail_w * 0.05] * 4
+    )
     t = Table(table_data, colWidths=col_widths_s, repeatRows=1)
     tbl_cmds = [
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
@@ -1026,6 +1120,9 @@ def _pdf_single_year_table_single_campus(
         ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
         ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
         ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
+        ("BACKGROUND", (3, 1), (3, 1), colors.HexColor("#bfdbfe")),
+        ("BACKGROUND", (4, 1), (4, 1), colors.HexColor("#bbf7d0")),
+        ("BACKGROUND", (7, 1), (12, 1), colors.HexColor("#f5f3ff")),
     ]
     t.setStyle(TableStyle(tbl_cmds))
     return t
@@ -1836,9 +1933,11 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 story.append(Spacer(1, 10))
                 t_one = _pdf_single_year_table_single_campus(
                     row,
+                    totals=data["totals"],
                     avail_w=avail_w,
                     colors=colors,
                     hdr_single=hdr_single,
+                    yoy_ps=yoy_ps,
                     fs_pdf=8,
                     Paragraph=Paragraph,
                     Table=Table,
@@ -1853,7 +1952,17 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
             line_buf = _chart_line_weekly(data)
             story.append(Image(line_buf, width=avail_w, height=2.45 * inch))
             story.append(Spacer(1, 10))
+            story.append(
+                Paragraph(
+                    f"<b>Data table</b> &mdash; {pl} {data['year']} "
+                    f"<font color='#64748b'>(% share = share of ALL CAMPUSES totals; same filters as charts)</font>",
+                    meta_ps,
+                )
+            )
+            story.append(Spacer(1, 8))
 
+            gt_s = data["totals"]
+            hdr_sub = "<br/><font size='5'>of total</font>"
             table_data = [
                 [
                     Paragraph("<para align='center'><b>Campus</b></para>", hdr_single),
@@ -1865,6 +1974,22 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                     Paragraph("<para align='center'><b>Weekend<br/>avg</b></para>", hdr_single),
                     Paragraph("<para align='center'><b>New people<br/>total</b></para>", hdr_single),
                     Paragraph("<para align='center'><b>Salvations<br/>total</b></para>", hdr_single),
+                    Paragraph(
+                        f"<para align='center'><b>% share<br/>Sun</b>{hdr_sub}</para>",
+                        hdr_single,
+                    ),
+                    Paragraph(
+                        f"<para align='center'><b>% share<br/>Wknd</b>{hdr_sub}</para>",
+                        hdr_single,
+                    ),
+                    Paragraph(
+                        f"<para align='center'><b>% share<br/>NP</b>{hdr_sub}</para>",
+                        hdr_single,
+                    ),
+                    Paragraph(
+                        f"<para align='center'><b>% share<br/>Salv</b>{hdr_sub}</para>",
+                        hdr_single,
+                    ),
                 ]
             ]
             region_row_idx_single: List[int] = []
@@ -1881,6 +2006,9 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                         str(row["total_new_people"]),
                         str(row["total_salvations"]),
                     ]
+                    + _pdf_share_paragraph_cells(
+                        row, gt_s, Paragraph=Paragraph, para_style=yoy_ps
+                    )
                 )
             base_s = len(table_data)
             for j, rrow in enumerate(data.get("region_aggregate_rows") or []):
@@ -1897,6 +2025,9 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                         str(rrow["total_new_people"]),
                         str(rrow["total_salvations"]),
                     ]
+                    + _pdf_share_paragraph_cells(
+                        rrow, gt_s, Paragraph=Paragraph, para_style=yoy_ps
+                    )
                 )
             table_data.append(
                 [
@@ -1909,12 +2040,25 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                     "",
                     str(data["totals"]["new_people"]),
                     str(data["totals"]["salvations"]),
+                    "100.0%",
+                    "100.0%",
+                    "100.0%",
+                    "100.0%",
                 ]
             )
 
-            col_widths_s = [avail_w * 0.17, avail_w * 0.06] + [avail_w * 0.11] * 7
+            col_widths_s = (
+                [avail_w * 0.12, avail_w * 0.045, avail_w * 0.052]
+                + [avail_w * 0.068] * 6
+                + [avail_w * 0.05] * 4
+            )
             t = Table(table_data, colWidths=col_widths_s, repeatRows=1)
             fs_pdf = 8
+            band_sun = colors.HexColor("#bfdbfe")
+            band_wknd = colors.HexColor("#bbf7d0")
+            band_np_sv = colors.HexColor("#f5f3ff")
+            footer_ri_s = len(table_data) - 1
+            region_set_s = set(region_row_idx_single)
             tbl_cmds = [
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -1926,12 +2070,17 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 ("FONTNAME", (0, 1), (-1, -2), "Helvetica"),
                 ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
                 ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#cbd5e1")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f8fafc")]),
                 ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor("#0f172a")),
                 ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#0f172a")),
                 ("TEXTCOLOR", (0, -1), (-1, -1), colors.white),
                 ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
             ]
+            for r in range(1, footer_ri_s):
+                if r in region_set_s:
+                    continue
+                tbl_cmds.append(("BACKGROUND", (3, r), (3, r), band_sun))
+                tbl_cmds.append(("BACKGROUND", (4, r), (4, r), band_wknd))
+                tbl_cmds.append(("BACKGROUND", (7, r), (12, r), band_np_sv))
             for ri in region_row_idx_single:
                 tbl_cmds.append(("BACKGROUND", (0, ri), (-1, ri), colors.HexColor("#fef3c7")))
                 tbl_cmds.append(("TEXTCOLOR", (0, ri), (-1, ri), colors.HexColor("#422006")))
