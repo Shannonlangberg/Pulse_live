@@ -215,30 +215,32 @@ def record_sunday_and_weekend_totals(record) -> Tuple[int, int]:
     return sunday, weekend
 
 
-def record_new_people_total(record, *, include_youth_new_people: bool = True) -> int:
+def record_new_people_total(record, *, include_youth_metrics: bool = True) -> int:
     """
-    New people total from ``attendance_records`` only (no Google Sheets).
+    New people total from ``attendance_records`` only.
 
-    Default: first-time visitors + visitors + youth new people (dashboard mix).
-    When ``include_youth_new_people=False``: first-time visitors + visitors only.
+    Default: first-time visitors + visitors + youth new people.
+    When ``include_youth_metrics=False``: first-time visitors + visitors only.
     """
     ftv = record.first_time_visitors or 0
     vis = record.visitors or 0
     yn = record.youth_new_people or 0
-    if include_youth_new_people:
+    if include_youth_metrics:
         return ftv + vis + yn
     return ftv + vis
 
 
-def record_salvations_total(record) -> int:
+def record_salvations_total(record, *, include_youth_metrics: bool = True) -> int:
     """
-    FTC + rededications + youth + kids salvations from the DB.
-    When that sum is zero, use ``salvation_cards_returned`` on the record only.
+    From the DB: FTC + rededications + kids salvations; youth salvations included when
+    ``include_youth_metrics`` is True.
+    When the detailed sum is zero, use ``salvation_cards_returned`` (undifferentiated).
     """
+    ys = (record.youth_salvations or 0) if include_youth_metrics else 0
     base = (
         (record.first_time_christians or 0)
         + (record.rededications or 0)
-        + (record.youth_salvations or 0)
+        + ys
         + (record.new_kids_salvations or 0)
     )
     if base > 0:
@@ -354,7 +356,7 @@ def build_q1_data(
     period_code: str = "q1",
     period_label: str = "Q1",
     period_caption: str = "Jan–Mar",
-    include_youth_new_people: bool = True,
+    include_youth_metrics: bool = True,
 ) -> Dict[str, Any]:
     """Aggregate by campus and by global week within ``start``..``end`` (inclusive)."""
     if start is None:
@@ -387,9 +389,12 @@ def build_q1_data(
         by_campus[cid]["total_weekend"] += wknd
         by_campus[cid]["total_new_people"] += record_new_people_total(
             r,
-            include_youth_new_people=include_youth_new_people,
+            include_youth_metrics=include_youth_metrics,
         )
-        by_campus[cid]["total_salvations"] += record_salvations_total(r)
+        by_campus[cid]["total_salvations"] += record_salvations_total(
+            r,
+            include_youth_metrics=include_youth_metrics,
+        )
         wkey = _week_key_chart(d)
         weekly[wkey]["sunday"] += sun
         weekly[wkey]["weekend"] += wknd
@@ -438,7 +443,7 @@ def build_q1_data(
         "period_code": period_code,
         "period_label": period_label,
         "period_caption": period_caption,
-        "include_youth_new_people": include_youth_new_people,
+        "include_youth_metrics": include_youth_metrics,
         "filter_summary": (filter_summary or "").strip(),
         "campus_rows": campus_rows,
         "region_aggregate_rows": region_aggregate_rows,
@@ -522,7 +527,7 @@ def build_compare_payload(data_curr: Dict[str, Any], data_prev: Dict[str, Any]) 
         "period_label": pl,
         "period_caption_curr": data_curr.get("period_caption", "Jan–Mar"),
         "period_caption_prev": data_prev.get("period_caption", "Jan–Mar"),
-        "include_youth_new_people": data_curr.get("include_youth_new_people", True),
+        "include_youth_metrics": data_curr.get("include_youth_metrics", True),
         "filter_summary": fs,
         "campus_rows": merged,
         "region_aggregate_rows": region_aggregate_rows,
@@ -547,11 +552,17 @@ def _np_csv_header_period_total(pl: str, *, include_youth: bool) -> str:
     return f"New people excl. youth ({pl} total)"
 
 
+def _salv_csv_header_period_total(pl: str, *, include_youth: bool) -> str:
+    if include_youth:
+        return f"Salvations ({pl} total)"
+    return f"Salvations excl. youth ({pl} total)"
+
+
 def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
     buf = io.StringIO()
     w = csv.writer(buf)
     pl = data.get("period_label") or "Q1"
-    inc_y = data.get("include_youth_new_people", True)
+    inc_y = data.get("include_youth_metrics", data.get("include_youth_new_people", True))
     if data.get("filter_summary"):
         w.writerow(["Report filters", data["filter_summary"]])
         w.writerow([])
@@ -563,7 +574,7 @@ def _build_q1_csv_single_bytes(data: Dict[str, Any]) -> bytes:
             "Avg Sunday (no youth)",
             "Avg weekend (w/ youth)",
             _np_csv_header_period_total(pl, include_youth=inc_y),
-            f"Salvations ({pl} total)",
+            _salv_csv_header_period_total(pl, include_youth=inc_y),
         ]
     )
     for row in data["campus_rows"]:
@@ -610,10 +621,13 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
     yp = data["prev_year"]
     buf = io.StringIO()
     w = csv.writer(buf)
-    inc_y = data.get("include_youth_new_people", True)
+    inc_y = data.get("include_youth_metrics", data.get("include_youth_new_people", True))
     np_yp = f"New people {yp}" + ("" if inc_y else " (excl. youth)")
     np_yc = f"New people {yc}" + ("" if inc_y else " (excl. youth)")
+    sv_yp = f"Salvations {yp}" + ("" if inc_y else " (excl. youth)")
+    sv_yc = f"Salvations {yc}" + ("" if inc_y else " (excl. youth)")
     d_np = "% Δ New people" + ("" if inc_y else " (excl. youth)")
+    d_sv = "% Δ Salvations" + ("" if inc_y else " (excl. youth)")
     if data.get("filter_summary"):
         w.writerow(["Report filters", data["filter_summary"]])
         w.writerow([])
@@ -624,15 +638,15 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
             f"Avg Sun {yp}",
             f"Avg Wknd {yp}",
             np_yp,
-            f"Salvations {yp}",
+            sv_yp,
             f"Avg Sun {yc}",
             f"Avg Wknd {yc}",
             np_yc,
-            f"Salvations {yc}",
+            sv_yc,
             "% Δ Sun",
             "% Δ Wknd",
             d_np,
-            "% Δ Salvations",
+            d_sv,
         ]
     )
     for row in data["campus_rows"]:
@@ -851,6 +865,8 @@ def _pdf_compare_table_single_campus(
     hdr_white,
     yoy_ps,
     _hdr_compare_sub,
+    np_sub: str,
+    sv_sub: str,
     avail_w: float,
     colors,
     inch,
@@ -860,7 +876,6 @@ def _pdf_compare_table_single_campus(
     TableStyle,
 ):
     """Two header rows + one campus row; YoY % columns; year column shading (no grand-total row)."""
-    tot_lbl = f"{pl} total"
     hdr_row0: List[Any] = [
         Paragraph("<para align='center'><b>Campus</b></para>", hdr_white),
         Paragraph("<para align='center'><b>Region</b></para>", hdr_white),
@@ -891,12 +906,12 @@ def _pdf_compare_table_single_campus(
         "",
         _hdr_compare_sub("Sunday", "avg / service row"),
         _hdr_compare_sub("Weekend", "avg / service row"),
-        _hdr_compare_sub("New people", tot_lbl),
-        _hdr_compare_sub("Salvations", tot_lbl),
+        _hdr_compare_sub("New people", np_sub),
+        _hdr_compare_sub("Salvations", sv_sub),
         _hdr_compare_sub("Sunday", "avg / service row"),
         _hdr_compare_sub("Weekend", "avg / service row"),
-        _hdr_compare_sub("New people", tot_lbl),
-        _hdr_compare_sub("Salvations", tot_lbl),
+        _hdr_compare_sub("New people", np_sub),
+        _hdr_compare_sub("Salvations", sv_sub),
         _hdr_compare_sub("Sunday", "% change"),
         _hdr_compare_sub("Weekend", "% change"),
         _hdr_compare_sub("New people", "% change"),
@@ -1160,7 +1175,6 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
     buffer = io.BytesIO()
     page = landscape(A4)
     compare = bool(data.get("compare"))
-    inc_youth_np = data.get("include_youth_new_people", True)
     doc = SimpleDocTemplate(
         buffer,
         pagesize=page,
@@ -1233,6 +1247,10 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
     story: List[Any] = []
 
     pl = data.get("period_label") or "Q1"
+    inc_youth = data.get("include_youth_metrics", data.get("include_youth_new_people", True))
+    tot_base = f"{pl} total"
+    cmp_np_sub = tot_base if inc_youth else f"{tot_base} · excl. youth NP"
+    cmp_sv_sub = tot_base if inc_youth else f"{tot_base} · excl. youth salv"
 
     def _esc_xml(s: str) -> str:
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -1391,10 +1409,14 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
         if not compare:
             np_cov = (
                 "New people = first-time visitors + visitors + youth new people (dashboard mix)."
-                if inc_youth_np
+                if inc_youth
                 else "New people = first-time visitors + visitors only (youth new people excluded)."
             )
-            dash_tail = " Salvations from <b>attendance_records</b> (dashboard field mix)."
+            dash_tail = (
+                " Salvations from <b>attendance_records</b> (incl. youth salvations)."
+                if inc_youth
+                else " Salvations from <b>attendance_records</b> (excl. youth salvations)."
+            )
             scope_rows.append(
                 [
                     Paragraph(
@@ -1406,9 +1428,9 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
             )
         else:
             np_cov_c = (
-                " New people include youth new people (dashboard mix)."
-                if inc_youth_np
-                else " New people exclude youth new people (visitors + first-time visitors only)."
+                " New people and salvations include youth (dashboard mix)."
+                if inc_youth
+                else " New people and salvations exclude youth (NP = FTV + visitors; salvations excl. youth salvations)."
             )
             scope_rows.append(
                 [
@@ -1461,7 +1483,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
             safe = fs.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             story.append(Paragraph(f"<b>Filters:</b> {safe}", meta_ps))
         if not compare:
-            if inc_youth_np:
+            if inc_youth:
                 np_clause = (
                     "<b>New people</b> = first-time visitors + visitors + youth new people "
                     "(from <b>attendance_records</b> only). "
@@ -1470,13 +1492,19 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 np_clause = (
                     "<b>New people</b> = first-time visitors + visitors only (youth new people excluded). "
                 )
+            salv_clause = (
+                "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
+                "when that sum is zero, <i>Salvation cards returned</i> on the record is used. "
+                if inc_youth
+                else "<b>Salvations</b> = first-time Christians + rededications + kids salvations (youth salvations excluded); "
+                "when that sum is zero, <i>Salvation cards returned</i> on the record is used. "
+            )
             metrics_common = (
                 "<b>Metrics:</b> "
                 "<b>Sunday</b> = adults + saints + kids. "
                 "<b>Weekend</b> = Sunday + youth + youth leaders. "
                 + np_clause
-                + "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
-                "when that sum is zero, <i>Salvation cards returned</i> on the record is used. "
+                + salv_clause
             )
             metrics_single = (
                 "<b>Region total</b> = sum of campuses in that region code. "
@@ -1485,21 +1513,26 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
             story.append(Paragraph(metrics_common + metrics_single, meta_ps))
             story.append(Spacer(1, 4))
         else:
-            if inc_youth_np:
+            if inc_youth:
                 np_cmp = (
                     "<b>New people</b> = first-time visitors + visitors + youth new people "
                     "(<b>attendance_records</b> only). "
+                )
+                salv_cmp = (
+                    "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
+                    "when zero, <i>Salvation cards returned</i> on the record. "
                 )
             else:
                 np_cmp = (
                     "<b>New people</b> = first-time visitors + visitors only (youth new people excluded). "
                 )
+                salv_cmp = (
+                    "<b>Salvations</b> = first-time Christians + rededications + kids salvations "
+                    "(youth salvations excluded); when zero, <i>Salvation cards returned</i> on the record. "
+                )
             story.append(
                 Paragraph(
-                    "<b>Metrics:</b> "
-                    + np_cmp
-                    + "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
-                    "when zero, <i>Salvation cards returned</i> on the record (same as single-year report).",
+                    "<b>Metrics:</b> " + np_cmp + salv_cmp,
                     meta_ps,
                 )
             )
@@ -1546,6 +1579,8 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                     hdr_white=hdr_white,
                     yoy_ps=yoy_ps,
                     _hdr_compare_sub=_hdr_compare_sub,
+                    np_sub=cmp_np_sub,
+                    sv_sub=cmp_sv_sub,
                     avail_w=avail_w,
                     colors=colors,
                     inch=inch,
@@ -1602,18 +1637,17 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 "",
                 "",
             ]
-            tot_lbl = f"{pl} total"
             hdr_row1: List[Any] = [
                 "",
                 "",
                 _hdr_compare_sub("Sunday", "avg / service row"),
                 _hdr_compare_sub("Weekend", "avg / service row"),
-                _hdr_compare_sub("New people", tot_lbl),
-                _hdr_compare_sub("Salvations", tot_lbl),
+                _hdr_compare_sub("New people", cmp_np_sub),
+                _hdr_compare_sub("Salvations", cmp_sv_sub),
                 _hdr_compare_sub("Sunday", "avg / service row"),
                 _hdr_compare_sub("Weekend", "avg / service row"),
-                _hdr_compare_sub("New people", tot_lbl),
-                _hdr_compare_sub("Salvations", tot_lbl),
+                _hdr_compare_sub("New people", cmp_np_sub),
+                _hdr_compare_sub("Salvations", cmp_sv_sub),
                 _hdr_compare_sub("Sunday", "% change"),
                 _hdr_compare_sub("Weekend", "% change"),
                 _hdr_compare_sub("New people", "% change"),

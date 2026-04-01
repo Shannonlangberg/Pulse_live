@@ -36,7 +36,7 @@ const Reports = () => {
   const [loadError, setLoadError] = useState('');
   const [period, setPeriod] = useState('q1');
   const [includePreviousYear, setIncludePreviousYear] = useState(false);
-  const [excludeYouthNewPeople, setExcludeYouthNewPeople] = useState(false);
+  const [excludeYouthMetrics, setExcludeYouthMetrics] = useState(false);
   const [pdfOnePagePerCampus, setPdfOnePagePerCampus] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loadingCsv, setLoadingCsv] = useState(false);
@@ -122,11 +122,11 @@ const Reports = () => {
     if (includePreviousYear) {
       params.set('include_previous_year', 'true');
     }
-    if (excludeYouthNewPeople) {
-      params.set('exclude_youth_new_people', 'true');
+    if (excludeYouthMetrics) {
+      params.set('exclude_youth_metrics', 'true');
     }
     return params.toString();
-  }, [year, period, regionCode, selectedCampusSlugs, includePreviousYear, excludeYouthNewPeople]);
+  }, [year, period, regionCode, selectedCampusSlugs, includePreviousYear, excludeYouthMetrics]);
 
   const pdfQueryString = useMemo(() => {
     const params = new URLSearchParams(queryString);
@@ -159,8 +159,8 @@ const Reports = () => {
       const pl = period === 'ytd' ? 'YTD' : period.toUpperCase();
       parts.push(`YoY: ${pl} ${year - 1} vs ${pl} ${year}`);
     }
-    if (excludeYouthNewPeople) {
-      parts.push('New people: excl. youth (FTV + visitors only)');
+    if (excludeYouthMetrics) {
+      parts.push('NP & salvations: excl. youth (FTV + visitors; no youth salvations)');
     }
     return parts.join(' · ');
   }, [
@@ -171,7 +171,7 @@ const Reports = () => {
     selectedCampusSlugs,
     regions,
     includePreviousYear,
-    excludeYouthNewPeople,
+    excludeYouthMetrics,
   ]);
 
   const downloadFile = async (url, defaultName, setLoading) => {
@@ -238,8 +238,8 @@ const Reports = () => {
             campuses. Sunday = adults + saints + kids; weekend = Sunday + youth + youth leaders. PDF/CSV
             include period totals for new people and salvations (same field mix as the dashboard, from the database),
             plus region
-            subtotals before the all-campuses total. Optionally exclude <strong className="text-slate-300">youth new
-            people</strong> so &quot;new people&quot; is first-time visitors + visitors only.
+            subtotals before the all-campuses total.             Optionally exclude <strong className="text-slate-300">youth</strong> from new people and
+            salvations (new people = first-time visitors + visitors; salvations exclude youth salvations).
           </p>
 
           {loadError && (
@@ -343,17 +343,18 @@ const Reports = () => {
           <label className="flex items-start gap-3 mb-6 cursor-pointer group">
             <input
               type="checkbox"
-              checked={excludeYouthNewPeople}
-              onChange={(e) => setExcludeYouthNewPeople(e.target.checked)}
+              checked={excludeYouthMetrics}
+              onChange={(e) => setExcludeYouthMetrics(e.target.checked)}
               className="mt-1 rounded border-slate-500 text-violet-600 focus:ring-violet-500"
             />
             <span>
               <span className="text-white font-medium group-hover:text-violet-200 transition-colors">
-                New people: exclude youth new people
+                Exclude youth (new people &amp; salvations)
               </span>
               <span className="block text-slate-500 text-sm mt-0.5">
-                Default counts include youth new people (first-time visitors + visitors + youth new people from the
-                database). When checked, totals use first-time visitors + visitors only.
+                Default: new people include youth new people; salvations include youth salvations (all from the Pulse
+                database). When checked: new people = first-time visitors + visitors only; salvations exclude youth
+                salvations. Same PDF/CSV layout and year-over-year % columns either way.
               </span>
             </span>
           </label>
