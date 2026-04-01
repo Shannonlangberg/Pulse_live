@@ -233,7 +233,12 @@ const EnhancedNavigation = ({
 
   // Filter items based on role and permissions
   const getFilteredItems = (items) => {
+    const isAdminRole = userRole === 'superadmin' || userRole === 'admin';
     return items.filter(item => {
+      // Admins always see data-export settings items (Reports, Attendance Data)
+      if (item.featureKey === 'data_export' && isAdminRole) {
+        return item.roles.includes(userRole);
+      }
       // Check custom permissions first (overrides role defaults)
       if (item.featureKey && customPermissions.hasOwnProperty(item.featureKey)) {
         return customPermissions[item.featureKey] === true;

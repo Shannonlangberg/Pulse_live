@@ -2164,7 +2164,10 @@ class User(UserMixin):
                 return False
         
         if permission_type == 'data_export':
-            # If user has 'data_export: true/false' in custom_permissions (Role Manager), use it
+            # Superadmin/admin always retain data export (quarterly reports, attendance exports);
+            # custom_permissions.data_export only applies to other roles.
+            if self.role in ('superadmin', 'admin'):
+                return True
             if custom_perms.get('data_export') is True:
                 return True
             if custom_perms.get('data_export') is False:
