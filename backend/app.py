@@ -12580,6 +12580,120 @@ def get_campuses():
         "default": default_campus
     })
 
+
+def _campus_picklist_for_report_scoping():
+    """
+    Real campus rows the current user may use on dashboards — same rules as GET /api/campuses,
+    excluding the virtual ``all_campuses`` row. Used to scope quarterly attendance reports for
+    users without ``data_export`` (e.g. campus pastors).
+    """
+    active_campuses = get_active_campuses()
+    custom_permissions = getattr(current_user, 'custom_permissions', {}) or {}
+    allowed_campuses = custom_permissions.get('allowed_campuses')
+
+    if allowed_campuses is not None:
+        allowed_real = [x for x in allowed_campuses if str(x).lower() != 'all_campuses']
+        if not allowed_real:
+            allowed_campuses = None
+        else:
+            allowed_campuses = allowed_real
+    if allowed_campuses is not None:
+        allowed_set = {str(x) for x in allowed_campuses}
+        filtered_campuses = [
+            c for c in active_campuses
+            if c['id'] != 'all_campuses' and str(c['id']) in allowed_set
+        ]
+    else:
+        if current_user.role in ('admin', 'senior_leader'):
+            filtered_campuses = [c for c in active_campuses if c['id'] != 'all_campuses']
+        elif current_user.role == 'campus_pastor':
+            filtered_campuses = [c for c in active_campuses if c['id'] == current_user.campus]
+        elif current_user.role == 'finance':
+            user_region_id = getattr(current_user, 'region_id', None)
+            if user_region_id and current_user.role != 'superadmin':
+                filtered_campuses = [
+                    c for c in active_campuses
+                    if c.get('region_id') == user_region_id and c['id'] != 'all_campuses'
+                ]
+            else:
+                filtered_campuses = [c for c in active_campuses if c['id'] != 'all_campuses']
+        elif current_user.role == 'pastor':
+            filtered_campuses = [c for c in active_campuses if c['id'] != 'all_campuses']
+        else:
+            filtered_campuses = [c for c in active_campuses if c['id'] != 'all_campuses']
+    return filtered_campuses
+
+
+def _resolve_requested_campus_to_pick_id(raw: str, pick: list) -> str | None:
+    def _norm_local(x: str) -> str:
+        s = (x or "").strip().lower().replace(" ", "_").replace("-", "_")
+        if s.endswith("_campus"):
+            s = s[:-7]
+        return s
+
+    r = _norm_local(raw)
+    for c in pick:
+        cid = c.get('id')
+        if not cid:
+            continue
+        if str(cid).strip() == str(raw).strip():
+            return cid
+        if _norm_local(str(cid)) == r:
+            return cid
+    return None
+
+
+def _scope_quarterly_report_params_for_current_user(region: str, campuses_csv: str) -> tuple[str, str]:
+    """
+    Users with ``data_export`` may use any region/campus filters.
+
+    Other users with ``dashboard_access`` may only run reports for campuses they are allowed to see
+    on /api/campuses (assigned campus, allowed_campuses, or role-based list). Unknown campuses or
+    cross-region tricks are rejected.
+    """
+    if current_user.has_permission('data_export'):
+        return ((region or '').strip(), (campuses_csv or '').strip())
+    if not current_user.has_permission('dashboard_access'):
+        raise ValueError('You do not have access to attendance reports.')
+    pick = _campus_picklist_for_report_scoping()
+    if not pick:
+        raise ValueError('No campuses are assigned to your account for this report.')
+
+    parts = [s.strip() for s in (campuses_csv or '').split(',') if s.strip()]
+    reg = (region or '').strip().upper()
+
+    if parts:
+        out_ids = []
+        for p in parts:
+            cid = _resolve_requested_campus_to_pick_id(p, pick)
+            if not cid:
+                raise ValueError(f'Campus is not available for your account: {p}')
+            out_ids.append(cid)
+        seen = set()
+        uniq = []
+        for x in out_ids:
+            if x not in seen:
+                seen.add(x)
+                uniq.append(x)
+        if reg:
+            for c in pick:
+                if c['id'] in uniq:
+                    rc = (c.get('region_code') or '').upper()
+                    if rc and rc != reg:
+                        raise ValueError('Selected campuses do not match the chosen region filter.')
+        return ((region or '').strip(), ','.join(uniq))
+
+    if reg:
+        subset = [c for c in pick if (c.get('region_code') or '').upper() == reg]
+        if not subset:
+            raise ValueError('You have no assigned campuses in that region.')
+        return (reg, ','.join(dict.fromkeys(c['id'] for c in subset)))
+
+    if len(pick) == 1:
+        return ('', pick[0]['id'])
+    return ('', ','.join(dict.fromkeys(c['id'] for c in pick)))
+
+
 @app.route('/api/campuses/public')
 def get_campuses_public():
     """Public endpoint for campuses - no authentication required"""
@@ -17275,10 +17389,15 @@ def report_q1_attendance_csv():
     """
     Quarterly (Q1–Q4) and YTD attendance by campus — CSV from ``attendance_records`` only.
     Use ``?period=q1|q2|q3|q4|ytd`` (default q1). Same columns and rules for every period.
-    Requires data_export permission.
+
+    ``data_export`` users may query any region/campuses. Other users need ``dashboard_access``;
+    campus filters are restricted to campuses they are allowed to see (same rules as /api/campuses).
     """
-    if not current_user.has_permission('data_export'):
-        return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
+    if not (
+        current_user.has_permission('data_export')
+        or current_user.has_permission('dashboard_access')
+    ):
+        return jsonify({"error": "Access denied"}), 403
     try:
         from q1_attendance_report import build_q1_csv_bytes
 
@@ -17287,6 +17406,10 @@ def report_q1_attendance_csv():
             return jsonify({"error": "Invalid year"}), 400
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
+        try:
+            region, campuses = _scope_quarterly_report_params_for_current_user(region, campuses)
+        except ValueError as scope_err:
+            return jsonify({"error": str(scope_err)}), 403
         compare = _parse_include_previous_year()
         period = _parse_report_period()
         excl_youth = _parse_exclude_youth_metrics()
@@ -17320,10 +17443,14 @@ def report_q1_attendance_pdf():
     """
     Quarterly (Q1–Q4) and YTD attendance — PDF (charts + tables) from ``attendance_records`` only.
     Use ``?period=q1|q2|q3|q4|ytd`` (default q1). Same template, YoY %, and options for every period.
-    Requires data_export permission.
+
+    Access and campus scoping match the CSV and JSON report endpoints.
     """
-    if not current_user.has_permission('data_export'):
-        return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
+    if not (
+        current_user.has_permission('data_export')
+        or current_user.has_permission('dashboard_access')
+    ):
+        return jsonify({"error": "Access denied"}), 403
     try:
         from q1_attendance_report import build_q1_pdf_bytes
 
@@ -17332,6 +17459,10 @@ def report_q1_attendance_pdf():
             return jsonify({"error": "Invalid year"}), 400
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
+        try:
+            region, campuses = _scope_quarterly_report_params_for_current_user(region, campuses)
+        except ValueError as scope_err:
+            return jsonify({"error": str(scope_err)}), 403
         compare = _parse_include_previous_year()
         per_campus = _parse_per_campus_pdf()
         period = _parse_report_period()
@@ -17366,10 +17497,14 @@ def report_q1_attendance_pdf():
 def report_q1_attendance_json():
     """
     Same filters as PDF/CSV — JSON for the in-app attendance report dashboard preview.
-    Requires data_export permission.
+
+    ``data_export`` or scoped ``dashboard_access`` (see CSV route docstring).
     """
-    if not current_user.has_permission('data_export'):
-        return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
+    if not (
+        current_user.has_permission('data_export')
+        or current_user.has_permission('dashboard_access')
+    ):
+        return jsonify({"error": "Access denied"}), 403
     try:
         from q1_attendance_report import report_json_api_response
 
@@ -17378,6 +17513,10 @@ def report_q1_attendance_json():
             return jsonify({"error": "Invalid year"}), 400
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
+        try:
+            region, campuses = _scope_quarterly_report_params_for_current_user(region, campuses)
+        except ValueError as scope_err:
+            return jsonify({"error": str(scope_err)}), 403
         compare = _parse_include_previous_year()
         per_campus = _parse_per_campus_pdf()
         period = _parse_report_period()

@@ -99,31 +99,79 @@ function pctChange(prev, curr) {
   return Number.isFinite(out) ? out : null;
 }
 
-function DeltaLine({ prev, curr, compareYear, periodLabel }) {
+/** Absolute change (curr − prev) for display next to %. */
+function formatAbsDelta(prev, curr, deltaKind) {
+  const p = Number(prev);
+  const c = Number(curr);
+  if (!Number.isFinite(p) || !Number.isFinite(c)) return null;
+  const d = c - p;
+  if (deltaKind === 'count') {
+    const n = Math.round(d);
+    const sign = n >= 0 ? '+' : '';
+    return `${sign}${n.toLocaleString()}`;
+  }
+  const rounded = Math.round(d * 10) / 10;
+  const body = Math.abs(rounded).toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  });
+  if (rounded === 0) return '+0';
+  return rounded > 0 ? `+${body}` : `-${body}`;
+}
+
+function DeltaLine({ prev, curr, compareYear, periodLabel, deltaKind = 'avg' }) {
+  const p = Number(prev);
+  const c = Number(curr);
+  const absStr =
+    compareYear && Number.isFinite(p) && Number.isFinite(c)
+      ? formatAbsDelta(p, c, deltaKind)
+      : null;
+
   const pct = pctChange(prev, curr);
-  if (pct == null || Number.isNaN(pct)) {
+  if (pct != null && !Number.isNaN(pct)) {
+    const up = pct >= 0;
     return (
-      <p className="text-sm mt-1" style={{ color: COLORS.muted }}>
-        {compareYear
-          ? `No comparable prior-year average (missing data or zero baseline)`
-          : `Turn on “Include previous year” for YoY change`}
+      <p
+        className="text-sm font-medium mt-1 flex flex-wrap items-baseline gap-x-1 gap-y-0"
+        style={{ color: up ? COLORS.green : COLORS.red }}
+      >
+        <span>
+          <span>{up ? '↑' : '↓'}</span>
+          {up ? '+' : ''}
+          {pct.toFixed(1)}%
+        </span>
+        {absStr != null && (
+          <span className="font-semibold tabular-nums" title="Change vs prior period (same metric)">
+            ({absStr})
+          </span>
+        )}
+        <span className="font-medium">
+          vs {periodLabel} {compareYear}
+        </span>
       </p>
     );
   }
-  const up = pct >= 0;
+
+  if (compareYear && absStr != null && p === 0 && c !== 0) {
+    return (
+      <p className="text-sm font-medium mt-1" style={{ color: COLORS.green }}>
+        <span className="tabular-nums">(+{Number(c).toLocaleString()})</span>
+        <span className="text-slate-500 font-normal"> vs 0 prior · </span>
+        {periodLabel} {compareYear}
+      </p>
+    );
+  }
+
   return (
-    <p
-      className="text-sm font-medium mt-1 flex items-center gap-1"
-      style={{ color: up ? COLORS.green : COLORS.red }}
-    >
-      <span>{up ? '↑' : '↓'}</span>
-      {up ? '+' : ''}
-      {pct.toFixed(1)}% vs {periodLabel} {compareYear}
+    <p className="text-sm mt-1" style={{ color: COLORS.muted }}>
+      {compareYear
+        ? `No comparable prior-year value (missing data or zero baseline)`
+        : `Turn on “Include previous year” for YoY change`}
     </p>
   );
 }
 
-function KpiCard({ icon: Icon, label, value, prev, curr, compareYear, periodLabel }) {
+function KpiCard({ icon: Icon, label, value, prev, curr, compareYear, periodLabel, deltaKind = 'avg' }) {
   return (
     <div
       className="rounded-xl p-5 shadow-sm border border-slate-100/80"
@@ -143,7 +191,13 @@ function KpiCard({ icon: Icon, label, value, prev, curr, compareYear, periodLabe
           <p className="text-2xl font-bold mt-0.5 tabular-nums" style={{ color: COLORS.text }}>
             {value}
           </p>
-          <DeltaLine prev={prev} curr={curr} compareYear={compareYear} periodLabel={periodLabel} />
+          <DeltaLine
+            prev={prev}
+            curr={curr}
+            compareYear={compareYear}
+            periodLabel={periodLabel}
+            deltaKind={deltaKind}
+          />
         </div>
       </div>
     </div>
@@ -178,13 +232,18 @@ function buildInsights(data) {
     if (wp > 0) {
       const p = pctChange(wp, wt);
       if (p != null && !Number.isNaN(p)) {
+        const absW = formatAbsDelta(wp, wt, 'avg');
         if (p > 3) {
           bullets.push(
-            `**Weekend average** (per service) is up **${p.toFixed(1)}%** vs ${data.prev_year}.`
+            `**Weekend average** (per service) is up **${p.toFixed(1)}%${
+              absW ? ` (${absW})` : ''
+            }** vs ${data.prev_year}.`
           );
         } else if (p < -3) {
           bullets.push(
-            `**Weekend average** (per service) is down **${Math.abs(p).toFixed(1)}%** vs ${data.prev_year}.`
+            `**Weekend average** (per service) is down **${Math.abs(p).toFixed(1)}%${
+              absW ? ` (${absW})` : ''
+            }** vs ${data.prev_year}.`
           );
         }
       }
@@ -194,8 +253,11 @@ function buildInsights(data) {
     if (np > 0) {
       const pn = pctChange(np, nt);
       if (pn != null && Math.abs(pn) > 5) {
+        const absN = formatAbsDelta(np, nt, 'count');
         bullets.push(
-          `**New people** moved **${pn >= 0 ? '+' : ''}${pn.toFixed(0)}%** year-over-year.`
+          `**New people** moved **${pn >= 0 ? '+' : ''}${pn.toFixed(0)}%${
+            absN ? ` (${absN})` : ''
+          }** year-over-year.`
         );
       }
     }
@@ -574,6 +636,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
           curr={kpi?.avg_sunday}
           compareYear={compareYear}
           periodLabel={plShort}
+          deltaKind="avg"
         />
         <KpiCard
           icon={UserGroupIcon}
@@ -583,6 +646,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
           curr={kpi?.avg_weekend}
           compareYear={compareYear}
           periodLabel={plShort}
+          deltaKind="avg"
         />
         <KpiCard
           icon={UserPlusIcon}
@@ -592,6 +656,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
           curr={kpi?.new_people}
           compareYear={compareYear}
           periodLabel={plShort}
+          deltaKind="count"
         />
         <KpiCard
           icon={HeartIcon}
@@ -601,6 +666,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
           curr={kpi?.salvations}
           compareYear={compareYear}
           periodLabel={plShort}
+          deltaKind="count"
         />
       </div>
 
