@@ -643,7 +643,135 @@ def report_payload_for_json_api(data: Dict[str, Any]) -> Dict[str, Any]:
         out["weekly_series"] = [list(t) for t in ws]
         out["weekly_labels"] = _week_series_xtick_labels(ws)
 
+    if data.get("kpi_totals"):
+        out["kpi_totals"] = dict(data["kpi_totals"])
+    if data.get("kpi_totals_previous"):
+        out["kpi_totals_previous"] = dict(data["kpi_totals_previous"])
+
     return out
+
+
+def _kpi_totals_from_campus_row_single(row: Dict[str, Any]) -> Dict[str, Any]:
+    """One-campus totals for preview KPIs (single-period report)."""
+    return {
+        "service_rows": int(row.get("service_rows") or 0),
+        "sunday": int(row.get("total_sunday") or 0),
+        "weekend": int(row.get("total_weekend") or 0),
+        "avg_sunday": float(row.get("avg_sunday") or 0),
+        "avg_weekend": float(row.get("avg_weekend") or 0),
+        "new_people": int(row.get("total_new_people") or 0),
+        "salvations": int(row.get("total_salvations") or 0),
+    }
+
+
+def _kpi_totals_from_campus_row_compare_curr(row: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "service_rows": int(row.get("service_rows") or 0),
+        "sunday": int(row.get("total_sunday") or 0),
+        "weekend": int(row.get("total_weekend") or 0),
+        "avg_sunday": float(row.get("avg_sunday") or 0),
+        "avg_weekend": float(row.get("avg_weekend") or 0),
+        "new_people": int(row.get("total_new_people") or 0),
+        "salvations": int(row.get("total_salvations") or 0),
+    }
+
+
+def _kpi_totals_from_campus_row_compare_prev(row: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "service_rows": int(row.get("prev_service_rows") or 0),
+        "sunday": int(row.get("prev_total_sunday") or 0),
+        "weekend": int(row.get("prev_total_weekend") or 0),
+        "avg_sunday": float(row.get("prev_avg_sunday") or 0),
+        "avg_weekend": float(row.get("prev_avg_weekend") or 0),
+        "new_people": int(row.get("prev_total_new_people") or 0),
+        "salvations": int(row.get("prev_total_salvations") or 0),
+    }
+
+
+def report_json_per_campus_slices(full: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    One JSON payload per campus (same structure as combined API + kpi_totals), aligned with per-campus PDF.
+    Grand ``totals`` stay all-campuses-in-scope for % share context; KPIs use per-campus kpi_totals.
+    """
+    rows = list(full.get("campus_rows") or [])
+    if not rows:
+        return []
+
+    slices: List[Dict[str, Any]] = []
+    if full.get("compare"):
+        w_cur = full.get("weekly_series_current_by_campus") or {}
+        w_prv = full.get("weekly_series_previous_by_campus") or {}
+        for row in rows:
+            cid = row["campus_id"]
+            inner: Dict[str, Any] = {
+                "compare": True,
+                "year": full["year"],
+                "prev_year": full["prev_year"],
+                "start": full["start"],
+                "end": full["end"],
+                "period_code": full.get("period_code") or "q1",
+                "period_label": full.get("period_label") or "Q1",
+                "period_caption_curr": full.get("period_caption_curr"),
+                "period_caption_prev": full.get("period_caption_prev"),
+                "include_youth_metrics": full.get("include_youth_metrics", True),
+                "filter_summary": full.get("filter_summary", ""),
+                "totals": dict(full["totals"]),
+                "kpi_totals": _kpi_totals_from_campus_row_compare_curr(row),
+                "kpi_totals_previous": _kpi_totals_from_campus_row_compare_prev(row),
+                "campus_rows": [dict(row)],
+                "region_aggregate_rows": [],
+                "weekly_series_current": w_cur.get(cid, []),
+                "weekly_series_previous": w_prv.get(cid, []),
+            }
+            slices.append(report_payload_for_json_api(inner))
+    else:
+        w_by_c = full.get("weekly_series_by_campus") or {}
+        for row in rows:
+            cid = row["campus_id"]
+            inner = {
+                "compare": False,
+                "year": full["year"],
+                "start": full["start"],
+                "end": full["end"],
+                "period_code": full.get("period_code") or "q1",
+                "period_label": full.get("period_label") or "Q1",
+                "period_caption": full.get("period_caption"),
+                "include_youth_metrics": full.get("include_youth_metrics", True),
+                "filter_summary": full.get("filter_summary", ""),
+                "totals": dict(full["totals"]),
+                "kpi_totals": _kpi_totals_from_campus_row_single(row),
+                "campus_rows": [dict(row)],
+                "region_aggregate_rows": [],
+                "weekly_series": w_by_c.get(cid, []),
+            }
+            slices.append(report_payload_for_json_api(inner))
+
+    return slices
+
+
+def report_json_api_response(full: Dict[str, Any], *, per_campus: bool) -> Dict[str, Any]:
+    """Top-level JSON for GET …/quarterly-attendance.json (combined or per-campus list)."""
+    if not per_campus:
+        return report_payload_for_json_api(full)
+
+    def _iso(d: Any) -> Any:
+        if d is None:
+            return None
+        return d.isoformat() if hasattr(d, "isoformat") else d
+
+    return {
+        "per_campus": True,
+        "year": full.get("year"),
+        "period_label": full.get("period_label") or "Q1",
+        "period_code": full.get("period_code") or "q1",
+        "start": _iso(full.get("start")),
+        "end": _iso(full.get("end")),
+        "compare": bool(full.get("compare")),
+        "prev_year": full.get("prev_year"),
+        "include_youth_metrics": bool(full.get("include_youth_metrics", True)),
+        "filter_summary": (full.get("filter_summary") or "").strip(),
+        "campuses": report_json_per_campus_slices(full),
+    }
 
 
 def build_q1_csv_bytes(data: Dict[str, Any]) -> bytes:

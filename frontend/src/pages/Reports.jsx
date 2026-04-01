@@ -343,7 +343,8 @@ const Reports = () => {
                 PDF: one page per campus
               </span>
               <span className="block text-slate-500 text-sm mt-0.5">
-                Each campus gets its own charts and table instead of one combined report. CSV is unchanged.
+                Each campus gets its own charts and table in the PDF, and the same layout in the report preview below.
+                CSV is unchanged.
               </span>
             </span>
           </label>
@@ -449,7 +450,7 @@ const Reports = () => {
         </div>
 
         <AttendanceReportPreview
-          queryString={queryString}
+          queryString={pdfQueryString}
           regionTitle={regionTitle}
           periodLabel={periodLabel}
           year={year}

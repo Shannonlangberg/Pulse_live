@@ -17371,7 +17371,7 @@ def report_q1_attendance_json():
     if not current_user.has_permission('data_export'):
         return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
     try:
-        from q1_attendance_report import report_payload_for_json_api
+        from q1_attendance_report import report_json_api_response
 
         year = int(request.args.get('year', datetime.now().year))
         if year < 2000 or year > 2100:
@@ -17379,13 +17379,14 @@ def report_q1_attendance_json():
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
         compare = _parse_include_previous_year()
+        per_campus = _parse_per_campus_pdf()
         period = _parse_report_period()
         excl_youth = _parse_exclude_youth_metrics()
         include_youth_m = not excl_youth
         data = _q1_report_with_optional_yoy(
             year, region, campuses, compare, period=period, include_youth_metrics=include_youth_m
         )
-        payload = report_payload_for_json_api(data)
+        payload = report_json_api_response(data, per_campus=per_campus)
         payload["requested_region"] = region
         payload["requested_campuses_csv"] = campuses
         return jsonify(payload)
