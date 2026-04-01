@@ -17360,6 +17360,42 @@ def report_q1_attendance_pdf():
         return jsonify({"error": "Failed to build PDF report"}), 500
 
 
+@app.route('/api/reports/quarterly-attendance.json', methods=['GET'])
+@app.route('/api/reports/q1-attendance.json', methods=['GET'])
+@login_required
+def report_q1_attendance_json():
+    """
+    Same filters as PDF/CSV — JSON for the in-app attendance report dashboard preview.
+    Requires data_export permission.
+    """
+    if not current_user.has_permission('data_export'):
+        return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
+    try:
+        from q1_attendance_report import report_payload_for_json_api
+
+        year = int(request.args.get('year', datetime.now().year))
+        if year < 2000 or year > 2100:
+            return jsonify({"error": "Invalid year"}), 400
+        region = request.args.get('region', '').strip()
+        campuses = request.args.get('campuses', '').strip()
+        compare = _parse_include_previous_year()
+        period = _parse_report_period()
+        excl_youth = _parse_exclude_youth_metrics()
+        include_youth_m = not excl_youth
+        data = _q1_report_with_optional_yoy(
+            year, region, campuses, compare, period=period, include_youth_metrics=include_youth_m
+        )
+        payload = report_payload_for_json_api(data)
+        payload["requested_region"] = region
+        payload["requested_campuses_csv"] = campuses
+        return jsonify(payload)
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        logger.error(f"Q1 attendance JSON report error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to build report"}), 500
+
+
 @app.route('/api/export/finance', methods=['GET'])
 @login_required
 def export_finance():

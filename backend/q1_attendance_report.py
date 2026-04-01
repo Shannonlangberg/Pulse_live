@@ -596,6 +596,56 @@ def build_compare_payload(data_curr: Dict[str, Any], data_prev: Dict[str, Any]) 
     }
 
 
+def report_payload_for_json_api(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    JSON-serializable snapshot for the web report preview (dates as ISO strings).
+    Mirrors PDF/CSV inputs: same campus_rows, totals, weekly series, optional YoY.
+    """
+
+    def _iso(d: Any) -> Any:
+        if d is None:
+            return None
+        return d.isoformat() if hasattr(d, "isoformat") else d
+
+    def _rows(rows: Any) -> List[Dict[str, Any]]:
+        return [dict(r) for r in (rows or [])]
+
+    out: Dict[str, Any] = {
+        "compare": bool(data.get("compare")),
+        "year": data.get("year"),
+        "period_code": data.get("period_code") or "q1",
+        "period_label": data.get("period_label") or "Q1",
+        "start": _iso(data.get("start")),
+        "end": _iso(data.get("end")),
+        "include_youth_metrics": bool(data.get("include_youth_metrics", True)),
+        "filter_summary": (data.get("filter_summary") or "").strip(),
+        "totals": dict(data.get("totals") or {}),
+        "campus_rows": _rows(data.get("campus_rows")),
+        "region_aggregate_rows": _rows(data.get("region_aggregate_rows")),
+    }
+    pc = data.get("period_caption")
+    if pc:
+        out["period_caption"] = pc
+
+    if data.get("compare"):
+        out["prev_year"] = data.get("prev_year")
+        out["period_caption_curr"] = data.get("period_caption_curr")
+        out["period_caption_prev"] = data.get("period_caption_prev")
+        out["totals_previous"] = dict(data.get("totals_previous") or {})
+        wcur = data.get("weekly_series_current") or []
+        wprev = data.get("weekly_series_previous") or []
+        out["weekly_series_current"] = [list(t) for t in wcur]
+        out["weekly_series_previous"] = [list(t) for t in wprev]
+        out["weekly_labels_current"] = _week_series_xtick_labels(wcur)
+        out["weekly_labels_previous"] = _week_series_xtick_labels(wprev)
+    else:
+        ws = data.get("weekly_series") or []
+        out["weekly_series"] = [list(t) for t in ws]
+        out["weekly_labels"] = _week_series_xtick_labels(ws)
+
+    return out
+
+
 def build_q1_csv_bytes(data: Dict[str, Any]) -> bytes:
     if data.get("compare"):
         return _build_q1_csv_compare_bytes(data)

@@ -5,6 +5,7 @@ import {
   DocumentChartBarIcon,
   ArrowLeftIcon,
 } from '@heroicons/react/24/outline';
+import AttendanceReportPreview from '../components/reports/AttendanceReportPreview';
 
 const currentCalendarYear = new Date().getFullYear();
 const YEAR_MIN = 2015;
@@ -143,6 +144,12 @@ const Reports = () => {
     [period],
   );
 
+  const regionTitle = useMemo(() => {
+    if (!regionCode) return 'All regions';
+    const r = regions.find((x) => x.code === regionCode);
+    return r ? `${r.display_name} (${regionCode})` : regionCode;
+  }, [regionCode, regions]);
+
   const filterHint = useMemo(() => {
     const parts = [];
     parts.push(`Year: ${year}`);
@@ -210,7 +217,7 @@ const Reports = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <Link
           to="/"
           className="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-6"
@@ -440,6 +447,13 @@ const Reports = () => {
             </button>
           </div>
         </div>
+
+        <AttendanceReportPreview
+          queryString={queryString}
+          regionTitle={regionTitle}
+          periodLabel={periodLabel}
+          year={year}
+        />
 
         <p className="mt-8 text-slate-500 text-sm">
           Raw sheet exports are still on{' '}
