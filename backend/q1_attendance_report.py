@@ -1,6 +1,7 @@
 """
 Quarterly / YTD attendance aggregates for PDF/CSV reports (Q1–Q4 and YTD).
-Sunday total and weekend total match regional dashboard per-record logic.
+All metrics are summed from attendance_records only (no Google Sheets).
+Sunday / weekend / new people / salvations use the same per-record rules as the regional dashboard.
 """
 from __future__ import annotations
 
@@ -214,40 +215,25 @@ def record_sunday_and_weekend_totals(record) -> Tuple[int, int]:
     return sunday, weekend
 
 
-def record_new_people_total(
-    record,
-    sheet_new_people: int | None = None,
-    *,
-    include_youth_new_people: bool = True,
-) -> int:
+def record_new_people_total(record, *, include_youth_new_people: bool = True) -> int:
     """
-    New people total from attendance_records.
+    New people total from ``attendance_records`` only (no Google Sheets).
 
-    Default (``include_youth_new_people=True``): FTV + visitors + youth new people
-    (same components as regional dashboard). If Google Stats has a *New People*
-    aggregate and the DB breakdown is lower (legacy imports), use
-    ``max(component_sum, sheet)`` so totals can match the sheet.
-
-    When ``include_youth_new_people=False``: FTV + visitors only; sheet totals are
-    not applied (they usually include youth).
+    Default: first-time visitors + visitors + youth new people (dashboard mix).
+    When ``include_youth_new_people=False``: first-time visitors + visitors only.
     """
     ftv = record.first_time_visitors or 0
     vis = record.visitors or 0
     yn = record.youth_new_people or 0
     if include_youth_new_people:
-        comp = ftv + vis + yn
-        sp = int(sheet_new_people or 0)
-        if sp > 0:
-            return max(comp, sp)
-        return comp
+        return ftv + vis + yn
     return ftv + vis
 
 
-def record_salvations_total(record, sheet_salvations_fallback: int | None = None) -> int:
+def record_salvations_total(record) -> int:
     """
-    FTC + rededications + youth + kids salvations.
-    When that sum is zero, use salvation_cards_returned and/or sheet-derived salvations
-    (aggregates + detailed columns from Stats).
+    FTC + rededications + youth + kids salvations from the DB.
+    When that sum is zero, use ``salvation_cards_returned`` on the record only.
     """
     base = (
         (record.first_time_christians or 0)
@@ -257,9 +243,7 @@ def record_salvations_total(record, sheet_salvations_fallback: int | None = None
     )
     if base > 0:
         return base
-    sc = int(record.salvation_cards_returned or 0)
-    sh = int(sheet_salvations_fallback or 0)
-    return max(sc, sh)
+    return int(record.salvation_cards_returned or 0)
 
 
 def _region_aggregate_rows(campus_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -364,7 +348,6 @@ def build_q1_data(
     records: List[Any],
     campuses_by_id: Dict[int, Any],
     filter_summary: str = "",
-    sheet_enrichment: Dict[Tuple[str, date], Dict[str, int]] | None = None,
     *,
     start: date | None = None,
     end: date | None = None,
@@ -399,23 +382,14 @@ def build_q1_data(
             continue
         sun, wknd = record_sunday_and_weekend_totals(r)
         cid = r.campus_id
-        ex: Dict[str, int] | None = None
-        if sheet_enrichment:
-            campus = campuses_by_id.get(cid)
-            if campus:
-                k = ((campus.display_name or "").strip().lower(), d)
-                ex = sheet_enrichment.get(k)
         by_campus[cid]["service_rows"] += 1
         by_campus[cid]["total_sunday"] += sun
         by_campus[cid]["total_weekend"] += wknd
         by_campus[cid]["total_new_people"] += record_new_people_total(
             r,
-            sheet_new_people=ex.get("new_people") if ex else None,
             include_youth_new_people=include_youth_new_people,
         )
-        by_campus[cid]["total_salvations"] += record_salvations_total(
-            r, sheet_salvations_fallback=ex.get("salvations") if ex else None
-        )
+        by_campus[cid]["total_salvations"] += record_salvations_total(r)
         wkey = _week_key_chart(d)
         weekly[wkey]["sunday"] += sun
         weekly[wkey]["weekend"] += wknd
@@ -1420,11 +1394,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 if inc_youth_np
                 else "New people = first-time visitors + visitors only (youth new people excluded)."
             )
-            dash_tail = (
-                " Salvations &mdash; aligned with the regional attendance dashboard."
-                if inc_youth_np
-                else " Salvations."
-            )
+            dash_tail = " Salvations from <b>attendance_records</b> (dashboard field mix)."
             scope_rows.append(
                 [
                     Paragraph(
@@ -1493,13 +1463,12 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
         if not compare:
             if inc_youth_np:
                 np_clause = (
-                    "<b>New people</b> = first-time visitors + visitors + youth new people; "
-                    "if the DB breakdown is lower, the Google Stats <i>New People</i> column is used (legacy rows). "
+                    "<b>New people</b> = first-time visitors + visitors + youth new people "
+                    "(from <b>attendance_records</b> only). "
                 )
             else:
                 np_clause = (
-                    "<b>New people</b> = first-time visitors + visitors only (youth new people excluded); "
-                    "Google Stats <i>New People</i> is not blended in. "
+                    "<b>New people</b> = first-time visitors + visitors only (youth new people excluded). "
                 )
             metrics_common = (
                 "<b>Metrics:</b> "
@@ -1507,7 +1476,7 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 "<b>Weekend</b> = Sunday + youth + youth leaders. "
                 + np_clause
                 + "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
-                "when that sum is zero, <i>Salvation cards returned</i> and/or Stats <i>New Christians</i> apply. "
+                "when that sum is zero, <i>Salvation cards returned</i> on the record is used. "
             )
             metrics_single = (
                 "<b>Region total</b> = sum of campuses in that region code. "
@@ -1519,19 +1488,18 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
             if inc_youth_np:
                 np_cmp = (
                     "<b>New people</b> = first-time visitors + visitors + youth new people "
-                    "(with Stats sheet uplift when the DB breakdown is lower). "
+                    "(<b>attendance_records</b> only). "
                 )
             else:
                 np_cmp = (
-                    "<b>New people</b> = first-time visitors + visitors only (excludes youth new people; "
-                    "no Stats sheet blend). "
+                    "<b>New people</b> = first-time visitors + visitors only (youth new people excluded). "
                 )
             story.append(
                 Paragraph(
                     "<b>Metrics:</b> "
                     + np_cmp
-                    + "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations "
-                    "(with fallbacks as in the single-year report).",
+                    + "<b>Salvations</b> = first-time Christians + rededications + youth + kids salvations; "
+                    "when zero, <i>Salvation cards returned</i> on the record (same as single-year report).",
                     meta_ps,
                 )
             )

@@ -236,7 +236,8 @@ const Reports = () => {
             <strong className="text-slate-300">YTD</strong> (year-to-date: Jan 1 through today when the
             report year is the current calendar year; full Jan–Dec for past years). Filter by region and/or
             campuses. Sunday = adults + saints + kids; weekend = Sunday + youth + youth leaders. PDF/CSV
-            include period totals for new people and salvations (regional dashboard field mix), plus region
+            include period totals for new people and salvations (same field mix as the dashboard, from the database),
+            plus region
             subtotals before the all-campuses total. Optionally exclude <strong className="text-slate-300">youth new
             people</strong> so &quot;new people&quot; is first-time visitors + visitors only.
           </p>
@@ -351,8 +352,8 @@ const Reports = () => {
                 New people: exclude youth new people
               </span>
               <span className="block text-slate-500 text-sm mt-0.5">
-                Default counts match the dashboard (first-time visitors + visitors + youth new people). When checked,
-                totals use first-time visitors + visitors only; Google Stats &quot;New People&quot; is not blended in.
+                Default counts include youth new people (first-time visitors + visitors + youth new people from the
+                database). When checked, totals use first-time visitors + visitors only.
               </span>
             </span>
           </label>
