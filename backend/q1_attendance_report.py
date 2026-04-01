@@ -1,7 +1,13 @@
 """
-Quarterly / YTD attendance aggregates for PDF/CSV reports (Q1–Q4 and YTD).
-All metrics are summed from attendance_records only (no Google Sheets).
-Sunday / weekend / new people / salvations use the same per-record rules as the regional dashboard.
+Quarterly / YTD attendance aggregates for PDF/CSV exports (Q1–Q4 and YTD).
+
+Despite the ``q1_`` prefix on some function names, **one implementation** serves every
+``period`` (``q1`` | ``q2`` | ``q3`` | ``q4`` | ``ytd``): same PDF/CSV layout, YoY logic,
+and field rules.
+
+All metrics come from ``attendance_records`` only (no Google Sheets). New people /
+salvations follow the same per-record rules as the regional dashboard (with optional
+``exclude_youth_metrics`` for both).
 """
 from __future__ import annotations
 
@@ -1220,9 +1226,15 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
         textColor=colors.HexColor("#0f172a"),
     )
 
+    pl = data.get("period_label") or "Q1"
+    inc_youth = data.get("include_youth_metrics", data.get("include_youth_new_people", True))
+    tot_base = f"{pl} total"
+    cmp_np_sub = tot_base if inc_youth else f"{tot_base} · excl. youth NP"
+    cmp_sv_sub = tot_base if inc_youth else f"{tot_base} · excl. youth salv"
+
     def _hdr_metric(label: str, year: int) -> Paragraph:
         return Paragraph(
-            f'<para align="center">{label}<br/><font size="6">{year} &middot; Q1 total</font></para>',
+            f'<para align="center">{label}<br/><font size="6">{year} &middot; {pl} total</font></para>',
             hdr_white,
         )
 
@@ -1245,12 +1257,6 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
 
     avail_w = page[0] - 56
     story: List[Any] = []
-
-    pl = data.get("period_label") or "Q1"
-    inc_youth = data.get("include_youth_metrics", data.get("include_youth_new_people", True))
-    tot_base = f"{pl} total"
-    cmp_np_sub = tot_base if inc_youth else f"{tot_base} · excl. youth NP"
-    cmp_sv_sub = tot_base if inc_youth else f"{tot_base} · excl. youth salv"
 
     def _esc_xml(s: str) -> str:
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

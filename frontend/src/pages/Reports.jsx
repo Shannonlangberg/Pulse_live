@@ -135,8 +135,8 @@ const Reports = () => {
     return params.toString();
   }, [queryString, pdfOnePagePerCampus]);
 
-  const pdfUrl = `/api/reports/q1-attendance.pdf?${pdfQueryString}`;
-  const csvUrl = `/api/reports/q1-attendance.csv?${queryString}`;
+  const pdfUrl = `/api/reports/quarterly-attendance.pdf?${pdfQueryString}`;
+  const csvUrl = `/api/reports/quarterly-attendance.csv?${queryString}`;
 
   const periodLabel = useMemo(
     () => PERIOD_OPTIONS.find((o) => o.value === period)?.label || period,
@@ -234,12 +234,13 @@ const Reports = () => {
           <p className="text-slate-400 text-sm mb-6 leading-relaxed">
             Choose <strong className="text-slate-300">Q1–Q4</strong> or{' '}
             <strong className="text-slate-300">YTD</strong> (year-to-date: Jan 1 through today when the
-            report year is the current calendar year; full Jan–Dec for past years). Filter by region and/or
-            campuses. Sunday = adults + saints + kids; weekend = Sunday + youth + youth leaders. PDF/CSV
-            include period totals for new people and salvations (same field mix as the dashboard, from the database),
-            plus region
-            subtotals before the all-campuses total.             Optionally exclude <strong className="text-slate-300">youth</strong> from new people and
-            salvations (new people = first-time visitors + visitors; salvations exclude youth salvations).
+            report year is the current calendar year; full Jan–Dec for past years).{' '}
+            <strong className="text-slate-300">Every quarter uses the same Pulse DB export</strong> — identical
+            PDF/CSV layout, charts, optional year-over-year %, and field rules. Filter by region and/or campuses.
+            Sunday = adults + saints + kids; weekend = Sunday + youth + youth leaders. New people and salvations come
+            from <strong className="text-slate-300">attendance_records</strong> only (dashboard field mix), with region
+            subtotals before the all-campuses total. Optionally exclude <strong className="text-slate-300">youth</strong>{' '}
+            from new people and salvations.
           </p>
 
           {loadError && (
@@ -418,7 +419,9 @@ const Reports = () => {
             <button
               type="button"
               disabled={loadingPdf || loadingCsv}
-              onClick={() => downloadFile(pdfUrl, 'pulse-q1-attendance.pdf', setLoadingPdf)}
+              onClick={() =>
+                downloadFile(pdfUrl, `pulse-${period}-attendance.pdf`, setLoadingPdf)
+              }
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
@@ -427,7 +430,9 @@ const Reports = () => {
             <button
               type="button"
               disabled={loadingPdf || loadingCsv}
-              onClick={() => downloadFile(csvUrl, 'pulse-q1-attendance.csv', setLoadingCsv)}
+              onClick={() =>
+                downloadFile(csvUrl, `pulse-${period}-attendance.csv`, setLoadingCsv)
+              }
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 border border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />

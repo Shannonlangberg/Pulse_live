@@ -17079,8 +17079,10 @@ def _q1_report_data(
     include_youth_metrics: bool = True,
 ):
     """
-    Load attendance for the given inclusive date range (quarter / YTD / custom).
+    Load ``AttendanceRecord`` rows for the inclusive date range (Q1–Q4 or YTD). Database only.
+
     Optional filters: region code (e.g. AU), comma-separated campus_id slugs (campuses_v2.campus_id).
+    Aggregated via ``build_q1_data`` (same rules for every ``period_code``).
     """
     from models import AttendanceRecord, CampusV2, Region
     from sqlalchemy import func
@@ -17263,10 +17265,15 @@ def _parse_exclude_youth_metrics() -> bool:
     return False
 
 
+@app.route('/api/reports/quarterly-attendance.csv', methods=['GET'])
 @app.route('/api/reports/q1-attendance.csv', methods=['GET'])
 @login_required
 def report_q1_attendance_csv():
-    """Quarterly / YTD attendance by campus — CSV (database). Requires data_export permission."""
+    """
+    Quarterly (Q1–Q4) and YTD attendance by campus — CSV from ``attendance_records`` only.
+    Use ``?period=q1|q2|q3|q4|ytd`` (default q1). Same columns and rules for every period.
+    Requires data_export permission.
+    """
     if not current_user.has_permission('data_export'):
         return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
     try:
@@ -17303,10 +17310,15 @@ def report_q1_attendance_csv():
         return jsonify({"error": "Failed to build report"}), 500
 
 
+@app.route('/api/reports/quarterly-attendance.pdf', methods=['GET'])
 @app.route('/api/reports/q1-attendance.pdf', methods=['GET'])
 @login_required
 def report_q1_attendance_pdf():
-    """Quarterly / YTD attendance — PDF with charts and table (database). Requires data_export permission."""
+    """
+    Quarterly (Q1–Q4) and YTD attendance — PDF (charts + tables) from ``attendance_records`` only.
+    Use ``?period=q1|q2|q3|q4|ytd`` (default q1). Same template, YoY %, and options for every period.
+    Requires data_export permission.
+    """
     if not current_user.has_permission('data_export'):
         return jsonify({"error": "Access denied - Data Export has been disabled for your account"}), 403
     try:
