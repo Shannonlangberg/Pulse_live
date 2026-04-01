@@ -788,33 +788,80 @@ def _build_q1_csv_compare_bytes(data: Dict[str, Any]) -> bytes:
 
 
 def _chart_bar_campus(data: Dict[str, Any]) -> io.BytesIO:
+    """
+    Single-period Sun vs weekend by campus: vertical grouped bars (same readability pattern as YoY
+    weekend chart). Replaces thin horizontal bar pairs that were hard to read when one campus
+    dominated the scale.
+    """
     rows = data["campus_rows"]
     pl = data.get("period_label") or "Q1"
-    fig, ax = plt.subplots(figsize=(10, max(4.0, 0.35 * len(rows) + 1.5)))
+    yr = data["year"]
+    n = len(rows)
+    single_campus = n == 1
+    if single_campus:
+        fig_w, fig_h = 4.9, 3.15
+    else:
+        fig_w = 11.0
+        fig_h = min(6.2, max(2.5 if n <= 1 else 4.0, 0.42 * max(n, 1) + 2.85))
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     if not rows:
         ax.text(0.5, 0.5, "No data", ha="center", va="center")
         ax.set_axis_off()
     else:
-        names = [r["campus_name"][:28] for r in rows]
-        y = range(len(names))
+        names = [r["campus_name"][:22] for r in rows]
         sun = [r["avg_sunday"] for r in rows]
         wknd = [r["avg_weekend"] for r in rows]
-        h = 0.35
-        ax.barh([i - h / 2 for i in y], sun, height=h, label="Sunday (no youth)", color="#3b82f6")
-        ax.barh([i + h / 2 for i in y], wknd, height=h, label="Weekend (w/ youth)", color="#94a3b8")
-        ax.set_yticks(list(y))
-        ax.set_yticklabels(names, fontsize=8)
-        ax.invert_yaxis()
-        ax.legend(loc="lower right", fontsize=8)
-        ax.set_xlabel(f"Attendance ({pl} avg per service)")
+        x = list(range(n))
+        w = 0.28 if single_campus else 0.36
+        ax.bar(
+            [i - w / 2 for i in x],
+            sun,
+            width=w,
+            label="Sunday (no youth)",
+            color="#2563eb",
+            edgecolor="white",
+            linewidth=0.7,
+        )
+        ax.bar(
+            [i + w / 2 for i in x],
+            wknd,
+            width=w,
+            label="Weekend (w/ youth)",
+            color="#64748b",
+            edgecolor="white",
+            linewidth=0.7,
+        )
+        ax.set_xticks(x)
+        if single_campus:
+            ax.set_xlim(-0.55, 0.55)
+            ax.set_xticklabels(names, rotation=0, ha="center", fontsize=11)
+        else:
+            ax.set_xticklabels(names, rotation=38, ha="right", fontsize=11)
+        ax.set_ylabel(f"Attendance ({pl} avg per service)", fontsize=12)
+        ax.tick_params(axis="both", labelsize=11)
+        ax.legend(
+            loc="upper right",
+            fontsize=10,
+            ncol=2,
+            framealpha=0.95,
+        )
+        ax.yaxis.grid(True, alpha=0.38)
+        ax.set_axisbelow(True)
     sub = (data.get("filter_summary") or "")[:80]
-    t = f"{pl} {data['year']} — by campus"
+    t = f"{pl} {yr} — Sun vs weekend by campus"
     if sub:
         t += f"\n({sub})"
-    ax.set_title(t, fontsize=10, fontweight="bold")
-    plt.tight_layout()
+    ax.set_title(t, fontsize=13, fontweight="bold", pad=10)
+    plt.tight_layout(pad=0.65)
     out = io.BytesIO()
-    fig.savefig(out, format="png", dpi=_PDF_CHART_DPI_LEGACY, bbox_inches="tight", facecolor="white")
+    fig.savefig(
+        out,
+        format="png",
+        dpi=_PDF_CHART_DPI_SHARP,
+        bbox_inches="tight",
+        facecolor="white",
+        pad_inches=0.12,
+    )
     plt.close(fig)
     out.seek(0)
     return out
@@ -1925,8 +1972,10 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 nm = _esc_xml(str(row["campus_name"])[:100])
                 story.append(Paragraph(f"<b>{nm}</b>", campus_title_ps))
                 bar_b = _chart_bar_campus(sub_chart)
-                bar_h_one = min(3.6 * inch, max(1.9 * inch, 0.26 * inch + 1.0 * inch))
-                story.append(Image(bar_b, width=avail_w, height=max(2.0 * inch, min(bar_h_one, 2.85 * inch))))
+                # Single-campus vertical Sun/weekend chart (fig ~4.9×3.15 in); match YoY single bar slot height
+                story.append(
+                    Image(bar_b, width=avail_w, height=min(2.85 * inch, max(2.0 * inch, 2.42 * inch)))
+                )
                 story.append(Spacer(1, 8))
                 line_b = _chart_line_weekly(sub_chart)
                 story.append(Image(line_b, width=avail_w, height=2.45 * inch))
@@ -1946,7 +1995,11 @@ def build_q1_pdf_bytes(data: Dict[str, Any], *, per_campus_pages: bool = False) 
                 story.append(t_one)
         else:
             bar_buf = _chart_bar_campus(data)
-            bar_h = min(3.6 * inch, max(1.9 * inch, 0.26 * len(data["campus_rows"]) * inch + 1.0 * inch))
+            n_camp_bar = len(data["campus_rows"])
+            bar_h = min(
+                4.15 * inch,
+                max(2.75 * inch, 0.14 * n_camp_bar * inch + 2.2 * inch),
+            )
             story.append(Image(bar_buf, width=avail_w, height=bar_h))
             story.append(Spacer(1, 8))
             line_buf = _chart_line_weekly(data)
