@@ -29,6 +29,9 @@ ChartJS.register(
   Filler
 );
 
+/** Shown in UI; legacy API values (rollup_only, sundays_only) map away on next effect */
+const DASHBOARD_METRICS_SCOPES = ['default', 'sundays_rollup_only', 'special_events_only'];
+
 const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = false, onBackToSelector }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +47,12 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [metricsScope, setMetricsScope] = useState('default');
+
+  useEffect(() => {
+    if (!DASHBOARD_METRICS_SCOPES.includes(metricsScope)) {
+      setMetricsScope('default');
+    }
+  }, [metricsScope]);
 
   const reportScope = useMemo(() => {
     if (isGlobal) {
@@ -440,13 +449,12 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 <select
                   value={metricsScope}
                   onChange={(e) => setMetricsScope(e.target.value)}
-                  title="Choose which saved entries count in charts and averages. “Standard” means normal weekend services; special events (Easter, Good Friday, etc.) can be flagged when logging so you can hide them here."
-                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400/50 transition-all duration-300 max-w-[min(100%,300px)]"
+                  title="All services: everything you saved. Sundays (standard): calendar Sundays that are not flagged as special events. Special events only: rows you marked as special when logging."
+                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400/50 transition-all duration-300 max-w-[min(100%,320px)]"
                 >
-                  <option value="default" className="bg-slate-800 text-white">Everything you logged</option>
-                  <option value="rollup_only" className="bg-slate-800 text-white">Standard services only (hide special events)</option>
-                  <option value="sundays_only" className="bg-slate-800 text-white">Sundays only (any service)</option>
-                  <option value="sundays_rollup_only" className="bg-slate-800 text-white">Sundays only, standard services</option>
+                  <option value="default" className="bg-slate-800 text-white">All services (Sundays + special events)</option>
+                  <option value="sundays_rollup_only" className="bg-slate-800 text-white">Sundays only (standard services)</option>
+                  <option value="special_events_only" className="bg-slate-800 text-white">Special events only</option>
                 </select>
 
               </div>

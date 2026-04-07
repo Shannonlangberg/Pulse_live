@@ -28,6 +28,8 @@ const buildYearOptions = () => {
   return out;
 };
 
+const REPORT_METRICS_SCOPES = ['default', 'sundays_rollup_only', 'special_events_only'];
+
 const Reports = () => {
   const [year, setYear] = useState(currentCalendarYear);
   const [regions, setRegions] = useState([]);
@@ -47,6 +49,12 @@ const Reports = () => {
   useEffect(() => {
     document.title = 'Reports — Pulse';
   }, []);
+
+  useEffect(() => {
+    if (!REPORT_METRICS_SCOPES.includes(metricsScope)) {
+      setMetricsScope('default');
+    }
+  }, [metricsScope]);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,9 +181,10 @@ const Reports = () => {
     if (excludeYouthMetrics) {
       parts.push('NP & salvations: excl. youth (FTV + visitors; no youth salvations)');
     }
-    if (metricsScope === 'rollup_only') parts.push('Scope: standard services only (special events hidden)');
-    else if (metricsScope === 'sundays_only') parts.push('Scope: Sundays only');
-    else if (metricsScope === 'sundays_rollup_only') parts.push('Scope: Sundays, standard services only');
+    if (metricsScope === 'rollup_only') parts.push('Scope: standard services only (legacy)');
+    else if (metricsScope === 'sundays_only') parts.push('Scope: Sundays only (legacy)');
+    else if (metricsScope === 'sundays_rollup_only') parts.push('Scope: Sundays only (standard services)');
+    else if (metricsScope === 'special_events_only') parts.push('Scope: special events only');
     return parts.join(' · ');
   }, [
     year,
@@ -325,16 +334,15 @@ const Reports = () => {
               <select
                 value={metricsScope}
                 onChange={(e) => setMetricsScope(e.target.value)}
-                title="Standard = normal services; entries marked as special when logging are excluded when you pick standard-only options."
+                title="Matches the campus dashboard: all saved rows; or Sundays that are not flagged special; or only special-event rows."
                 className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               >
-                <option value="default">Everything you logged</option>
-                <option value="rollup_only">Standard services only (hide special events)</option>
-                <option value="sundays_only">Sundays only (any service)</option>
-                <option value="sundays_rollup_only">Sundays only, standard services</option>
+                <option value="default">All services (Sundays + special events)</option>
+                <option value="sundays_rollup_only">Sundays only (standard services)</option>
+                <option value="special_events_only">Special events only</option>
               </select>
               <p className="text-slate-500 text-xs mt-2">
-                Same options as the campus dashboard. “Special events” are services you flagged when entering stats (e.g. Good Friday) so they do not skew normal totals.
+                Same three choices as the campus dashboard. Special events are entries you flagged when logging stats (e.g. Good Friday).
               </p>
             </div>
           </div>

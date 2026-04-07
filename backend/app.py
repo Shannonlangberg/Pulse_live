@@ -6971,7 +6971,13 @@ def _ytd_chart_week_key(record_date):
     return f"{year}-W{week_num:02d}"
 
 
-VALID_METRICS_SCOPES = frozenset({'default', 'rollup_only', 'sundays_only', 'sundays_rollup_only'})
+VALID_METRICS_SCOPES = frozenset({
+    'default',
+    'rollup_only',
+    'sundays_only',
+    'sundays_rollup_only',
+    'special_events_only',
+})
 
 
 def normalize_metrics_scope(raw):
@@ -7000,9 +7006,11 @@ def coerce_include_in_rollup_metrics(value):
 def apply_attendance_metrics_scope(query, metrics_scope='default'):
     """
     Filter AttendanceRecord query for dashboard/reports.
-    rollup_only: include_in_rollup_metrics == True
-    sundays_only: calendar Sunday (SQLite strftime %w=0; PostgreSQL extract dow=0)
-    sundays_rollup_only: both
+    default: no filter
+    rollup_only: include_in_rollup_metrics == True (legacy / API)
+    sundays_only: calendar Sunday (legacy / API)
+    sundays_rollup_only: Sundays + standard services only
+    special_events_only: rows flagged as special (include_in_rollup_metrics is False)
     """
     from models import AttendanceRecord
     from sqlalchemy import and_, extract
@@ -7011,6 +7019,8 @@ def apply_attendance_metrics_scope(query, metrics_scope='default'):
     scope = normalize_metrics_scope(metrics_scope)
     if scope == 'default':
         return query
+    if scope == 'special_events_only':
+        return query.filter(AttendanceRecord.include_in_rollup_metrics.is_(False))
     parts = []
     if scope in ('rollup_only', 'sundays_rollup_only'):
         parts.append(AttendanceRecord.include_in_rollup_metrics.is_(True))
@@ -17445,7 +17455,8 @@ def _q1_report_data(
         scope_labels = {
             "rollup_only": "Standard services only (entries marked as special events omitted)",
             "sundays_only": "Calendar Sundays only",
-            "sundays_rollup_only": "Sundays only, standard services (special events omitted)",
+            "sundays_rollup_only": "Sundays only (standard services)",
+            "special_events_only": "Special events only",
         }
         parts.append(scope_labels.get(ms, f"metrics_scope={ms}"))
 
@@ -17562,7 +17573,7 @@ def _parse_exclude_youth_metrics() -> bool:
 
 
 def _parse_metrics_scope() -> str:
-    """Query param metrics_scope=default|rollup_only|sundays_only|sundays_rollup_only"""
+    """Query param metrics_scope=default|rollup_only|sundays_only|sundays_rollup_only|special_events_only"""
     return normalize_metrics_scope(request.args.get("metrics_scope"))
 
 
