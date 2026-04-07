@@ -53,6 +53,8 @@ const LogStats = () => {
   const [recentEntries, setRecentEntries] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [formMountKey, setFormMountKey] = useState(0);
+  const [includeInRollupMetrics, setIncludeInRollupMetrics] = useState(true);
+  const [specialServiceLabel, setSpecialServiceLabel] = useState('');
 
   // Ref updated synchronously on every keystroke - guaranteed to have latest values on submit
   const quickInputFormRef = useRef(null);
@@ -398,6 +400,13 @@ const LogStats = () => {
     latestValuesRef.current = { ...newStats }; // Sync ref BEFORE opening modal - source of truth for submit
     setQuickInputStats(newStats);
     setQuickInputDate(entry.date);
+    const ir = entry.stats?.include_in_rollup_metrics;
+    setIncludeInRollupMetrics(ir !== false && ir !== 0 && ir !== '0');
+    setSpecialServiceLabel(
+      entry.stats?.special_service_label != null && entry.stats?.special_service_label !== ''
+        ? String(entry.stats.special_service_label)
+        : ''
+    );
     setIsEditMode(true);
     // Use campus_id if available, otherwise fall back to campus name
     const campusId = entry.campusId || entry.stats?.campusId || entry.stats?.Campus || entry.campus;
@@ -502,6 +511,10 @@ const LogStats = () => {
         campus: campusForPayload,
         date: quickInputDate,
         stats: backendStats,
+        include_in_rollup_metrics: includeInRollupMetrics,
+        ...(specialServiceLabel.trim() || isEditMode
+          ? { special_service_label: specialServiceLabel.trim() }
+          : {}),
         ...(isEditMode && editingEntry && { 
           originalDate: editingEntry.originalDate || editingEntry.date, 
           originalCampus: editingEntry.campusId || editingEntry.originalCampus,
@@ -588,6 +601,8 @@ const LogStats = () => {
         setShowQuickInput(false);
         setIsEditMode(false);
         setEditingEntry(null);
+        setIncludeInRollupMetrics(true);
+        setSpecialServiceLabel('');
         
         // Reload recent entries with cache-buster so the list shows DB state (not cached)
         loadRecentEntries(true);
@@ -672,6 +687,8 @@ const LogStats = () => {
               <button
                 onClick={() => {
                 latestValuesRef.current = { ...quickInputStats };
+                setIncludeInRollupMetrics(true);
+                setSpecialServiceLabel('');
                 setShowQuickInput(true);
               }}
                 className="relative bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-12 py-5 rounded-2xl text-xl font-bold transition-all duration-300 shadow-2xl hover:shadow-purple-500/50 transform hover:scale-105 overflow-hidden group"
@@ -854,6 +871,34 @@ const LogStats = () => {
                       className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
                     />
                   </div>
+                </div>
+              </div>
+
+              <div className="mb-8 rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-sm">
+                <label className="flex cursor-pointer items-start gap-3 text-white">
+                  <input
+                    type="checkbox"
+                    checked={includeInRollupMetrics}
+                    onChange={(e) => setIncludeInRollupMetrics(e.target.checked)}
+                    className="mt-1 rounded border-white/30 bg-slate-800 text-blue-500 focus:ring-blue-500"
+                  />
+                  <span>
+                    <span className="font-semibold">Include in annual totals and dashboard averages</span>
+                    <span className="mt-1 block text-sm text-slate-400">
+                      Uncheck for extra services (e.g. Good Friday) when you want them saved but not counted in YTD charts or campus averages.
+                    </span>
+                  </span>
+                </label>
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm font-semibold text-slate-300">Service name (optional)</label>
+                  <input
+                    type="text"
+                    value={specialServiceLabel}
+                    onChange={(e) => setSpecialServiceLabel(e.target.value)}
+                    placeholder="e.g. Good Friday, Christmas Eve"
+                    maxLength={200}
+                    className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  />
                 </div>
               </div>
               

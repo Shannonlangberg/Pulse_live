@@ -43,6 +43,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [metricsScope, setMetricsScope] = useState('default');
 
   const reportScope = useMemo(() => {
     if (isGlobal) {
@@ -82,7 +83,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
     }, 500); // 500ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [campusId, dateFilter, customStartDate, customEndDate, showPreviousYear]);
+  }, [campusId, dateFilter, customStartDate, customEndDate, showPreviousYear, metricsScope]);
 
   const fetchCampusData = async (isRefresh = false) => {
     try {
@@ -97,7 +98,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
       // If this is a global dashboard, use the global API endpoint
       if (isGlobal) {
         console.log(`[CampusDashboard] Fetching GLOBAL dashboard`);
-        const response = await fetch(`/api/dashboard/global?date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&_t=${cacheBuster}`, {
+        const response = await fetch(`/api/dashboard/global?date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&metrics_scope=${encodeURIComponent(metricsScope)}&_t=${cacheBuster}`, {
           credentials: 'include',
           cache: 'no-store',
           headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
@@ -145,7 +146,8 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
           global_stats: result.global_stats,
           date_range: result.date_range || {},
           week_count: weekCount,
-          isGlobal: true
+          isGlobal: true,
+          metrics_scope: result.metrics_scope || 'default',
         };
         
         setData(normalizedData);
@@ -153,7 +155,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
         setLastRefresh(new Date());
       } else if (isRollup) {
         console.log(`[CampusDashboard] Fetching regional dashboard for region: ${campusId}`);
-        const response = await fetch(`/api/dashboard/regional?region=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&show_previous_year=${showPreviousYear}&_t=${cacheBuster}`, {
+        const response = await fetch(`/api/dashboard/regional?region=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&show_previous_year=${showPreviousYear}&metrics_scope=${encodeURIComponent(metricsScope)}&_t=${cacheBuster}`, {
           credentials: 'include',
           cache: 'no-store',
           headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
@@ -208,7 +210,8 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
           campuses: result.campuses || [],
           date_range: result.date_range || {},
           week_count: weekCount,
-          chart_data: result.chart_data || null  // Include chart_data from regional endpoint
+          chart_data: result.chart_data || null,  // Include chart_data from regional endpoint
+          metrics_scope: result.metrics_scope || 'default',
         };
         
         setData(normalizedData);
@@ -217,7 +220,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
       } else {
         // Regular campus dashboard
         console.log(`[CampusDashboard] Fetching campus dashboard for campus: ${campusId}`);
-        const response = await fetch(`/api/dashboard_data_public?campus=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&show_previous_year=${showPreviousYear}&_t=${cacheBuster}`, {
+        const response = await fetch(`/api/dashboard_data_public?campus=${campusId}&date_filter=${dateFilter}&custom_start_date=${customStartDate}&custom_end_date=${customEndDate}&show_previous_year=${showPreviousYear}&metrics_scope=${encodeURIComponent(metricsScope)}&_t=${cacheBuster}`, {
           credentials: 'include',
           cache: 'no-store',
           headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
@@ -433,6 +436,18 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                     />
                   </div>
                 )}
+
+                <select
+                  value={metricsScope}
+                  onChange={(e) => setMetricsScope(e.target.value)}
+                  title="Which logged services count toward charts and averages"
+                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400/50 transition-all duration-300 max-w-[min(100%,280px)]"
+                >
+                  <option value="default" className="bg-slate-800 text-white">All logged services</option>
+                  <option value="rollup_only" className="bg-slate-800 text-white">Roll-up totals only</option>
+                  <option value="sundays_only" className="bg-slate-800 text-white">Sundays only</option>
+                  <option value="sundays_rollup_only" className="bg-slate-800 text-white">Sundays, roll-up only</option>
+                </select>
 
               </div>
 
@@ -1769,6 +1784,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
         reportCampusesCsv={reportScope.campusesCsv}
         regionTitle={reportScope.regionTitle}
         campusScopeLabel={reportScope.scopeLabel}
+        metricsScope={metricsScope}
       />
     </div>
   );

@@ -3347,6 +3347,9 @@ class AttendanceRecord(db.Model):
     created_by = db.Column(db.Integer)  # User ID
     synced_to_sheets = db.Column(db.Boolean, default=False)  # For dual-write tracking
     notes = db.Column(db.Text)
+    # When False, row is kept for history but omitted from dashboard YTD / rollup metrics (e.g. Good Friday)
+    include_in_rollup_metrics = db.Column(db.Boolean, nullable=False, default=True)
+    special_service_label = db.Column(db.String(200))  # e.g. "Good Friday", optional
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -3406,6 +3409,8 @@ class AttendanceRecord(db.Model):
             'created_by': self.created_by,
             'synced_to_sheets': self.synced_to_sheets,
             'notes': self.notes,
+            'include_in_rollup_metrics': bool(self.include_in_rollup_metrics) if self.include_in_rollup_metrics is not None else True,
+            'special_service_label': self.special_service_label,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

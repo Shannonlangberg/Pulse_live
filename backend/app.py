@@ -979,6 +979,15 @@ def save_attendance_record(data, user_id=None):
         record.notes = data.get('notes') if ('notes' in data or not existing) else record.notes
         record.saints = int(data.get('Saints', 0) or 0) if (not existing or 'Saints' in data) else (record.saints or 0)
 
+        if not existing or 'include_in_rollup_metrics' in data:
+            record.include_in_rollup_metrics = coerce_include_in_rollup_metrics(data.get('include_in_rollup_metrics'))
+        if not existing or 'special_service_label' in data:
+            sl = data.get('special_service_label')
+            if sl is None or (isinstance(sl, str) and not str(sl).strip()):
+                record.special_service_label = None
+            else:
+                record.special_service_label = str(sl).strip()[:200]
+
         # CALCULATE Total Attendance = Service Times + Saints + Kids + Kids Leaders (exclude Youth for Sundays)
         adult_total = sum(adult_breakdown.values()) if adult_breakdown else 0
         saints = record.saints or 0
@@ -6962,7 +6971,64 @@ def _ytd_chart_week_key(record_date):
     return f"{year}-W{week_num:02d}"
 
 
-def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='', custom_end_date='', show_previous_year=False):
+VALID_METRICS_SCOPES = frozenset({'default', 'rollup_only', 'sundays_only', 'sundays_rollup_only'})
+
+
+def normalize_metrics_scope(raw):
+    if raw is None:
+        return 'default'
+    s = str(raw).strip().lower()
+    return s if s in VALID_METRICS_SCOPES else 'default'
+
+
+def coerce_include_in_rollup_metrics(value):
+    """Default True when value is None. Accepts bool, int/float, or common string forms."""
+    if value is None:
+        return True
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(int(value))
+    s = str(value).strip().lower()
+    if s in ('0', 'false', 'no', 'off', ''):
+        return False
+    if s in ('1', 'true', 'yes', 'on'):
+        return True
+    return True
+
+
+def apply_attendance_metrics_scope(query, metrics_scope='default'):
+    """
+    Filter AttendanceRecord query for dashboard/reports.
+    rollup_only: include_in_rollup_metrics == True
+    sundays_only: calendar Sunday (SQLite strftime %w=0; PostgreSQL extract dow=0)
+    sundays_rollup_only: both
+    """
+    from models import AttendanceRecord
+    from sqlalchemy import and_, extract
+    from sqlalchemy.sql import func
+
+    scope = normalize_metrics_scope(metrics_scope)
+    if scope == 'default':
+        return query
+    parts = []
+    if scope in ('rollup_only', 'sundays_rollup_only'):
+        parts.append(AttendanceRecord.include_in_rollup_metrics.is_(True))
+    if scope in ('sundays_only', 'sundays_rollup_only'):
+        try:
+            dialect = db.engine.dialect.name
+        except Exception:
+            dialect = 'sqlite'
+        if dialect == 'sqlite':
+            parts.append(func.strftime('%w', AttendanceRecord.date) == '0')
+        else:
+            parts.append(extract('dow', AttendanceRecord.date) == 0)
+    if not parts:
+        return query
+    return query.filter(and_(*parts))
+
+
+def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='', custom_end_date='', show_previous_year=False, metrics_scope='default'):
     """
     Get dashboard data - DATABASE FIRST VERSION
     Primary source: attendance_records table (database)
@@ -7039,11 +7105,14 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     campus_ids = [c.id for c in campuses_query]
                     
                     # Also filter records by region_id for safety
-                    records = AttendanceRecord.query.filter(
-                        AttendanceRecord.region_id == australia_region.id,
-                        AttendanceRecord.campus_id.in_(campus_ids),
-                        AttendanceRecord.date >= start_date,
-                        AttendanceRecord.date <= end_date
+                    records = apply_attendance_metrics_scope(
+                        AttendanceRecord.query.filter(
+                            AttendanceRecord.region_id == australia_region.id,
+                            AttendanceRecord.campus_id.in_(campus_ids),
+                            AttendanceRecord.date >= start_date,
+                            AttendanceRecord.date <= end_date
+                        ),
+                        metrics_scope,
                     ).order_by(AttendanceRecord.date.desc()).all()
                     
                     print(f"[DASHBOARD] Found {len(records)} database records across {len(campus_ids)} Australia campuses (region_id={australia_region.id})")
@@ -7053,10 +7122,13 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     campuses_query = CampusV2.query.filter_by(active=True).all()
                     campus_ids = [c.id for c in campuses_query]
                     
-                    records = AttendanceRecord.query.filter(
-                        AttendanceRecord.campus_id.in_(campus_ids),
-                        AttendanceRecord.date >= start_date,
-                        AttendanceRecord.date <= end_date
+                    records = apply_attendance_metrics_scope(
+                        AttendanceRecord.query.filter(
+                            AttendanceRecord.campus_id.in_(campus_ids),
+                            AttendanceRecord.date >= start_date,
+                            AttendanceRecord.date <= end_date
+                        ),
+                        metrics_scope,
                     ).order_by(AttendanceRecord.date.desc()).all()
                     
                     print(f"[DASHBOARD] Found {len(records)} database records across {len(campus_ids)} campuses (all regions)")
@@ -7084,10 +7156,13 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     print(f"[DASHBOARD] Campus '{campus}' not found in database, falling back to Google Sheets")
                     raise Exception("Campus not found - will use Google Sheets")
                 
-                records = AttendanceRecord.query.filter(
-                    AttendanceRecord.campus_id == campus_obj.id,
-                    AttendanceRecord.date >= start_date,
-                    AttendanceRecord.date <= end_date
+                records = apply_attendance_metrics_scope(
+                    AttendanceRecord.query.filter(
+                        AttendanceRecord.campus_id == campus_obj.id,
+                        AttendanceRecord.date >= start_date,
+                        AttendanceRecord.date <= end_date
+                    ),
+                    metrics_scope,
                 ).order_by(AttendanceRecord.date.desc()).all()
                 
                 print(f"[DASHBOARD] Found {len(records)} database records for campus '{campus}' (ID: {campus_obj.id})")
@@ -7316,24 +7391,33 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                 if campus in ['all_campuses', 'australia', 'usa']:
                     # Multi-campus query - filter by region for 'australia'
                     if campus == 'australia' and australia_region:
-                        ytd_records = AttendanceRecord.query.filter(
-                            AttendanceRecord.region_id == australia_region.id,
-                            AttendanceRecord.date >= ytd_start,
-                            AttendanceRecord.date <= ytd_end
+                        ytd_records = apply_attendance_metrics_scope(
+                            AttendanceRecord.query.filter(
+                                AttendanceRecord.region_id == australia_region.id,
+                                AttendanceRecord.date >= ytd_start,
+                                AttendanceRecord.date <= ytd_end
+                            ),
+                            metrics_scope,
                         ).all()
                         print(f"[DASHBOARD YTD] Filtered YTD records for Australia region (region_id={australia_region.id})")
                     else:
                         # All campuses/all regions
-                        ytd_records = AttendanceRecord.query.filter(
-                            AttendanceRecord.date >= ytd_start,
-                            AttendanceRecord.date <= ytd_end
+                        ytd_records = apply_attendance_metrics_scope(
+                            AttendanceRecord.query.filter(
+                                AttendanceRecord.date >= ytd_start,
+                                AttendanceRecord.date <= ytd_end
+                            ),
+                            metrics_scope,
                         ).all()
                 else:
                     # Single campus query
-                    ytd_records = AttendanceRecord.query.filter(
-                        AttendanceRecord.campus_id == campus_obj.id,
-                        AttendanceRecord.date >= ytd_start,
-                        AttendanceRecord.date <= ytd_end
+                    ytd_records = apply_attendance_metrics_scope(
+                        AttendanceRecord.query.filter(
+                            AttendanceRecord.campus_id == campus_obj.id,
+                            AttendanceRecord.date >= ytd_start,
+                            AttendanceRecord.date <= ytd_end
+                        ),
+                        metrics_scope,
                     ).all()
                 
                 print(f"[DASHBOARD YTD] Found {len(ytd_records)} YTD records for chart")
@@ -7372,21 +7456,30 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                         prev_end_d = date(now.year - 1, now.month, 28)
                     if campus in ['all_campuses', 'australia', 'usa']:
                         if campus == 'australia' and australia_region:
-                            prev_ytd_records = AttendanceRecord.query.filter(
-                                AttendanceRecord.region_id == australia_region.id,
-                                AttendanceRecord.date >= prev_start_d,
-                                AttendanceRecord.date <= prev_end_d
+                            prev_ytd_records = apply_attendance_metrics_scope(
+                                AttendanceRecord.query.filter(
+                                    AttendanceRecord.region_id == australia_region.id,
+                                    AttendanceRecord.date >= prev_start_d,
+                                    AttendanceRecord.date <= prev_end_d
+                                ),
+                                metrics_scope,
                             ).all()
                         else:
-                            prev_ytd_records = AttendanceRecord.query.filter(
-                                AttendanceRecord.date >= prev_start_d,
-                                AttendanceRecord.date <= prev_end_d
+                            prev_ytd_records = apply_attendance_metrics_scope(
+                                AttendanceRecord.query.filter(
+                                    AttendanceRecord.date >= prev_start_d,
+                                    AttendanceRecord.date <= prev_end_d
+                                ),
+                                metrics_scope,
                             ).all()
                     else:
-                        prev_ytd_records = AttendanceRecord.query.filter(
-                            AttendanceRecord.campus_id == campus_obj.id,
-                            AttendanceRecord.date >= prev_start_d,
-                            AttendanceRecord.date <= prev_end_d
+                        prev_ytd_records = apply_attendance_metrics_scope(
+                            AttendanceRecord.query.filter(
+                                AttendanceRecord.campus_id == campus_obj.id,
+                                AttendanceRecord.date >= prev_start_d,
+                                AttendanceRecord.date <= prev_end_d
+                            ),
+                            metrics_scope,
                         ).all()
                     print(f"[DASHBOARD YTD] Previous-year chart: {len(prev_ytd_records)} records from {prev_start_d} to {prev_end_d}")
                     for record in prev_ytd_records:
@@ -7508,7 +7601,8 @@ def get_dashboard_data(campus, date_filter='last_12_months', custom_start_date='
                     'service_breakdown': service_breakdown,
                     'kids_service_breakdown': kids_service_breakdown,
                     'chart_data': chart_data,
-                    'data_source': 'Database'
+                    'data_source': 'Database',
+                    'metrics_scope': normalize_metrics_scope(metrics_scope),
                 }
             else:
                 print(f"[DASHBOARD] ⚠️  No database records found, falling back to Google Sheets")
@@ -13978,6 +14072,8 @@ def get_database_viewer():
                 'packs_out': record.packs_out,
                 'saints': record.saints or 0,
                 'tithe': float(record.tithe) if record.tithe else 0.0,
+                'include_in_rollup_metrics': bool(getattr(record, 'include_in_rollup_metrics', True)),
+                'special_service_label': getattr(record, 'special_service_label', None) or '',
                 'synced_to_sheets': record.synced_to_sheets,
                 'created_at': record.created_at.isoformat() if record.created_at else None,
                 'updated_at': record.updated_at.isoformat() if record.updated_at else None
@@ -14086,7 +14182,7 @@ def export_database_viewer_csv():
             'First Time Visitors', 'Visitors', 'New People', 'Hands Up', 'Cards Returned',
             'First Time Christians', 'Rededications', 'New Christians', 'Salvation Cards Returned',
             'Saints', 'Baptisms', 'Child Dedications', 'Connect Groups', 'Dream Team', 'Packs Out',
-            'Tithe', 'Synced to Sheets', 'Created At', 'Updated At'
+            'Tithe', 'Include in rollup metrics', 'Special service label', 'Synced to Sheets', 'Created At', 'Updated At'
         ])
         
         # Write data rows
@@ -14128,6 +14224,8 @@ def export_database_viewer_csv():
                 record.dream_team or 0,
                 record.packs_out or 0,
                 f"${float(record.tithe or 0):.2f}",
+                'Yes' if getattr(record, 'include_in_rollup_metrics', True) else 'No',
+                getattr(record, 'special_service_label', None) or '',
                 'Yes' if record.synced_to_sheets else 'No',
                 record.created_at.isoformat() if record.created_at else '',
                 record.updated_at.isoformat() if record.updated_at else ''
@@ -14287,6 +14385,14 @@ def update_attendance_record(record_id):
             record.kids_service_breakdown = json.dumps(data['kids_service_breakdown']) if data.get('kids_service_breakdown') else None
         if 'notes' in data:
             record.notes = data.get('notes')
+        if 'include_in_rollup_metrics' in data:
+            record.include_in_rollup_metrics = coerce_include_in_rollup_metrics(data.get('include_in_rollup_metrics'))
+        if 'special_service_label' in data:
+            sl = data.get('special_service_label')
+            if sl is None or (isinstance(sl, str) and not str(sl).strip()):
+                record.special_service_label = None
+            else:
+                record.special_service_label = str(sl).strip()[:200]
         
         # Mark as not synced since it was updated
         record.synced_to_sheets = False
@@ -14451,6 +14557,8 @@ def get_recent_entries():
                     'Child Dedications': record.child_dedications or 0,
                     'Seniors': 0,  # Not stored in DB yet
                     'Tithe': float(record.tithe) if record.tithe else 0.0,
+                    'include_in_rollup_metrics': bool(getattr(record, 'include_in_rollup_metrics', True)),
+                    'special_service_label': getattr(record, 'special_service_label', None) or '',
                     # Service time breakdowns (from JSON fields)
                     **adult_breakdown,
                     **kids_breakdown
@@ -14964,6 +15072,15 @@ def save_attendance_record(data, user_id=None):
         record.notes = data.get('notes') if ('notes' in data or not existing) else record.notes
         record.saints = int(data.get('Saints', 0) or 0) if (not existing or 'Saints' in data) else (record.saints or 0)
 
+        if not existing or 'include_in_rollup_metrics' in data:
+            record.include_in_rollup_metrics = coerce_include_in_rollup_metrics(data.get('include_in_rollup_metrics'))
+        if not existing or 'special_service_label' in data:
+            sl = data.get('special_service_label')
+            if sl is None or (isinstance(sl, str) and not str(sl).strip()):
+                record.special_service_label = None
+            else:
+                record.special_service_label = str(sl).strip()[:200]
+
         # CALCULATE Total Attendance = Service Times + Saints + Kids + Kids Leaders (exclude Youth for Sundays)
         adult_total = sum(adult_breakdown.values()) if adult_breakdown else 0
         saints = record.saints or 0
@@ -15054,6 +15171,9 @@ def quick_input():
             'date': date_str,
             **stats  # Spread all stats fields
         }
+        for k in ('include_in_rollup_metrics', 'special_service_label'):
+            if k in data:
+                save_data[k] = data[k]
         
         # Save using dual-write system (Database + Google Sheets backup)
         success, record, error = save_attendance_record(
@@ -15137,6 +15257,10 @@ def quick_input_update():
             save_data['originalCampus'] = original_campus
             save_data['originalDate'] = original_date
             logger.info(f"[EDIT_REQUEST] Passing originalCampus/originalDate for update lookup: '{original_campus}' / '{original_date}'")
+
+        for k in ('include_in_rollup_metrics', 'special_service_label'):
+            if k in data:
+                save_data[k] = data[k]
 
         # Save using dual-write system (will find by original date+campus when provided, then update)
         success, record, error = save_attendance_record(
@@ -15719,9 +15843,13 @@ def get_dashboard_data_public():
         custom_start_date = request.args.get('custom_start_date', '')
         custom_end_date = request.args.get('custom_end_date', '')
         show_previous_year = request.args.get('show_previous_year', 'false').lower() == 'true'
+        metrics_scope = _parse_metrics_scope()
         
         # Use the working Google Sheets function directly
-        dashboard_data = get_dashboard_data(campus, date_filter, custom_start_date, custom_end_date, show_previous_year)
+        dashboard_data = get_dashboard_data(
+            campus, date_filter, custom_start_date, custom_end_date, show_previous_year,
+            metrics_scope=metrics_scope,
+        )
         response = jsonify(dashboard_data)
         # Prevent caching so dashboard always shows fresh database data
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
@@ -15740,9 +15868,13 @@ def get_campus_dashboard_data():
         custom_start_date = request.args.get('custom_start_date', '')
         custom_end_date = request.args.get('custom_end_date', '')
         show_previous_year = request.args.get('show_previous_year', 'false').lower() == 'true'
+        metrics_scope = _parse_metrics_scope()
         
         # Get base dashboard data with all date parameters
-        dashboard_data = get_dashboard_data(campus_id, date_filter, custom_start_date, custom_end_date, show_previous_year)
+        dashboard_data = get_dashboard_data(
+            campus_id, date_filter, custom_start_date, custom_end_date, show_previous_year,
+            metrics_scope=metrics_scope,
+        )
         
         # Enhance with campus-specific metrics
         enhanced_data = enhance_campus_data(dashboard_data, campus_id)
@@ -15814,10 +15946,14 @@ def get_dashboard_api_data():
         date_filter = request.args.get('date_filter', 'last_12_months')
         custom_start_date = request.args.get('custom_start_date', '')
         custom_end_date = request.args.get('custom_end_date', '')
+        metrics_scope = _parse_metrics_scope()
         
         # Get dashboard data using existing function with custom date support
         print(f"[DEBUG] API calling get_dashboard_data with: campus={campus}, date_filter={date_filter}")
-        dashboard_data = get_dashboard_data(campus, date_filter, custom_start_date, custom_end_date)
+        dashboard_data = get_dashboard_data(
+            campus, date_filter, custom_start_date, custom_end_date,
+            metrics_scope=metrics_scope,
+        )
         print(f"[DEBUG] API received data: {dashboard_data.get('stats', {}).get('total_attendance', 'No data')}")
         print(f"[DEBUG] API returning: {dashboard_data}")
         print(f"[DEBUG] API stats keys: {list(dashboard_data.get('stats', {}).keys()) if isinstance(dashboard_data, dict) else 'No stats'}")
@@ -15845,6 +15981,7 @@ def get_regional_dashboard_data():
         custom_start_date = request.args.get('custom_start_date', '')
         custom_end_date = request.args.get('custom_end_date', '')
         show_previous_year = request.args.get('show_previous_year', 'false').lower() == 'true'
+        metrics_scope = _parse_metrics_scope()
         
         print(f"[REGIONAL_DASHBOARD] Request for region: {region_code}, filter: {date_filter}")
         logger.info(f"[REGIONAL_DASHBOARD] Request for region: {region_code}, filter: {date_filter}")
@@ -15928,10 +16065,13 @@ def get_regional_dashboard_data():
             start_date = end_date - timedelta(days=365)
         
         # Query attendance records for this region
-        records = AttendanceRecord.query.filter(
-            AttendanceRecord.region_id == region_id,
-            AttendanceRecord.date >= start_date,
-            AttendanceRecord.date <= end_date
+        records = apply_attendance_metrics_scope(
+            AttendanceRecord.query.filter(
+                AttendanceRecord.region_id == region_id,
+                AttendanceRecord.date >= start_date,
+                AttendanceRecord.date <= end_date,
+            ),
+            metrics_scope,
         ).all()
         
         print(f"[REGIONAL_DASHBOARD] Date range: {start_date} to {end_date}")
@@ -15964,7 +16104,10 @@ def get_regional_dashboard_data():
             campus_for_fallback = 'australia' if region_code.upper() == 'AU' else 'all_campuses'
             print(f"[REGIONAL_DASHBOARD] Falling back to Google Sheets via get_dashboard_data(campus={campus_for_fallback})")
             try:
-                fallback = get_dashboard_data(campus_for_fallback, date_filter, custom_start_date, custom_end_date)
+                fallback = get_dashboard_data(
+                    campus_for_fallback, date_filter, custom_start_date, custom_end_date,
+                    metrics_scope=metrics_scope,
+                )
                 s = fallback.get('stats', {})
                 if s:
                     record_count = max(1, s.get('entry_count', 1))
@@ -15992,7 +16135,8 @@ def get_regional_dashboard_data():
                         },
                         'campuses': [],
                         'chart_data': fallback.get('chart_data', {'labels': [], 'attendance': [], 'new_people': [], 'new_christians': []}),
-                        'data_source': fallback.get('data_source', 'Google Sheets')
+                        'data_source': fallback.get('data_source', 'Google Sheets'),
+                        'metrics_scope': normalize_metrics_scope(metrics_scope),
                     }
                     resp = jsonify(resp_data)
                     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
@@ -16211,10 +16355,13 @@ def get_regional_dashboard_data():
         ytd_end = now
         
         # Query YTD records for this region
-        ytd_records = AttendanceRecord.query.filter(
-            AttendanceRecord.region_id == region_id,
-            AttendanceRecord.date >= ytd_start,
-            AttendanceRecord.date <= ytd_end
+        ytd_records = apply_attendance_metrics_scope(
+            AttendanceRecord.query.filter(
+                AttendanceRecord.region_id == region_id,
+                AttendanceRecord.date >= ytd_start,
+                AttendanceRecord.date <= ytd_end,
+            ),
+            metrics_scope,
         ).all()
         
         print(f"[REGIONAL_DASHBOARD YTD] Found {len(ytd_records)} YTD records for chart (region_id={region_id}, date range: {ytd_start.date()} to {ytd_end.date()})")
@@ -16288,10 +16435,13 @@ def get_regional_dashboard_data():
                 prev_end_d = date(now.year - 1, now.month, now.day)
             except ValueError:
                 prev_end_d = date(now.year - 1, now.month, 28)
-            prev_ytd_records = AttendanceRecord.query.filter(
-                AttendanceRecord.region_id == region_id,
-                AttendanceRecord.date >= prev_start_d,
-                AttendanceRecord.date <= prev_end_d
+            prev_ytd_records = apply_attendance_metrics_scope(
+                AttendanceRecord.query.filter(
+                    AttendanceRecord.region_id == region_id,
+                    AttendanceRecord.date >= prev_start_d,
+                    AttendanceRecord.date <= prev_end_d,
+                ),
+                metrics_scope,
             ).all()
             print(f"[REGIONAL_DASHBOARD YTD] Previous-year chart: {len(prev_ytd_records)} records from {prev_start_d} to {prev_end_d}")
             for record in prev_ytd_records:
@@ -16445,7 +16595,8 @@ def get_regional_dashboard_data():
             },
             'campuses': campus_stats,
             'recent_records': len(records),
-            'chart_data': chart_data
+            'chart_data': chart_data,
+            'metrics_scope': normalize_metrics_scope(metrics_scope),
         }
         
         print(f"[REGIONAL_DASHBOARD] Successfully generated response with {len(records)} records")
@@ -16479,6 +16630,7 @@ def get_global_dashboard_data():
         date_filter = request.args.get('date_filter', 'last_12_months')
         custom_start_date = request.args.get('custom_start_date', '')
         custom_end_date = request.args.get('custom_end_date', '')
+        metrics_scope = _parse_metrics_scope()
         
         # Get user context from current_user (Flask-Login)
         user_role = getattr(current_user, 'role', 'member') if current_user.is_authenticated else 'member'
@@ -16513,16 +16665,22 @@ def get_global_dashboard_data():
             start_date = end_date - timedelta(days=365)
         
         # Query all attendance records
-        all_records = AttendanceRecord.query.filter(
-            AttendanceRecord.date >= start_date,
-            AttendanceRecord.date <= end_date
+        all_records = apply_attendance_metrics_scope(
+            AttendanceRecord.query.filter(
+                AttendanceRecord.date >= start_date,
+                AttendanceRecord.date <= end_date,
+            ),
+            metrics_scope,
         ).all()
         
         # If no records, fall back to Google Sheets (database first, Sheets backup)
         if len(all_records) == 0:
             print(f"[GLOBAL_DASHBOARD] No records found, falling back to Google Sheets")
             try:
-                fallback = get_dashboard_data('all_campuses', date_filter, custom_start_date, custom_end_date)
+                fallback = get_dashboard_data(
+                    'all_campuses', date_filter, custom_start_date, custom_end_date,
+                    metrics_scope=metrics_scope,
+                )
                 s = fallback.get('stats', {})
                 if s:
                     record_count = max(1, s.get('entry_count', 1))
@@ -16546,7 +16704,8 @@ def get_global_dashboard_data():
                             'total_campuses': 1
                         },
                         'regions': [],
-                        'total_records': 0
+                        'total_records': 0,
+                        'metrics_scope': normalize_metrics_scope(metrics_scope),
                     }
                     resp = jsonify(resp_data)
                     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
@@ -16632,7 +16791,8 @@ def get_global_dashboard_data():
                 'total_campuses': len(all_campuses)
             },
             'regions': region_stats,
-            'total_records': len(all_records)
+            'total_records': len(all_records),
+            'metrics_scope': normalize_metrics_scope(metrics_scope),
         }
         
         resp = jsonify(response)
@@ -17163,6 +17323,7 @@ def _q1_report_filename(
     period: str = "q1",
     per_campus_pdf: bool = False,
     exclude_youth_metrics: bool = False,
+    metrics_scope: str = "default",
 ) -> str:
     from q1_attendance_report import normalized_report_period
 
@@ -17180,6 +17341,9 @@ def _q1_report_filename(
         suf += "-per-campus"
     if exclude_youth_metrics:
         suf += "-excl-youth"
+    ms = normalize_metrics_scope(metrics_scope)
+    if ms != "default":
+        suf += f"-{ms.replace('_', '-')}"
     return f"pulse-{p}-attendance-{year}{suf}"
 
 
@@ -17194,6 +17358,7 @@ def _q1_report_data(
     period_label: str = "Q1",
     period_caption: str = "Jan–Mar",
     include_youth_metrics: bool = True,
+    metrics_scope: str = "default",
 ):
     """
     Load ``AttendanceRecord`` rows for the inclusive date range (Q1–Q4 or YTD). Database only.
@@ -17209,6 +17374,7 @@ def _q1_report_data(
         AttendanceRecord.date >= start_d,
         AttendanceRecord.date <= end_d,
     )
+    q = apply_attendance_metrics_scope(q, metrics_scope)
 
     region_obj = None
     rc = (region_code or "").strip()
@@ -17274,6 +17440,15 @@ def _q1_report_data(
             "New people & salvations: youth excluded (NP = FTV + visitors; salvations excl. youth salvations)"
         )
 
+    ms = normalize_metrics_scope(metrics_scope)
+    if ms != "default":
+        scope_labels = {
+            "rollup_only": "Roll-up totals only (rows excluded from rollups omitted)",
+            "sundays_only": "Calendar Sundays only",
+            "sundays_rollup_only": "Sundays only, roll-up rows only",
+        }
+        parts.append(scope_labels.get(ms, f"metrics_scope={ms}"))
+
     filter_summary = " · ".join(parts)
     return build_q1_data(
         year,
@@ -17303,6 +17478,7 @@ def _q1_report_with_optional_yoy(
     period: str = "q1",
     *,
     include_youth_metrics: bool = True,
+    metrics_scope: str = "default",
 ):
     from q1_attendance_report import (
         build_compare_payload,
@@ -17324,6 +17500,7 @@ def _q1_report_with_optional_yoy(
         period_label=lbl,
         period_caption=cap_c,
         include_youth_metrics=include_youth_metrics,
+        metrics_scope=metrics_scope,
     )
     if not include_previous_year:
         return data_curr
@@ -17343,6 +17520,7 @@ def _q1_report_with_optional_yoy(
             period_label="YTD",
             period_caption=cap_p,
             include_youth_metrics=include_youth_metrics,
+            metrics_scope=metrics_scope,
         )
     else:
         s_p, e_p, code_p, lbl_p, cap_p = report_range_for_year_period(year - 1, p)
@@ -17356,6 +17534,7 @@ def _q1_report_with_optional_yoy(
             period_label=lbl_p,
             period_caption=cap_p,
             include_youth_metrics=include_youth_metrics,
+            metrics_scope=metrics_scope,
         )
     return build_compare_payload(data_curr, data_prev)
 
@@ -17380,6 +17559,11 @@ def _parse_exclude_youth_metrics() -> bool:
         if v in ("1", "true", "yes", "on"):
             return True
     return False
+
+
+def _parse_metrics_scope() -> str:
+    """Query param metrics_scope=default|rollup_only|sundays_only|sundays_rollup_only"""
+    return normalize_metrics_scope(request.args.get("metrics_scope"))
 
 
 @app.route('/api/reports/quarterly-attendance.csv', methods=['GET'])
@@ -17413,9 +17597,11 @@ def report_q1_attendance_csv():
         compare = _parse_include_previous_year()
         period = _parse_report_period()
         excl_youth = _parse_exclude_youth_metrics()
+        metrics_scope = _parse_metrics_scope()
         include_youth_m = not excl_youth
         data = _q1_report_with_optional_yoy(
-            year, region, campuses, compare, period=period, include_youth_metrics=include_youth_m
+            year, region, campuses, compare, period=period,
+            include_youth_metrics=include_youth_m, metrics_scope=metrics_scope,
         )
         payload = build_q1_csv_bytes(data)
         fname = _q1_report_filename(
@@ -17425,6 +17611,7 @@ def report_q1_attendance_csv():
             compare=compare,
             period=period,
             exclude_youth_metrics=excl_youth,
+            metrics_scope=metrics_scope,
         )
         resp = Response(payload, mimetype='text/csv; charset=utf-8')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.csv'
@@ -17467,9 +17654,11 @@ def report_q1_attendance_pdf():
         per_campus = _parse_per_campus_pdf()
         period = _parse_report_period()
         excl_youth = _parse_exclude_youth_metrics()
+        metrics_scope = _parse_metrics_scope()
         include_youth_m = not excl_youth
         data = _q1_report_with_optional_yoy(
-            year, region, campuses, compare, period=period, include_youth_metrics=include_youth_m
+            year, region, campuses, compare, period=period,
+            include_youth_metrics=include_youth_m, metrics_scope=metrics_scope,
         )
         payload = build_q1_pdf_bytes(data, per_campus_pages=per_campus)
         fname = _q1_report_filename(
@@ -17480,6 +17669,7 @@ def report_q1_attendance_pdf():
             period=period,
             per_campus_pdf=per_campus,
             exclude_youth_metrics=excl_youth,
+            metrics_scope=metrics_scope,
         )
         resp = Response(payload, mimetype='application/pdf')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.pdf'
@@ -17521,13 +17711,16 @@ def report_q1_attendance_json():
         per_campus = _parse_per_campus_pdf()
         period = _parse_report_period()
         excl_youth = _parse_exclude_youth_metrics()
+        metrics_scope = _parse_metrics_scope()
         include_youth_m = not excl_youth
         data = _q1_report_with_optional_yoy(
-            year, region, campuses, compare, period=period, include_youth_metrics=include_youth_m
+            year, region, campuses, compare, period=period,
+            include_youth_metrics=include_youth_m, metrics_scope=metrics_scope,
         )
         payload = report_json_api_response(data, per_campus=per_campus)
         payload["requested_region"] = region
         payload["requested_campuses_csv"] = campuses
+        payload["metrics_scope"] = normalize_metrics_scope(metrics_scope)
         return jsonify(payload)
     except ValueError as ve:
         return jsonify({"error": str(ve)}), 400

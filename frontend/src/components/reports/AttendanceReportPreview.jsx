@@ -283,6 +283,32 @@ function buildInsights(data) {
   return bullets.slice(0, 5);
 }
 
+/** Short heading: e.g. "South Q1 2026 report" instead of "Q1 2026 All regions attendance report". */
+function buildSimpleReportTitle({
+  plShort,
+  year,
+  regionTitle,
+  campusOnly,
+  isCampusSlice,
+  campusRow,
+}) {
+  const period = (plShort || 'Period').trim();
+  const y = year != null && year !== '' ? String(year) : '';
+  const periodYear = y ? `${period} ${y}` : period;
+
+  if (isCampusSlice && campusRow?.campus_name) {
+    return `${campusRow.campus_name} ${periodYear} report`;
+  }
+  if (campusOnly?.length === 1 && campusOnly[0]?.campus_name) {
+    return `${campusOnly[0].campus_name} ${periodYear} report`;
+  }
+  const r = (regionTitle || '').trim();
+  if (r && !/^all regions$/i.test(r)) {
+    return `${r} ${periodYear} report`;
+  }
+  return `${periodYear} · All regions report`;
+}
+
 /** One dashboard (combined report or a single per-campus slice from the API). */
 function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearProp }) {
   const isCampusSlice = Boolean(data?.kpi_totals);
@@ -538,7 +564,18 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
   );
 
   const insights = useMemo(() => buildInsights(data), [data]);
-  const reportTitleCombined = `${plShort} ${year} ${regionTitle}`.trim();
+  const simpleReportTitle = useMemo(
+    () =>
+      buildSimpleReportTitle({
+        plShort,
+        year,
+        regionTitle,
+        campusOnly,
+        isCampusSlice,
+        campusRow,
+      }),
+    [plShort, year, regionTitle, campusOnly, isCampusSlice, campusRow]
+  );
   const incYouth = data.include_youth_metrics !== false;
 
   const primaryBarTitle = (() => {
@@ -583,27 +620,13 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
   return (
     <div className="pb-10 last:pb-4 border-b border-slate-300/80 last:border-0">
       <header className="mb-8">
-        {isCampusSlice && campusRow ? (
-          <>
-            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: COLORS.text }}>
-              {campusRow.campus_name}
-            </h3>
-            <p className="text-sm mt-2" style={{ color: COLORS.muted }}>
-              {plShort} {year} · {regionTitle} · {data.start} → {data.end}
-              {data.filter_summary ? ` · ${data.filter_summary}` : ''}
-            </p>
-          </>
-        ) : (
-          <>
-            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: COLORS.text }}>
-              {reportTitleCombined} attendance report
-            </h3>
-            <p className="text-sm mt-2" style={{ color: COLORS.muted }}>
-              {data.start} → {data.end}
-              {data.filter_summary ? ` · ${data.filter_summary}` : ''}
-            </p>
-          </>
-        )}
+        <h3 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: COLORS.text }}>
+          {simpleReportTitle}
+        </h3>
+        <p className="text-sm mt-2" style={{ color: COLORS.muted }}>
+          {data.start} → {data.end}
+          {data.filter_summary ? ` · ${data.filter_summary}` : ''}
+        </p>
         {data.compare && (
           <p className="text-sm mt-1" style={{ color: COLORS.muted }}>
             YoY: {plShort} {data.prev_year} vs {plShort} {data.year}
@@ -678,7 +701,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
           <p className="text-xs mb-4" style={{ color: COLORS.muted }}>
             {primaryBarSubtitle}
           </p>
-          <div className="h-80">
+          <div className="h-80 min-h-0 report-chart-h-bar">
             {sortedByWeekend.length > 0 ? (
               <Bar
                 data={data.compare ? yoyWeekendBarData : singleYearSunWeekendBarData}
@@ -698,7 +721,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
           <p className="text-xs mb-4" style={{ color: COLORS.muted }}>
             {stackedSubtitle}
           </p>
-          <div className="h-80">
+          <div className="h-80 min-h-0 report-chart-h-bar">
             {sortedByWeekend.length > 0 ? (
               <Bar data={stackedBarData} options={stackedOptions} />
             ) : (
@@ -725,7 +748,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
                 {data.prev_year}
                 {data.period_caption_prev ? ` · ${data.period_caption_prev}` : ''}
               </h5>
-              <div className="h-64">
+              <div className="h-64 min-h-0 report-chart-h-line">
                 {weeklyLineDataComparePrev ? (
                   <Line data={weeklyLineDataComparePrev} options={lineOptionsCompact} />
                 ) : (
@@ -740,7 +763,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
                 {data.year}
                 {data.period_caption_curr ? ` · ${data.period_caption_curr}` : ''}
               </h5>
-              <div className="h-64">
+              <div className="h-64 min-h-0 report-chart-h-line">
                 {weeklyLineDataCompareCurr ? (
                   <Line data={weeklyLineDataCompareCurr} options={lineOptionsCompact} />
                 ) : (
@@ -752,7 +775,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
             </div>
           </div>
         ) : (
-          <div className="h-72">
+          <div className="h-72 min-h-0 report-chart-h-line-wide">
             {weeklyLineDataSingle ? (
               <Line data={weeklyLineDataSingle} options={lineOptions} />
             ) : (
@@ -825,10 +848,24 @@ export default function AttendanceReportPreview({ queryString, regionTitle, peri
     };
   }, [queryString]);
 
+  useEffect(() => {
+    const fixChartsForPrint = () => {
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('resize'));
+      });
+    };
+    window.addEventListener('beforeprint', fixChartsForPrint);
+    window.addEventListener('afterprint', fixChartsForPrint);
+    return () => {
+      window.removeEventListener('beforeprint', fixChartsForPrint);
+      window.removeEventListener('afterprint', fixChartsForPrint);
+    };
+  }, []);
+
   return (
     <div
       id="attendance-report-print-root"
-      className="mt-10 rounded-2xl overflow-hidden border border-slate-600 print:border-0 print:shadow-none"
+      className="mt-10 rounded-2xl overflow-hidden border border-slate-600 print:border-0 print:shadow-none print:mt-0"
       style={{ background: COLORS.pageBg }}
     >
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-200/80 bg-white/90 no-print">
@@ -847,7 +884,7 @@ export default function AttendanceReportPreview({ queryString, regionTitle, peri
         </div>
       </div>
 
-      <div className="p-6 sm:p-8 print:p-4">
+      <div className="p-6 sm:p-8 print:p-2 print-report-body">
         {loading && !payload && (
           <div className="flex items-center gap-2 text-slate-500 py-12 justify-center">
             <ArrowPathIcon className="w-5 h-5 animate-spin" />
@@ -868,7 +905,23 @@ export default function AttendanceReportPreview({ queryString, regionTitle, peri
                 One dashboard per campus (same layout as PDF per-campus download)
               </p>
               <h3 className="text-xl font-bold mt-1" style={{ color: COLORS.text }}>
-                {payload.period_label} {payload.year} · {regionTitle}
+                {(() => {
+                  const n = payload.campuses?.length ?? 0;
+                  let campusOnly = [];
+                  if (n === 1) {
+                    const rows = (payload.campuses[0]?.campus_rows || []).filter((r) => !r.is_region_subtotal);
+                    if (rows.length === 1) campusOnly = rows;
+                  }
+                  const base = buildSimpleReportTitle({
+                    plShort: payload.period_label,
+                    year: payload.year,
+                    regionTitle,
+                    campusOnly,
+                    isCampusSlice: false,
+                    campusRow: null,
+                  });
+                  return n > 1 ? `${base} · by campus` : base;
+                })()}
               </h3>
               <p className="text-sm mt-2" style={{ color: COLORS.muted }}>
                 {payload.start} → {payload.end}
@@ -919,7 +972,56 @@ export default function AttendanceReportPreview({ queryString, regionTitle, peri
 
       <style>{`
         @media print {
-          .no-print { display: none !important; }
+          .no-print {
+            display: none !important;
+          }
+
+          #attendance-report-print-root .print-report-body {
+            padding: 0.35rem 0.5rem 0.5rem !important;
+          }
+
+          #attendance-report-print-root .mb-8 {
+            margin-bottom: 0.5rem !important;
+          }
+          #attendance-report-print-root header.mb-8 {
+            margin-bottom: 0.4rem !important;
+          }
+          #attendance-report-print-root .mb-6,
+          #attendance-report-print-root .mb-4 {
+            margin-bottom: 0.35rem !important;
+          }
+          #attendance-report-print-root .pb-10 {
+            padding-bottom: 0.25rem !important;
+          }
+          #attendance-report-print-root .gap-6 {
+            gap: 0.35rem !important;
+          }
+          #attendance-report-print-root .gap-4 {
+            gap: 0.35rem !important;
+          }
+
+          #attendance-report-print-root .report-chart-h-bar {
+            height: 160px !important;
+            max-height: 160px !important;
+            break-inside: auto;
+            page-break-inside: auto;
+          }
+          #attendance-report-print-root .report-chart-h-line {
+            height: 120px !important;
+            max-height: 120px !important;
+            break-inside: auto;
+            page-break-inside: auto;
+          }
+          #attendance-report-print-root .report-chart-h-line-wide {
+            height: 140px !important;
+            max-height: 140px !important;
+            break-inside: auto;
+            page-break-inside: auto;
+          }
+
+          #attendance-report-print-root canvas {
+            max-width: 100% !important;
+          }
         }
       `}</style>
     </div>

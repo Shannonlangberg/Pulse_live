@@ -598,6 +598,8 @@ const DatabaseViewer = () => {
                         <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">New People</th>
                         <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Salvations</th>
                         <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Tithe</th>
+                        <th className="px-4 py-3 text-center text-slate-300 font-semibold text-sm">In rollups</th>
+                        <th className="px-4 py-3 text-left text-slate-300 font-semibold text-sm max-w-[140px]">Service label</th>
                         <th className="px-4 py-3 text-center text-slate-300 font-semibold text-sm">Synced</th>
                         <th className="px-4 py-3 text-center text-slate-300 font-semibold text-sm">Actions</th>
                       </tr>
@@ -619,6 +621,12 @@ const DatabaseViewer = () => {
                         </td>
                         <td className="px-4 py-3 text-right text-slate-300">
                           ${(record.tithe || 0).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-center text-slate-300 text-sm">
+                          {record.include_in_rollup_metrics !== false ? 'Yes' : 'No'}
+                        </td>
+                        <td className="px-4 py-3 text-slate-400 text-xs max-w-[140px] truncate" title={record.special_service_label || ''}>
+                          {record.special_service_label || '—'}
                         </td>
                         <td className="px-4 py-3 text-center">
                           {record.synced_to_sheets ? (
@@ -852,6 +860,43 @@ const DatabaseViewer = () => {
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Date</p>
                     <p className="text-white font-semibold">{selectedRecord.date}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-3 col-span-2 md:col-span-1">
+                    <p className="text-slate-400 text-xs mb-1">Include in annual / dashboard rollups</p>
+                    {isEditing ? (
+                      <label className="flex cursor-pointer items-center gap-2 text-white">
+                        <input
+                          type="checkbox"
+                          checked={editedRecord?.include_in_rollup_metrics !== false}
+                          onChange={(e) =>
+                            setEditedRecord({ ...editedRecord, include_in_rollup_metrics: e.target.checked })
+                          }
+                          className="rounded border-white/20 bg-slate-800"
+                        />
+                        <span className="text-sm font-semibold">Yes</span>
+                      </label>
+                    ) : (
+                      <p className="text-white font-semibold">
+                        {selectedRecord.include_in_rollup_metrics !== false ? 'Yes' : 'No'}
+                      </p>
+                    )}
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-3 col-span-2">
+                    <p className="text-slate-400 text-xs mb-1">Special service name (optional)</p>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedRecord?.special_service_label ?? ''}
+                        onChange={(e) =>
+                          setEditedRecord({ ...editedRecord, special_service_label: e.target.value })
+                        }
+                        placeholder="e.g. Good Friday, Christmas Eve"
+                        className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-3 py-2 text-white text-sm"
+                        maxLength={200}
+                      />
+                    ) : (
+                      <p className="text-white font-semibold">{selectedRecord.special_service_label || '—'}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="text-slate-400 text-xs mb-1">Synced to Sheets</p>

@@ -211,4 +211,86 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
-} 
+}
+
+/* Attendance report: print / Save as PDF from campus modal or Reports page */
+@media print {
+  @page {
+    margin: 8mm;
+    size: auto;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Modal: drop filters/title bar; remove viewport height cap (was causing multi-page fragmentation) */
+  #campus-attendance-report-modal {
+    position: static !important;
+    inset: unset !important;
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    padding: 0 !important;
+    z-index: auto !important;
+  }
+
+  #campus-attendance-report-modal .campus-report-modal-chrome {
+    display: none !important;
+  }
+
+  #campus-attendance-report-modal .campus-report-modal-shell {
+    max-height: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    border-radius: 0 !important;
+  }
+
+  #campus-attendance-report-modal .campus-report-modal-body {
+    overflow: visible !important;
+    max-height: none !important;
+    flex: none !important;
+    height: auto !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  /* Hide app chrome; keep modal shell + report visible (print engines vary on nested visibility) */
+  body * {
+    visibility: hidden !important;
+  }
+
+  #campus-attendance-report-modal,
+  #campus-attendance-report-modal .campus-report-modal-shell,
+  #campus-attendance-report-modal .campus-report-modal-body,
+  #attendance-report-print-root,
+  #attendance-report-print-root * {
+    visibility: visible !important;
+  }
+
+  #attendance-report-print-root {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+}

@@ -38,6 +38,7 @@ const Reports = () => {
   const [period, setPeriod] = useState('q1');
   const [includePreviousYear, setIncludePreviousYear] = useState(false);
   const [excludeYouthMetrics, setExcludeYouthMetrics] = useState(false);
+  const [metricsScope, setMetricsScope] = useState('default');
   const [pdfOnePagePerCampus, setPdfOnePagePerCampus] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loadingCsv, setLoadingCsv] = useState(false);
@@ -126,8 +127,11 @@ const Reports = () => {
     if (excludeYouthMetrics) {
       params.set('exclude_youth_metrics', 'true');
     }
+    if (metricsScope && metricsScope !== 'default') {
+      params.set('metrics_scope', metricsScope);
+    }
     return params.toString();
-  }, [year, period, regionCode, selectedCampusSlugs, includePreviousYear, excludeYouthMetrics]);
+  }, [year, period, regionCode, selectedCampusSlugs, includePreviousYear, excludeYouthMetrics, metricsScope]);
 
   const pdfQueryString = useMemo(() => {
     const params = new URLSearchParams(queryString);
@@ -169,6 +173,9 @@ const Reports = () => {
     if (excludeYouthMetrics) {
       parts.push('NP & salvations: excl. youth (FTV + visitors; no youth salvations)');
     }
+    if (metricsScope === 'rollup_only') parts.push('Scope: roll-up rows only');
+    else if (metricsScope === 'sundays_only') parts.push('Scope: Sundays only');
+    else if (metricsScope === 'sundays_rollup_only') parts.push('Scope: Sundays, roll-up only');
     return parts.join(' · ');
   }, [
     year,
@@ -179,6 +186,7 @@ const Reports = () => {
     regions,
     includePreviousYear,
     excludeYouthMetrics,
+    metricsScope,
   ]);
 
   const downloadFile = async (url, defaultName, setLoading) => {
@@ -309,6 +317,24 @@ const Reports = () => {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                Attendance scope (charts &amp; totals)
+              </label>
+              <select
+                value={metricsScope}
+                onChange={(e) => setMetricsScope(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              >
+                <option value="default">All logged services</option>
+                <option value="rollup_only">Roll-up totals only</option>
+                <option value="sundays_only">Sundays only</option>
+                <option value="sundays_rollup_only">Sundays, roll-up only</option>
+              </select>
+              <p className="text-slate-500 text-xs mt-2">
+                Matches dashboard “metrics scope”: exclude non–roll-up rows and/or non-Sunday dates from aggregates.
+              </p>
             </div>
           </div>
 

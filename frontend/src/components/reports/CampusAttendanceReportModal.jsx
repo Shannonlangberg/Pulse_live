@@ -34,6 +34,7 @@ export default function CampusAttendanceReportModal({
   reportCampusesCsv = '',
   regionTitle = 'All regions',
   campusScopeLabel = '',
+  metricsScope = 'default',
 }) {
   const [year, setYear] = useState(currentCalendarYear);
   const [period, setPeriod] = useState('q1');
@@ -66,8 +67,9 @@ export default function CampusAttendanceReportModal({
     const cs = (reportCampusesCsv || '').trim();
     if (cs) params.set('campuses', cs);
     if (includePreviousYear) params.set('include_previous_year', 'true');
+    if (metricsScope && metricsScope !== 'default') params.set('metrics_scope', metricsScope);
     return params.toString();
-  }, [year, period, reportRegionCode, reportCampusesCsv, includePreviousYear]);
+  }, [year, period, reportRegionCode, reportCampusesCsv, includePreviousYear, metricsScope]);
 
   const pdfQueryString = useMemo(() => {
     const params = new URLSearchParams(queryString);
@@ -85,13 +87,14 @@ export default function CampusAttendanceReportModal({
 
   return (
     <div
+      id="campus-attendance-report-modal"
       className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="campus-report-modal-title"
     >
-      <div className="relative w-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl border border-white/10 bg-slate-900 shadow-2xl overflow-hidden">
-        <div className="flex flex-shrink-0 flex-col gap-4 border-b border-white/10 bg-gradient-to-r from-slate-800 to-slate-900 px-4 py-4 sm:px-6 sm:flex-row sm:items-start sm:justify-between">
+      <div className="relative w-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl border border-white/10 bg-slate-900 shadow-2xl overflow-hidden campus-report-modal-shell">
+        <div className="campus-report-modal-chrome flex flex-shrink-0 flex-col gap-4 border-b border-white/10 bg-gradient-to-r from-slate-800 to-slate-900 px-4 py-4 sm:px-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 pr-10 sm:pr-0">
             <h2
               id="campus-report-modal-title"
@@ -120,7 +123,7 @@ export default function CampusAttendanceReportModal({
           </button>
         </div>
 
-        <div className="flex-shrink-0 border-b border-white/10 bg-slate-800/90 px-4 py-4 sm:px-6">
+        <div className="campus-report-modal-chrome flex-shrink-0 border-b border-white/10 bg-slate-800/90 px-4 py-4 sm:px-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-white/50">
@@ -176,7 +179,7 @@ export default function CampusAttendanceReportModal({
           </label>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-950/40 p-3 sm:p-4">
+        <div className="campus-report-modal-body min-h-0 flex-1 overflow-y-auto bg-slate-950/40 p-3 sm:p-4">
           <AttendanceReportPreview
             queryString={pdfQueryString}
             regionTitle={regionTitle}
