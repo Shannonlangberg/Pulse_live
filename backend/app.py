@@ -26,7 +26,7 @@ except Exception as e:
     raise
 
 import json
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 import logging
 from sqlalchemy import inspect, text, bindparam
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
@@ -17339,10 +17339,12 @@ def _q1_report_filename(
     per_campus_pdf: bool = False,
     exclude_youth_metrics: bool = False,
     metrics_scope: str = "default",
+    *,
+    custom_start: date | None = None,
+    custom_end: date | None = None,
 ) -> str:
     from q1_attendance_report import normalized_report_period
 
-    p = normalized_report_period(period)
     suf = ""
     if region_code and region_code.strip():
         suf += f"-{region_code.strip().upper()}"
@@ -17359,7 +17361,12 @@ def _q1_report_filename(
     ms = normalize_metrics_scope(metrics_scope)
     if ms != "default":
         suf += f"-{ms.replace('_', '-')}"
-    return f"pulse-{p}-attendance-{year}{suf}"
+    if custom_start is not None and custom_end is not None:
+        base = f"pulse-custom-{custom_start.isoformat()}-to-{custom_end.isoformat()}"
+    else:
+        p = normalized_report_period(period)
+        base = f"pulse-{p}-attendance-{year}"
+    return f"{base}{suf}"
 
 
 def _q1_report_data(
@@ -17555,6 +17562,89 @@ def _q1_report_with_optional_yoy(
     return build_compare_payload(data_curr, data_prev)
 
 
+def _try_parse_custom_report_range() -> Optional[Tuple[date, date]]:
+    """
+    If both start_date and end_date are present (YYYY-MM-DD), return inclusive (start, end).
+    If neither is present, return None. If only one is present, raise ValueError.
+    """
+    start_raw = (request.args.get("start_date") or request.args.get("custom_start_date") or "").strip()
+    end_raw = (request.args.get("end_date") or request.args.get("custom_end_date") or "").strip()
+    if not start_raw and not end_raw:
+        return None
+    if not start_raw or not end_raw:
+        raise ValueError("Custom range requires both start_date and end_date (YYYY-MM-DD)")
+    try:
+        start_d = datetime.strptime(start_raw, "%Y-%m-%d").date()
+        end_d = datetime.strptime(end_raw, "%Y-%m-%d").date()
+    except ValueError:
+        raise ValueError("Invalid start_date or end_date — use YYYY-MM-DD") from None
+    if start_d > end_d:
+        raise ValueError("start_date must be on or before end_date")
+    today = date.today()
+    if end_d > today:
+        raise ValueError("end_date cannot be in the future")
+    if start_d < date(2000, 1, 1):
+        raise ValueError("start_date must be on or after 2000-01-01")
+    max_days = 1095  # 3 years
+    if (end_d - start_d).days > max_days:
+        raise ValueError(f"Date range cannot exceed {max_days} days (~3 years)")
+    return (start_d, end_d)
+
+
+def _q1_report_custom_range_with_optional_yoy(
+    start_d: date,
+    end_d: date,
+    region: str,
+    campuses: str,
+    include_previous_year: bool,
+    *,
+    include_youth_metrics: bool = True,
+    metrics_scope: str = "default",
+):
+    """Attendance report for an arbitrary inclusive date range (Pulse DB only)."""
+    from q1_attendance_report import (
+        build_compare_payload,
+        format_period_caption,
+        ytd_end_for_prior_year_yoy,
+    )
+
+    y_curr = end_d.year
+    cap_c = format_period_caption(start_d, end_d, "custom")
+    data_curr = _q1_report_data(
+        y_curr,
+        region_code=region or None,
+        campuses_csv=campuses or None,
+        start_d=start_d,
+        end_d=end_d,
+        period_code="custom",
+        period_label="Custom",
+        period_caption=cap_c,
+        include_youth_metrics=include_youth_metrics,
+        metrics_scope=metrics_scope,
+    )
+    if not include_previous_year:
+        return data_curr
+    s_p = ytd_end_for_prior_year_yoy(start_d, start_d.year - 1)
+    e_p = ytd_end_for_prior_year_yoy(end_d, end_d.year - 1)
+    if s_p > e_p:
+        raise ValueError("Invalid prior-year alignment for custom date range")
+    cap_p = format_period_caption(s_p, e_p, "custom")
+    y_prev = e_p.year
+    data_prev = _q1_report_data(
+        y_prev,
+        region_code=region or None,
+        campuses_csv=campuses or None,
+        start_d=s_p,
+        end_d=e_p,
+        period_code="custom",
+        period_label="Custom",
+        period_caption=cap_p,
+        include_youth_metrics=include_youth_metrics,
+        metrics_scope=metrics_scope,
+    )
+    return build_compare_payload(data_curr, data_prev)
+
+
 def _parse_include_previous_year() -> bool:
     v = (request.args.get("include_previous_year") or "").strip().lower()
     return v in ("1", "true", "yes", "on")
@@ -17588,7 +17678,8 @@ def _parse_metrics_scope() -> str:
 def report_q1_attendance_csv():
     """
     Quarterly (Q1–Q4) and YTD attendance by campus — CSV from ``attendance_records`` only.
-    Use ``?period=q1|q2|q3|q4|ytd`` (default q1). Same columns and rules for every period.
+    Use ``?period=q1|q2|q3|q4|ytd`` (default q1), or ``?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`` for a custom
+    inclusive range (end not in the future; max ~3 years). Same columns and rules.
 
     ``data_export`` users may query any region/campuses. Other users need ``dashboard_access``;
     campus filters are restricted to campuses they are allowed to see (same rules as /api/campuses).
@@ -17601,9 +17692,6 @@ def report_q1_attendance_csv():
     try:
         from q1_attendance_report import build_q1_csv_bytes
 
-        year = int(request.args.get('year', datetime.now().year))
-        if year < 2000 or year > 2100:
-            return jsonify({"error": "Invalid year"}), 400
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
         try:
@@ -17615,20 +17703,47 @@ def report_q1_attendance_csv():
         excl_youth = _parse_exclude_youth_metrics()
         metrics_scope = _parse_metrics_scope()
         include_youth_m = not excl_youth
-        data = _q1_report_with_optional_yoy(
-            year, region, campuses, compare, period=period,
-            include_youth_metrics=include_youth_m, metrics_scope=metrics_scope,
-        )
+        custom_range = _try_parse_custom_report_range()
+        if custom_range:
+            s_d, e_d = custom_range
+            data = _q1_report_custom_range_with_optional_yoy(
+                s_d,
+                e_d,
+                region,
+                campuses,
+                compare,
+                include_youth_metrics=include_youth_m,
+                metrics_scope=metrics_scope,
+            )
+            fname = _q1_report_filename(
+                e_d.year,
+                region,
+                campuses,
+                compare=compare,
+                period="custom",
+                exclude_youth_metrics=excl_youth,
+                metrics_scope=metrics_scope,
+                custom_start=s_d,
+                custom_end=e_d,
+            )
+        else:
+            year = int(request.args.get('year', datetime.now().year))
+            if year < 2000 or year > 2100:
+                return jsonify({"error": "Invalid year"}), 400
+            data = _q1_report_with_optional_yoy(
+                year, region, campuses, compare, period=period,
+                include_youth_metrics=include_youth_m, metrics_scope=metrics_scope,
+            )
+            fname = _q1_report_filename(
+                year,
+                region,
+                campuses,
+                compare=compare,
+                period=period,
+                exclude_youth_metrics=excl_youth,
+                metrics_scope=metrics_scope,
+            )
         payload = build_q1_csv_bytes(data)
-        fname = _q1_report_filename(
-            year,
-            region,
-            campuses,
-            compare=compare,
-            period=period,
-            exclude_youth_metrics=excl_youth,
-            metrics_scope=metrics_scope,
-        )
         resp = Response(payload, mimetype='text/csv; charset=utf-8')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.csv'
         return resp
@@ -17645,7 +17760,7 @@ def report_q1_attendance_csv():
 def report_q1_attendance_pdf():
     """
     Quarterly (Q1–Q4) and YTD attendance — PDF (charts + tables) from ``attendance_records`` only.
-    Use ``?period=q1|q2|q3|q4|ytd`` (default q1). Same template, YoY %, and options for every period.
+    Use ``?period=q1|q2|q3|q4|ytd`` (default q1) or ``?start_date=&end_date=`` for a custom range (see CSV route).
 
     Access and campus scoping match the CSV and JSON report endpoints.
     """
@@ -17657,9 +17772,6 @@ def report_q1_attendance_pdf():
     try:
         from q1_attendance_report import build_q1_pdf_bytes
 
-        year = int(request.args.get('year', datetime.now().year))
-        if year < 2000 or year > 2100:
-            return jsonify({"error": "Invalid year"}), 400
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
         try:
@@ -17672,21 +17784,49 @@ def report_q1_attendance_pdf():
         excl_youth = _parse_exclude_youth_metrics()
         metrics_scope = _parse_metrics_scope()
         include_youth_m = not excl_youth
-        data = _q1_report_with_optional_yoy(
-            year, region, campuses, compare, period=period,
-            include_youth_metrics=include_youth_m, metrics_scope=metrics_scope,
-        )
+        custom_range = _try_parse_custom_report_range()
+        if custom_range:
+            s_d, e_d = custom_range
+            data = _q1_report_custom_range_with_optional_yoy(
+                s_d,
+                e_d,
+                region,
+                campuses,
+                compare,
+                include_youth_metrics=include_youth_m,
+                metrics_scope=metrics_scope,
+            )
+            fname = _q1_report_filename(
+                e_d.year,
+                region,
+                campuses,
+                compare=compare,
+                period="custom",
+                per_campus_pdf=per_campus,
+                exclude_youth_metrics=excl_youth,
+                metrics_scope=metrics_scope,
+                custom_start=s_d,
+                custom_end=e_d,
+            )
+        else:
+            year = int(request.args.get('year', datetime.now().year))
+            if year < 2000 or year > 2100:
+                return jsonify({"error": "Invalid year"}), 400
+            data = _q1_report_with_optional_yoy(
+                year, region, campuses, compare, period=period,
+                include_youth_metrics=include_youth_m, metrics_scope=metrics_scope,
+            )
+            fname = _q1_report_filename(
+                year,
+                region,
+                campuses,
+                compare=compare,
+                period=period,
+                per_campus_pdf=per_campus,
+                exclude_youth_metrics=excl_youth,
+                metrics_scope=metrics_scope,
+            )
         payload = build_q1_pdf_bytes(data, per_campus_pages=per_campus)
-        fname = _q1_report_filename(
-            year,
-            region,
-            campuses,
-            compare=compare,
-            period=period,
-            per_campus_pdf=per_campus,
-            exclude_youth_metrics=excl_youth,
-            metrics_scope=metrics_scope,
-        )
         resp = Response(payload, mimetype='application/pdf')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.pdf'
         return resp
@@ -17714,9 +17854,6 @@ def report_q1_attendance_json():
     try:
         from q1_attendance_report import report_json_api_response
 
-        year = int(request.args.get('year', datetime.now().year))
-        if year < 2000 or year > 2100:
-            return jsonify({"error": "Invalid year"}), 400
         region = request.args.get('region', '').strip()
         campuses = request.args.get('campuses', '').strip()
         try:
@@ -17729,10 +17866,26 @@ def report_q1_attendance_json():
         excl_youth = _parse_exclude_youth_metrics()
         metrics_scope = _parse_metrics_scope()
         include_youth_m = not excl_youth
-        data = _q1_report_with_optional_yoy(
-            year, region, campuses, compare, period=period,
-            include_youth_metrics=include_youth_m, metrics_scope=metrics_scope,
-        )
+        custom_range = _try_parse_custom_report_range()
+        if custom_range:
+            s_d, e_d = custom_range
+            data = _q1_report_custom_range_with_optional_yoy(
+                s_d,
+                e_d,
+                region,
+                campuses,
+                compare,
+                include_youth_metrics=include_youth_m,
+                metrics_scope=metrics_scope,
+            )
+        else:
+            year = int(request.args.get('year', datetime.now().year))
+            if year < 2000 or year > 2100:
+                return jsonify({"error": "Invalid year"}), 400
+            data = _q1_report_with_optional_yoy(
+                year, region, campuses, compare, period=period,
+                include_youth_metrics=include_youth_m, metrics_scope=metrics_scope,
+            )
         payload = report_json_api_response(data, per_campus=per_campus)
         payload["requested_region"] = region
         payload["requested_campuses_csv"] = campuses

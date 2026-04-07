@@ -15,7 +15,16 @@ const PERIOD_OPTIONS = [
     value: 'ytd',
     label: 'YTD — Jan 1 through today (selected year)',
   },
+  { value: 'custom', label: 'Custom date range' },
 ];
+
+function defaultCustomRangeYmd() {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - 29);
+  const ymd = (d) => d.toISOString().slice(0, 10);
+  return { start: ymd(start), end: ymd(end) };
+}
 
 function buildYearOptions() {
   const out = [];
@@ -38,6 +47,8 @@ export default function CampusAttendanceReportModal({
 }) {
   const [year, setYear] = useState(currentCalendarYear);
   const [period, setPeriod] = useState('q1');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   const [includePreviousYear, setIncludePreviousYear] = useState(false);
 
   useEffect(() => {
@@ -60,8 +71,13 @@ export default function CampusAttendanceReportModal({
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
-    params.set('year', String(year));
-    if (period && period !== 'q1') params.set('period', period);
+    if (period === 'custom') {
+      if (customStartDate) params.set('start_date', customStartDate);
+      if (customEndDate) params.set('end_date', customEndDate);
+    } else {
+      params.set('year', String(year));
+      if (period && period !== 'q1') params.set('period', period);
+    }
     const rc = (reportRegionCode || '').trim();
     if (rc) params.set('region', rc);
     const cs = (reportCampusesCsv || '').trim();
@@ -69,7 +85,16 @@ export default function CampusAttendanceReportModal({
     if (includePreviousYear) params.set('include_previous_year', 'true');
     if (metricsScope && metricsScope !== 'default') params.set('metrics_scope', metricsScope);
     return params.toString();
-  }, [year, period, reportRegionCode, reportCampusesCsv, includePreviousYear, metricsScope]);
+  }, [
+    year,
+    period,
+    customStartDate,
+    customEndDate,
+    reportRegionCode,
+    reportCampusesCsv,
+    includePreviousYear,
+    metricsScope,
+  ]);
 
   const pdfQueryString = useMemo(() => {
     const params = new URLSearchParams(queryString);
@@ -78,10 +103,19 @@ export default function CampusAttendanceReportModal({
     return params.toString();
   }, [queryString, reportCampusesCsv]);
 
-  const periodLabel = useMemo(
-    () => PERIOD_OPTIONS.find((o) => o.value === period)?.label || period,
-    [period],
-  );
+  const periodLabel = useMemo(() => {
+    if (period === 'custom' && customStartDate && customEndDate) {
+      return `Custom: ${customStartDate} → ${customEndDate}`;
+    }
+    return PERIOD_OPTIONS.find((o) => o.value === period)?.label || period;
+  }, [period, customStartDate, customEndDate]);
+
+  const customRangeReady =
+    period !== 'custom' || (Boolean(customStartDate) && Boolean(customEndDate));
+  const previewYear =
+    period === 'custom' && customEndDate
+      ? parseInt(customEndDate.slice(0, 4), 10) || year
+      : year;
 
   if (!open) return null;
 
@@ -131,12 +165,13 @@ export default function CampusAttendanceReportModal({
               </label>
               <select
                 value={year}
+                disabled={period === 'custom'}
                 onChange={(e) => {
                   const y = parseInt(e.target.value, 10);
                   setYear(y);
                   if (y <= 2000) setIncludePreviousYear(false);
                 }}
-                className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {buildYearOptions().map((y) => (
                   <option key={y} value={y}>
@@ -151,7 +186,15 @@ export default function CampusAttendanceReportModal({
               </label>
               <select
                 value={period}
-                onChange={(e) => setPeriod(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setPeriod(v);
+                  if (v === 'custom') {
+                    const { start, end } = defaultCustomRangeYmd();
+                    setCustomStartDate((prev) => prev || start);
+                    setCustomEndDate((prev) => prev || end);
+                  }
+                }}
                 className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               >
                 {PERIOD_OPTIONS.map((o) => (
@@ -161,6 +204,32 @@ export default function CampusAttendanceReportModal({
                 ))}
               </select>
             </div>
+            {period === 'custom' && (
+              <>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-white/50">
+                    Start date
+                  </label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-white/50">
+                    End date
+                  </label>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  />
+                </div>
+              </>
+            )}
           </div>
           <label className="mt-4 flex cursor-pointer items-start gap-3">
             <input
@@ -184,7 +253,8 @@ export default function CampusAttendanceReportModal({
             queryString={pdfQueryString}
             regionTitle={regionTitle}
             periodLabel={periodLabel}
-            year={year}
+            year={previewYear}
+            fetchEnabled={customRangeReady}
           />
         </div>
       </div>

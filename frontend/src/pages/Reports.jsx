@@ -20,7 +20,16 @@ const PERIOD_OPTIONS = [
     value: 'ytd',
     label: 'YTD — Jan 1 through today (selected year)',
   },
+  { value: 'custom', label: 'Custom date range' },
 ];
+
+function defaultCustomRangeYmd() {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - 29);
+  const ymd = (d) => d.toISOString().slice(0, 10);
+  return { start: ymd(start), end: ymd(end) };
+}
 
 const buildYearOptions = () => {
   const out = [];
@@ -38,6 +47,8 @@ const Reports = () => {
   const [selectedCampusSlugs, setSelectedCampusSlugs] = useState(() => new Set());
   const [loadError, setLoadError] = useState('');
   const [period, setPeriod] = useState('q1');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   const [includePreviousYear, setIncludePreviousYear] = useState(false);
   const [excludeYouthMetrics, setExcludeYouthMetrics] = useState(false);
   const [metricsScope, setMetricsScope] = useState('default');
@@ -123,8 +134,13 @@ const Reports = () => {
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
-    params.set('year', String(year));
-    if (period && period !== 'q1') params.set('period', period);
+    if (period === 'custom') {
+      if (customStartDate) params.set('start_date', customStartDate);
+      if (customEndDate) params.set('end_date', customEndDate);
+    } else {
+      params.set('year', String(year));
+      if (period && period !== 'q1') params.set('period', period);
+    }
     if (regionCode) params.set('region', regionCode);
     if (selectedCampusSlugs.size > 0) {
       params.set('campuses', Array.from(selectedCampusSlugs).join(','));
@@ -139,7 +155,17 @@ const Reports = () => {
       params.set('metrics_scope', metricsScope);
     }
     return params.toString();
-  }, [year, period, regionCode, selectedCampusSlugs, includePreviousYear, excludeYouthMetrics, metricsScope]);
+  }, [
+    year,
+    period,
+    customStartDate,
+    customEndDate,
+    regionCode,
+    selectedCampusSlugs,
+    includePreviousYear,
+    excludeYouthMetrics,
+    metricsScope,
+  ]);
 
   const pdfQueryString = useMemo(() => {
     const params = new URLSearchParams(queryString);
@@ -151,10 +177,12 @@ const Reports = () => {
   const pdfUrl = `/api/reports/quarterly-attendance.pdf?${pdfQueryString}`;
   const csvUrl = `/api/reports/quarterly-attendance.csv?${queryString}`;
 
-  const periodLabel = useMemo(
-    () => PERIOD_OPTIONS.find((o) => o.value === period)?.label || period,
-    [period],
-  );
+  const periodLabel = useMemo(() => {
+    if (period === 'custom' && customStartDate && customEndDate) {
+      return `Custom: ${customStartDate} → ${customEndDate}`;
+    }
+    return PERIOD_OPTIONS.find((o) => o.value === period)?.label || period;
+  }, [period, customStartDate, customEndDate]);
 
   const regionTitle = useMemo(() => {
     if (!regionCode) return 'All regions';
@@ -164,8 +192,12 @@ const Reports = () => {
 
   const filterHint = useMemo(() => {
     const parts = [];
-    parts.push(`Year: ${year}`);
-    parts.push(periodLabel);
+    if (period === 'custom') {
+      parts.push(`Custom range: ${customStartDate || '…'} → ${customEndDate || '…'}`);
+    } else {
+      parts.push(`Year: ${year}`);
+      parts.push(periodLabel);
+    }
     if (regionCode) {
       const r = regions.find((x) => x.code === regionCode);
       parts.push(`Region: ${r ? r.display_name : regionCode}`);
@@ -190,6 +222,8 @@ const Reports = () => {
     year,
     period,
     periodLabel,
+    customStartDate,
+    customEndDate,
     regionCode,
     selectedCampusSlugs,
     regions,
@@ -197,6 +231,13 @@ const Reports = () => {
     excludeYouthMetrics,
     metricsScope,
   ]);
+
+  const customRangeReady =
+    period !== 'custom' || (Boolean(customStartDate) && Boolean(customEndDate));
+  const previewYear =
+    period === 'custom' && customEndDate
+      ? parseInt(customEndDate.slice(0, 4), 10) || year
+      : year;
 
   const downloadFile = async (url, defaultName, setLoading) => {
     setError('');
@@ -256,9 +297,10 @@ const Reports = () => {
         <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-8 shadow-xl">
           <h2 className="text-xl font-semibold text-white mb-2">Quarterly &amp; YTD attendance</h2>
           <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-            Choose <strong className="text-slate-300">Q1–Q4</strong> or{' '}
+            Choose <strong className="text-slate-300">Q1–Q4</strong>,{' '}
             <strong className="text-slate-300">YTD</strong> (year-to-date: Jan 1 through today when the
-            report year is the current calendar year; full Jan–Dec for past years).{' '}
+            report year is the current calendar year; full Jan–Dec for past years), or a{' '}
+            <strong className="text-slate-300">custom date range</strong> (up to ~3 years, end date not in the future).{' '}
             <strong className="text-slate-300">Every quarter uses the same Pulse DB export</strong> — identical
             PDF/CSV layout, charts, optional year-over-year %, and field rules. Filter by region and/or campuses.
             Sunday = adults + saints + kids; weekend = Sunday + youth + youth leaders. New people and salvations come
@@ -280,12 +322,13 @@ const Reports = () => {
               </label>
               <select
                 value={year}
+                disabled={period === 'custom'}
                 onChange={(e) => {
                   const y = parseInt(e.target.value, 10);
                   setYear(y);
                   if (y <= 2000) setIncludePreviousYear(false);
                 }}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {buildYearOptions().map((y) => (
                   <option key={y} value={y}>
@@ -293,6 +336,9 @@ const Reports = () => {
                   </option>
                 ))}
               </select>
+              {period === 'custom' && (
+                <p className="text-slate-500 text-xs mt-2">Custom range uses the dates below (year is taken from the range).</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
@@ -300,7 +346,15 @@ const Reports = () => {
               </label>
               <select
                 value={period}
-                onChange={(e) => setPeriod(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setPeriod(v);
+                  if (v === 'custom') {
+                    const { start, end } = defaultCustomRangeYmd();
+                    setCustomStartDate((prev) => prev || start);
+                    setCustomEndDate((prev) => prev || end);
+                  }
+                }}
                 className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               >
                 {PERIOD_OPTIONS.map((o) => (
@@ -310,6 +364,32 @@ const Reports = () => {
                 ))}
               </select>
             </div>
+            {period === 'custom' && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                    Start date
+                  </label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                    End date
+                  </label>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  />
+                </div>
+              </>
+            )}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
                 Region
@@ -361,6 +441,7 @@ const Reports = () => {
               </span>
               <span className="block text-slate-500 text-sm mt-0.5">
                 Same period in the prior year (for YTD, the same calendar end date in {year > 2000 ? year - 1 : '—'}).
+                For a custom range, the comparison window is the same calendar dates shifted back one year.
                 PDF/CSV show both years side by side.
               </span>
             </span>
@@ -461,7 +542,7 @@ const Reports = () => {
           <div className="flex flex-wrap gap-4">
             <button
               type="button"
-              disabled={loadingPdf || loadingCsv}
+              disabled={loadingPdf || loadingCsv || !customRangeReady}
               onClick={() =>
                 downloadFile(pdfUrl, `pulse-${period}-attendance.pdf`, setLoadingPdf)
               }
@@ -472,7 +553,7 @@ const Reports = () => {
             </button>
             <button
               type="button"
-              disabled={loadingPdf || loadingCsv}
+              disabled={loadingPdf || loadingCsv || !customRangeReady}
               onClick={() =>
                 downloadFile(csvUrl, `pulse-${period}-attendance.csv`, setLoadingCsv)
               }
@@ -488,7 +569,8 @@ const Reports = () => {
           queryString={pdfQueryString}
           regionTitle={regionTitle}
           periodLabel={periodLabel}
-          year={year}
+          year={previewYear}
+          fetchEnabled={customRangeReady}
         />
 
         <p className="mt-8 text-slate-500 text-sm">

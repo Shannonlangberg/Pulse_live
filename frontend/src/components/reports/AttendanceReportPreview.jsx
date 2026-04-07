@@ -816,12 +816,24 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
   );
 }
 
-export default function AttendanceReportPreview({ queryString, regionTitle, periodLabel, year }) {
+export default function AttendanceReportPreview({
+  queryString,
+  regionTitle,
+  periodLabel,
+  year,
+  fetchEnabled = true,
+}) {
   const [payload, setPayload] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
   useEffect(() => {
+    if (!fetchEnabled) {
+      setLoading(false);
+      setErr('');
+      setPayload(null);
+      return undefined;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -846,7 +858,7 @@ export default function AttendanceReportPreview({ queryString, regionTitle, peri
     return () => {
       cancelled = true;
     };
-  }, [queryString]);
+  }, [queryString, fetchEnabled]);
 
   useEffect(() => {
     const fixChartsForPrint = () => {
@@ -885,20 +897,26 @@ export default function AttendanceReportPreview({ queryString, regionTitle, peri
       </div>
 
       <div className="p-6 sm:p-8 print:p-2 print-report-body">
-        {loading && !payload && (
+        {!fetchEnabled && (
+          <div className="rounded-lg bg-slate-100 border border-slate-200 text-slate-600 px-4 py-8 text-sm text-center mb-6">
+            Choose both start and end dates to load the report preview.
+          </div>
+        )}
+
+        {fetchEnabled && loading && !payload && (
           <div className="flex items-center gap-2 text-slate-500 py-12 justify-center">
             <ArrowPathIcon className="w-5 h-5 animate-spin" />
             Loading report…
           </div>
         )}
 
-        {err && (
+        {fetchEnabled && err && (
           <div className="rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm mb-6">
             {err}
           </div>
         )}
 
-        {payload && payload.per_campus && Array.isArray(payload.campuses) && (
+        {fetchEnabled && payload && payload.per_campus && Array.isArray(payload.campuses) && (
           <>
             <header className="mb-8">
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: COLORS.muted }}>
@@ -960,7 +978,7 @@ export default function AttendanceReportPreview({ queryString, regionTitle, peri
           </>
         )}
 
-        {payload && !payload.per_campus && (
+        {fetchEnabled && payload && !payload.per_campus && (
           <AttendanceReportDashboard
             data={payload}
             regionTitle={regionTitle}

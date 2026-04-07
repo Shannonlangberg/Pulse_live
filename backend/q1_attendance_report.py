@@ -18,7 +18,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 from typing import Any, Dict, List, Tuple
 
-# API / UI: ?period=q1|q2|q3|q4|ytd
+# API / UI: ?period=q1|q2|q3|q4|ytd, or ?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD (custom; see app routes).
 VALID_REPORT_PERIODS = frozenset({"q1", "q2", "q3", "q4", "ytd"})
 PERIOD_LABELS = {"q1": "Q1", "q2": "Q2", "q3": "Q3", "q4": "Q4", "ytd": "YTD"}
 
@@ -569,7 +569,13 @@ def build_compare_payload(data_curr: Dict[str, Any], data_prev: Dict[str, Any]) 
     fs = (data_curr.get("filter_summary") or "").strip()
     if fs:
         fs += " · "
-    fs += f"Year-over-year: {pl} {y_prev} vs {pl} {y_curr}"
+    pcode = data_curr.get("period_code") or "q1"
+    if pcode == "custom":
+        sc, ec = data_curr.get("start"), data_curr.get("end")
+        sp, ep = data_prev.get("start"), data_prev.get("end")
+        fs += f"Year-over-year: {sp}–{ep} ({y_prev}) vs {sc}–{ec} ({y_curr})"
+    else:
+        fs += f"Year-over-year: {pl} {y_prev} vs {pl} {y_curr}"
 
     region_aggregate_rows = _region_aggregate_rows_compare(merged)
 
