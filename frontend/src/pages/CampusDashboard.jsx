@@ -127,6 +127,9 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             total_attendance: result.global_stats?.total_attendance || 0,
             avg_attendance: result.global_stats?.avg_weekly_attendance || 0,
             total_people: result.global_stats?.total_attendance || 0,
+            kids_attendance: result.global_stats?.total_kids || 0,
+            youth_attendance: result.global_stats?.total_youth || 0,
+            entry_count: weekCount,
             avg_kids_attendance: result.global_stats?.avg_kids || 0,
             avg_youth_attendance: result.global_stats?.avg_youth || 0,
             avg_kids_leaders: 0,
@@ -210,9 +213,11 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
             new_kids: 0,
             hands_up: 0,
             salvation_cards_returned: 0,
-            avg_saints: 0,
+            avg_saints: result.stats?.avg_saints ?? 0,
             tithe: result.stats?.total_giving || 0,
-            avg_tithe: result.stats?.avg_weekly_giving || 0
+            avg_tithe: result.stats?.avg_weekly_giving || 0,
+            entry_count: result.recent_records ?? weekCount,
+            saints: result.stats?.total_saints ?? 0,
           },
           service_breakdown: {},
           region: result.region,
@@ -303,10 +308,13 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
     );
   }
 
-  // ATTENDANCE: ALWAYS show AVERAGES (per service) - regardless of date filter
-  // NEW PEOPLE / SALVATIONS: ALWAYS show TOTALS - regardless of date filter
-  // This ensures consistent reporting across all date ranges
-  
+  // Single campus + regional rollup: attendance / kids / youth / saints = SUMS over the selected date range (API totals).
+  // Service breakdown modals use per-slot totals for single campus, averages where API only provides averages.
+  // Souls & new people use summed fields from the API (already totals for the period).
+
+  const isSingleCampusDashboard = !isRollup && !isGlobal;
+  const periodEntryCount = data.stats?.entry_count ?? data.week_count ?? null;
+
   // Helper function to parse service time and convert to minutes for sorting
   const parseServiceTime = (timeStr) => {
     // Handle formats like "9:00 AM", "10:00 AM", "5:30 PM", etc.
@@ -328,16 +336,16 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
   const serviceBreakdown = data.service_breakdown || {};
   const services = Object.keys(serviceBreakdown).map(service => ({
     name: service,
-    attendance: serviceBreakdown[service]?.average || 0,
+    attendance: isSingleCampusDashboard
+      ? (serviceBreakdown[service]?.total ?? 0)
+      : (serviceBreakdown[service]?.average || 0),
     count: serviceBreakdown[service]?.count || 0,
     total: serviceBreakdown[service]?.total || 0
   })).sort((a, b) => parseServiceTime(a.name) - parseServiceTime(b.name));
   
-  // Calculate Sunday attendance from service breakdown AVERAGES (not totals)
-  // Sum the averages across all service times to get total average Sunday attendance
   const sundayAttendanceFromServices = services.reduce((sum, service) => {
-    // Use the average (attendance) per service, not the total across all weeks
-    return sum + (service.attendance || 0);
+    const part = isSingleCampusDashboard ? (service.total || 0) : (service.attendance || 0);
+    return sum + part;
   }, 0);
   
   // Calculate percentages and metrics
@@ -346,27 +354,33 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
     ? (data.stats?.total_people_in_campus || data.stats?.total_people || 0)
     : (data.stats?.total_people || 0);
   
-  // SIMPLIFIED APPROACH: Use the pre-calculated attendance from database
-  // For individual campuses: avg_attendance = average per service
-  // For regional/rollup: total_attendance = sum of all campuses in date range
-  const sundayCombinedAttendance = Math.round(isRollup ? (data.stats?.total_attendance || 0) : (data.stats?.avg_attendance || 0));
+  // Sunday headcount (DB already sums total_attendance across rows in range)
+  const sundayCombinedAttendance = Math.round(data.stats?.total_attendance || 0);
   
-  // Individual components for modal display (these are for breakdown purposes only, not for calculation)
-  const sundayAdultAttendance = Math.round(sundayAttendanceFromServices > 0 ? sundayAttendanceFromServices : (isRollup ? (data.stats?.total_attendance || 0) : (data.stats?.avg_attendance || 0)));
-  // For rollup (Australia overview): use total youth_attendance, not average
-  const youthAttendance = Math.round(isRollup ? (data.stats?.youth_attendance || 0) : (data.stats?.avg_youth_attendance || 0));
-  // For rollup (Australia overview): use total kids_attendance, not average
-  const kidsAttendance = Math.round(isRollup ? (data.stats?.kids_attendance || 0) : (data.stats?.avg_kids_attendance || 0));
-  const kidsLeaders = Math.round(isRollup ? (data.stats?.kids_leaders || 0) : (data.stats?.avg_kids_leaders || 0));
+  const sundayAdultAttendance = Math.round(
+    sundayAttendanceFromServices > 0
+      ? sundayAttendanceFromServices
+      : Math.max(
+          0,
+          (data.stats?.total_attendance || 0) -
+            (data.stats?.kids_attendance || 0) -
+            (data.stats?.kids_leaders || 0) -
+            (data.stats?.saints || 0)
+        )
+  );
+  const youthAttendance = Math.round(data.stats?.youth_attendance || 0);
+  const kidsAttendance = Math.round(data.stats?.kids_attendance || 0);
+  const kidsLeaders = Math.round(data.stats?.kids_leaders || 0);
   const kidsTotalForSunday = kidsAttendance + kidsLeaders;
-  const saintsAttendance = Math.round(data.stats?.avg_saints || 0);
-  const seniorsAttendance = Math.round(data.stats?.avg_seniors || 0);
+  const saintsAttendance = Math.round(data.stats?.saints || data.stats?.avg_saints || 0);
+  const seniorsAttendance = Math.round(data.stats?.seniors || data.stats?.avg_seniors || 0);
   
   // WEEKEND TOTAL = Sunday (pre-calculated) + Youth (Friday)
   const totalAttendance = sundayCombinedAttendance + youthAttendance;
   
   const attendancePercentage = totalPeople > 0 ? Math.round((totalAttendance / totalPeople) * 100) : 0;
-  const connectGroupPercentage = sundayAdultAttendance > 0 ? Math.round((data.stats?.avg_connect_groups || 0) / sundayAdultAttendance * 100) : 0;
+  const connectGroupsTotal = data.stats?.connect_groups ?? (data.stats?.avg_connect_groups || 0) * (periodEntryCount || 1);
+  const connectGroupPercentage = sundayAdultAttendance > 0 ? Math.round((connectGroupsTotal || 0) / sundayAdultAttendance * 100) : 0;
 
   return (
     <div key={`campus-dashboard-${campusId}-${lastRefresh.getTime()}`} className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -575,6 +589,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 <p className="text-[#AC9B25]/80 text-sm">
                   Sunday + Youth (Friday)
                 </p>
+                <p className="text-[#AC9B25]/60 text-xs mt-1">Total for selected period</p>
               </div>
             </div>
 
@@ -609,7 +624,9 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                   Adults + Kids (incl. leaders) + Saints {seniorsAttendance > 0 && '+ Seniors'} (No Youth)
                 </p>
                 <p className="text-purple-200/60 text-xs mt-1">
-                  {services.length > 1 ? `${services.length} services • Average per service` : 'Average per service'}
+                  {services.length > 1
+                    ? `${services.length} services • total for selected period`
+                    : 'Total for selected period'}
                 </p>
               </div>
             </div>
@@ -643,6 +660,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 <p className="text-red-200/80 text-sm">
                   All spiritual decisions
                 </p>
+                <p className="text-red-200/60 text-xs mt-1">Total for selected period</p>
               </div>
             </div>
 
@@ -674,6 +692,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 <p className="text-orange-200/80 text-sm">
                   First-time + visiting
                 </p>
+                <p className="text-orange-200/60 text-xs mt-1">Total for selected period</p>
               </div>
             </div>
 
@@ -682,7 +701,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
               className="group relative bg-gradient-to-br from-pink-500/20 to-pink-600/20 backdrop-blur-sm rounded-2xl p-6 border border-pink-400/20 shadow-2xl hover:shadow-pink-500/25 transition-all duration-500 hover:scale-105 cursor-pointer"
               onClick={() => openModal('kids', { 
                 attendance: kidsAttendance,
-                leaders: Math.round(data.stats?.avg_kids_leaders || 0),
+                leaders: kidsLeaders,
                 newKids: data.stats?.new_kids || 0,
                 salvations: data.stats?.new_kids_salvations || 0,
                 campus: campusName,
@@ -704,6 +723,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 <p className="text-pink-200/80 text-sm">
                   {kidsAttendance} kids + {kidsLeaders} leaders
                 </p>
+                <p className="text-pink-200/60 text-xs mt-1">Total for selected period</p>
               </div>
             </div>
 
@@ -1187,7 +1207,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                     <p className="text-white/60">
                       {isRollup 
                         ? 'Total attendance across all campuses (adults + kids + kids leaders + saints, excluding youth)' 
-                        : 'Average per service: Adults + Kids (incl. leaders) + Saints + Seniors (No Youth - Youth is Friday)'}
+                        : 'Total for the selected period: Adults + Kids (incl. leaders) + Saints + Seniors (no youth — youth is Friday)'}
                     </p>
                     <p className="text-white/50 text-sm mt-2">
                       Adults: {(modalData?.adults ?? sundayAdultAttendance).toLocaleString()} • Kids (incl. leaders): {(modalData?.kids ?? kidsTotalForSunday).toLocaleString()} • Saints: {(modalData?.saints ?? saintsAttendance).toLocaleString()}{(modalData?.seniors ?? seniorsAttendance) > 0 && ` • Seniors: ${(modalData?.seniors ?? seniorsAttendance).toLocaleString()}`}
@@ -1247,11 +1267,20 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                           <h3 className="text-xl font-bold text-white mb-4">Service Breakdown (Adults + Kids incl. leaders)</h3>
                           <div className="space-y-4">
                             {Array.from(allServiceTimes).sort((a, b) => parseServiceTime(a) - parseServiceTime(b)).map((serviceTime, index) => {
-                              const adultData = adultBreakdown[serviceTime] || { average: 0, count: 0 };
-                              const kidsData = kidsBreakdown[serviceTime] || { average: 0, count: 0 };
-                              const adultAvg = Math.round(adultData.average || 0);
-                              const kidsAvg = Math.round(kidsData.average || 0);
-                              const totalAvg = adultAvg + kidsAvg;
+                              const adultData = adultBreakdown[serviceTime] || { average: 0, total: 0, count: 0 };
+                              const kidsData = kidsBreakdown[serviceTime] || { average: 0, total: 0, count: 0 };
+                              const useSlotTotals = isSingleCampusDashboard || isGlobal;
+                              const adultVal = Math.round(
+                                useSlotTotals
+                                  ? (adultData.total ?? adultData.average ?? 0)
+                                  : (adultData.average || 0)
+                              );
+                              const kidsVal = Math.round(
+                                useSlotTotals
+                                  ? (kidsData.total ?? kidsData.average ?? 0)
+                                  : (kidsData.average || 0)
+                              );
+                              const slotTotal = adultVal + kidsVal;
                               const serviceCount = Math.max(adultData.count || 0, kidsData.count || 0);
                               
                               return (
@@ -1262,21 +1291,21 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                                       <div className="text-sm text-white/60">{serviceCount} services</div>
                                     </div>
                                     <div className="text-2xl font-bold text-purple-400">
-                                      {totalAvg.toLocaleString()}
+                                      {slotTotal.toLocaleString()}
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-3 gap-4 mt-3 pt-3 border-t border-white/10">
                                     <div className="text-center">
                                       <div className="text-xs text-white/50 mb-1">Adults</div>
-                                      <div className="text-lg font-semibold text-blue-400">{adultAvg.toLocaleString()}</div>
+                                      <div className="text-lg font-semibold text-blue-400">{adultVal.toLocaleString()}</div>
                                     </div>
                                     <div className="text-center">
                                       <div className="text-xs text-white/50 mb-1">Kids (incl. leaders)</div>
-                                      <div className="text-lg font-semibold text-pink-400">{kidsAvg.toLocaleString()}</div>
+                                      <div className="text-lg font-semibold text-pink-400">{kidsVal.toLocaleString()}</div>
                                     </div>
                                     <div className="text-center">
                                       <div className="text-xs text-white/50 mb-1">Total</div>
-                                      <div className="text-lg font-semibold text-purple-400">{totalAvg.toLocaleString()}</div>
+                                      <div className="text-lg font-semibold text-purple-400">{slotTotal.toLocaleString()}</div>
                                     </div>
                                   </div>
                                 </div>
@@ -1308,33 +1337,33 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                         <div className="text-3xl font-bold text-blue-400 mb-1">
                           {youthAttendance.toLocaleString()}
                         </div>
-                        <p className="text-blue-200/80 text-sm">Average youth attendance</p>
+                        <p className="text-blue-200/80 text-sm">Total for selected period (Friday)</p>
                       </div>
                       <div className="bg-pink-500/10 rounded-xl p-4 border border-pink-400/20">
                         <h4 className="text-lg font-semibold text-pink-300 mb-2">Kids</h4>
                         <div className="text-3xl font-bold text-pink-400 mb-1">
                           {kidsAttendance.toLocaleString()}
                         </div>
-                        <p className="text-pink-200/80 text-sm">Average kids attendance</p>
+                        <p className="text-pink-200/80 text-sm">Total kids across all services</p>
                       </div>
                       <div className="bg-orange-500/10 rounded-xl p-4 border border-orange-400/20">
                         <h4 className="text-lg font-semibold text-orange-300 mb-2">Kids Leaders</h4>
                         <div className="text-3xl font-bold text-orange-400 mb-1">
                           {kidsLeaders.toLocaleString()}
                         </div>
-                        <p className="text-orange-200/80 text-sm">Average kids leaders</p>
+                        <p className="text-orange-200/80 text-sm">Total leaders across all services</p>
                       </div>
                       <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-400/20">
                         <h4 className="text-lg font-semibold text-emerald-300 mb-2">Saints</h4>
                         <div className="text-3xl font-bold text-emerald-400 mb-1">
                           {saintsAttendance.toLocaleString()}
                         </div>
-                        <p className="text-emerald-200/80 text-sm">Average saints attendance</p>
+                        <p className="text-emerald-200/80 text-sm">Total for selected period</p>
                       </div>
                     </div>
                     <div className="mt-6 pt-4 border-t border-white/10">
                       <div className="flex justify-between items-center">
-                        <span className="text-lg font-semibold text-white">Average Weekend Total</span>
+                        <span className="text-lg font-semibold text-white">Weekend total</span>
                         <div className="text-2xl font-bold text-emerald-400">
                           {totalAttendance.toLocaleString()}
                         </div>
@@ -1355,8 +1384,11 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                       const serviceBreakdown = modalData.serviceBreakdown || data.service_breakdown || {};
                       servicesToShow = Object.keys(serviceBreakdown).map(service => ({
                         name: service,
-                        attendance: serviceBreakdown[service]?.average || 0,
-                        count: serviceBreakdown[service]?.count || 0
+                        attendance: (isSingleCampusDashboard || isGlobal)
+                          ? (serviceBreakdown[service]?.total ?? 0)
+                          : (serviceBreakdown[service]?.average || 0),
+                        count: serviceBreakdown[service]?.count || 0,
+                        total: serviceBreakdown[service]?.total || 0,
                       })).sort((a, b) => parseServiceTime(a.name) - parseServiceTime(b.name));
                     }
                     
@@ -1366,22 +1398,29 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                           <h3 className="text-xl font-bold text-white mb-4">Service Breakdown</h3>
                           <div className="space-y-4">
                             {servicesToShow.map((service, index) => {
+                              const useTotals = isSingleCampusDashboard || isGlobal;
+                              const displayVal = useTotals
+                                ? Math.round(service.total || service.attendance)
+                                : Math.round(service.attendance);
                               const avgPerService = Math.round(service.attendance);
-                              // Use actual total from backend, not recalculated
-                              const totalForTimeSlot = service.total || Math.round(service.attendance * service.count);
                               return (
                                 <div key={index} className="flex justify-between items-center p-4 bg-white/5 rounded-xl">
                                   <div>
                                     <div className="text-lg font-semibold text-white">{service.name}</div>
                                     <div className="text-sm text-white/60">
-                                      {service.count} {service.count === 1 ? 'service' : 'services'} · Avg: {avgPerService.toLocaleString()} per service
+                                      {service.count} {service.count === 1 ? 'service' : 'services'}
+                                      {useTotals
+                                        ? ' · total for period'
+                                        : ` · avg ${avgPerService.toLocaleString()} per service`}
                                     </div>
                                   </div>
                                   <div className="text-right">
                                     <div className="text-2xl font-bold text-purple-400">
-                                      {avgPerService.toLocaleString()}
+                                      {displayVal.toLocaleString()}
                                     </div>
-                                    <div className="text-xs text-white/50">Avg per service</div>
+                                    <div className="text-xs text-white/50">
+                                      {useTotals ? 'Total for period' : 'Avg per service'}
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -1558,7 +1597,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                         {modalData.attendance.toLocaleString()}
                       </div>
                       <p className="text-white/60">
-                        {isRollup ? 'Total kids' : 'Average children in attendance'}
+                        {isRollup ? 'Total kids' : 'Total kids across all services'}
                       </p>
                     </div>
                     <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
@@ -1566,7 +1605,7 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                       <div className="text-4xl font-bold text-purple-400 mb-2">
                         {modalData.leaders.toLocaleString()}
                       </div>
-                      <p className="text-white/60">Average volunteers serving</p>
+                      <p className="text-white/60">Total leaders across all services</p>
                     </div>
                     <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                       <h3 className="text-xl font-bold text-white mb-4">New Kids</h3>
@@ -1596,7 +1635,11 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                                 <div className="text-sm text-white/60">{data.count} services</div>
                               </div>
                               <div className="text-2xl font-bold text-pink-400">
-                                {Math.round(data.average).toLocaleString()}
+                                {Math.round(
+                                  (isSingleCampusDashboard || isGlobal)
+                                    ? (data.total ?? data.average ?? 0)
+                                    : (data.average || 0)
+                                ).toLocaleString()}
                               </div>
                             </div>
                           )

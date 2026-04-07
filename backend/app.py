@@ -16139,6 +16139,8 @@ def get_regional_dashboard_data():
                             'new_kids_salvations': s.get('new_kids_salvations', 0),
                             'total_visitors': s.get('first_time_visitors', 0),
                             'new_people': s.get('new_people', 0),
+                            'total_saints': s.get('saints', 0),
+                            'avg_saints': round(float(s.get('avg_saints', 0)), 1),
                             'total_giving': round(float(s.get('tithe', 0)), 2),
                             'avg_weekly_giving': round(float(s.get('avg_tithe', 0)), 2),
                             'week_count': record_count,
@@ -16171,6 +16173,7 @@ def get_regional_dashboard_data():
         total_kids_leaders = sum(r.kids_leaders or 0 for r in records)
         total_youth = sum(r.youth_attendance or 0 for r in records)
         total_youth_leaders = sum(r.youth_leaders or 0 for r in records)
+        total_saints = sum(r.saints or 0 for r in records)
         
         # CRITICAL FIX: Ensure kids are included in total_attendance for Sunday Attendance
         # Some older records might not have kids included in total_attendance
@@ -16597,6 +16600,8 @@ def get_regional_dashboard_data():
                 'avg_connect_groups': round(total_connect_groups / record_count, 1) if record_count > 0 else 0,
                 'total_visitors': total_visitors,
                 'new_people': total_new_people,  # Total new people (includes youth_new_people)
+                'total_saints': total_saints,
+                'avg_saints': round(total_saints / record_count, 1) if record_count > 0 else 0,
                 'total_giving': round(total_giving, 2),
                 'avg_weekly_giving': round(avg_giving, 2),
                 'week_count': week_count,
