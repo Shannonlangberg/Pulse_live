@@ -14182,7 +14182,7 @@ def export_database_viewer_csv():
             'First Time Visitors', 'Visitors', 'New People', 'Hands Up', 'Cards Returned',
             'First Time Christians', 'Rededications', 'New Christians', 'Salvation Cards Returned',
             'Saints', 'Baptisms', 'Child Dedications', 'Connect Groups', 'Dream Team', 'Packs Out',
-            'Tithe', 'Include in rollup metrics', 'Special service label', 'Synced to Sheets', 'Created At', 'Updated At'
+            'Tithe', 'Counts in normal totals (Y/N)', 'Special service label', 'Synced to Sheets', 'Created At', 'Updated At'
         ])
         
         # Write data rows
@@ -17443,9 +17443,9 @@ def _q1_report_data(
     ms = normalize_metrics_scope(metrics_scope)
     if ms != "default":
         scope_labels = {
-            "rollup_only": "Roll-up totals only (rows excluded from rollups omitted)",
+            "rollup_only": "Standard services only (entries marked as special events omitted)",
             "sundays_only": "Calendar Sundays only",
-            "sundays_rollup_only": "Sundays only, roll-up rows only",
+            "sundays_rollup_only": "Sundays only, standard services (special events omitted)",
         }
         parts.append(scope_labels.get(ms, f"metrics_scope={ms}"))
 

@@ -173,9 +173,9 @@ const Reports = () => {
     if (excludeYouthMetrics) {
       parts.push('NP & salvations: excl. youth (FTV + visitors; no youth salvations)');
     }
-    if (metricsScope === 'rollup_only') parts.push('Scope: roll-up rows only');
+    if (metricsScope === 'rollup_only') parts.push('Scope: standard services only (special events hidden)');
     else if (metricsScope === 'sundays_only') parts.push('Scope: Sundays only');
-    else if (metricsScope === 'sundays_rollup_only') parts.push('Scope: Sundays, roll-up only');
+    else if (metricsScope === 'sundays_rollup_only') parts.push('Scope: Sundays, standard services only');
     return parts.join(' · ');
   }, [
     year,
@@ -320,20 +320,21 @@ const Reports = () => {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                Attendance scope (charts &amp; totals)
+                What counts in this report (charts &amp; totals)
               </label>
               <select
                 value={metricsScope}
                 onChange={(e) => setMetricsScope(e.target.value)}
+                title="Standard = normal services; entries marked as special when logging are excluded when you pick standard-only options."
                 className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               >
-                <option value="default">All logged services</option>
-                <option value="rollup_only">Roll-up totals only</option>
-                <option value="sundays_only">Sundays only</option>
-                <option value="sundays_rollup_only">Sundays, roll-up only</option>
+                <option value="default">Everything you logged</option>
+                <option value="rollup_only">Standard services only (hide special events)</option>
+                <option value="sundays_only">Sundays only (any service)</option>
+                <option value="sundays_rollup_only">Sundays only, standard services</option>
               </select>
               <p className="text-slate-500 text-xs mt-2">
-                Matches dashboard “metrics scope”: exclude non–roll-up rows and/or non-Sunday dates from aggregates.
+                Same options as the campus dashboard. “Special events” are services you flagged when entering stats (e.g. Good Friday) so they do not skew normal totals.
               </p>
             </div>
           </div>

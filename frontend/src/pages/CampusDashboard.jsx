@@ -440,13 +440,13 @@ const CampusDashboard = ({ campusId, campusName, isRollup = false, isGlobal = fa
                 <select
                   value={metricsScope}
                   onChange={(e) => setMetricsScope(e.target.value)}
-                  title="Which logged services count toward charts and averages"
-                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400/50 transition-all duration-300 max-w-[min(100%,280px)]"
+                  title="Choose which saved entries count in charts and averages. “Standard” means normal weekend services; special events (Easter, Good Friday, etc.) can be flagged when logging so you can hide them here."
+                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400/50 transition-all duration-300 max-w-[min(100%,300px)]"
                 >
-                  <option value="default" className="bg-slate-800 text-white">All logged services</option>
-                  <option value="rollup_only" className="bg-slate-800 text-white">Roll-up totals only</option>
-                  <option value="sundays_only" className="bg-slate-800 text-white">Sundays only</option>
-                  <option value="sundays_rollup_only" className="bg-slate-800 text-white">Sundays, roll-up only</option>
+                  <option value="default" className="bg-slate-800 text-white">Everything you logged</option>
+                  <option value="rollup_only" className="bg-slate-800 text-white">Standard services only (hide special events)</option>
+                  <option value="sundays_only" className="bg-slate-800 text-white">Sundays only (any service)</option>
+                  <option value="sundays_rollup_only" className="bg-slate-800 text-white">Sundays only, standard services</option>
                 </select>
 
               </div>

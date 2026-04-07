@@ -53,7 +53,8 @@ const LogStats = () => {
   const [recentEntries, setRecentEntries] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [formMountKey, setFormMountKey] = useState(0);
-  const [includeInRollupMetrics, setIncludeInRollupMetrics] = useState(true);
+  /** Checked = special service (Easter, Good Friday, etc.) — saved but not counted in normal YTD / averages */
+  const [specialEventExcludeFromNormalTotals, setSpecialEventExcludeFromNormalTotals] = useState(false);
   const [specialServiceLabel, setSpecialServiceLabel] = useState('');
 
   // Ref updated synchronously on every keystroke - guaranteed to have latest values on submit
@@ -401,7 +402,7 @@ const LogStats = () => {
     setQuickInputStats(newStats);
     setQuickInputDate(entry.date);
     const ir = entry.stats?.include_in_rollup_metrics;
-    setIncludeInRollupMetrics(ir !== false && ir !== 0 && ir !== '0');
+    setSpecialEventExcludeFromNormalTotals(ir === false || ir === 0 || ir === '0');
     setSpecialServiceLabel(
       entry.stats?.special_service_label != null && entry.stats?.special_service_label !== ''
         ? String(entry.stats.special_service_label)
@@ -511,7 +512,7 @@ const LogStats = () => {
         campus: campusForPayload,
         date: quickInputDate,
         stats: backendStats,
-        include_in_rollup_metrics: includeInRollupMetrics,
+        include_in_rollup_metrics: !specialEventExcludeFromNormalTotals,
         ...(specialServiceLabel.trim() || isEditMode
           ? { special_service_label: specialServiceLabel.trim() }
           : {}),
@@ -601,7 +602,7 @@ const LogStats = () => {
         setShowQuickInput(false);
         setIsEditMode(false);
         setEditingEntry(null);
-        setIncludeInRollupMetrics(true);
+        setSpecialEventExcludeFromNormalTotals(false);
         setSpecialServiceLabel('');
         
         // Reload recent entries with cache-buster so the list shows DB state (not cached)
@@ -687,7 +688,7 @@ const LogStats = () => {
               <button
                 onClick={() => {
                 latestValuesRef.current = { ...quickInputStats };
-                setIncludeInRollupMetrics(true);
+                setSpecialEventExcludeFromNormalTotals(false);
                 setSpecialServiceLabel('');
                 setShowQuickInput(true);
               }}
@@ -878,14 +879,14 @@ const LogStats = () => {
                 <label className="flex cursor-pointer items-start gap-3 text-white">
                   <input
                     type="checkbox"
-                    checked={includeInRollupMetrics}
-                    onChange={(e) => setIncludeInRollupMetrics(e.target.checked)}
+                    checked={specialEventExcludeFromNormalTotals}
+                    onChange={(e) => setSpecialEventExcludeFromNormalTotals(e.target.checked)}
                     className="mt-1 rounded border-white/30 bg-slate-800 text-blue-500 focus:ring-blue-500"
                   />
                   <span>
-                    <span className="font-semibold">Include in annual totals and dashboard averages</span>
+                    <span className="font-semibold">This is a special service (e.g. Easter, Good Friday, Christmas Eve)</span>
                     <span className="mt-1 block text-sm text-slate-400">
-                      Uncheck for extra services (e.g. Good Friday) when you want them saved but not counted in YTD charts or campus averages.
+                      When checked, this entry is still saved and visible in history, but it is <strong className="text-slate-300">not included</strong> in normal weekly/YTD charts, campus averages, or annual totals when you use filters like “standard services only.”
                     </span>
                   </span>
                 </label>
