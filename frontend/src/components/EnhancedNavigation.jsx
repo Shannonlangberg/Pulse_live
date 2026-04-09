@@ -61,6 +61,13 @@ const PORTAL_ITEMS = [
     featureKey: 'dashboard'
   },
   { 
+    name: 'Ministry stats', 
+    href: '/ministry-stats', 
+    icon: PresentationChartLineIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'],
+    featureKey: 'dashboard'
+  },
+  { 
     name: 'Finance Input', 
     href: '/finance', 
     icon: ClipboardIcon, 
@@ -166,7 +173,7 @@ const EnhancedNavigation = ({
     const path = location.pathname;
     if (path === '/') {
       setActiveSection('home');
-    } else if (path === '/stats' || path === '/dashboard' || path === '/resources') {
+    } else if (path === '/stats' || path === '/dashboard' || path === '/ministry-stats' || path === '/resources') {
       setActiveSection('portal');
     } else if (path.startsWith('/users') || path.startsWith('/role-manager') || 
                path.startsWith('/campuses') || path.startsWith('/profile') || 

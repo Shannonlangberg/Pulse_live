@@ -12,6 +12,7 @@ import UserManagement from './pages/UserManagement';
 import RoleManager from './pages/RoleManager';
 import DataExport from './pages/DataExport';
 import Reports from './pages/Reports';
+import MinistryStatsExplorer from './pages/MinistryStatsExplorer';
 import PlatformSettings from './pages/PlatformSettings';
 import MyProfile from './pages/MyProfile';
 import Passport from './pages/Passport';
@@ -414,6 +415,7 @@ function App() {
                   <Route path="/role-manager" element={<RoleManager />} />
                   <Route path="/export" element={<DataExport />} />
                   <Route path="/reports" element={<Reports />} />
+                  <Route path="/ministry-stats" element={<MinistryStatsExplorer />} />
                   <Route path="/attendance-data" element={<AttendanceDataViewer />} />
                   <Route path="/beacons" element={<BeaconManagement />} />
                   <Route path="/journeys" element={<PathwayManager />} />

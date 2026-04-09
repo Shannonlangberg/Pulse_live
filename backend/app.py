@@ -17487,6 +17487,105 @@ def _q1_report_data(
     )
 
 
+def _load_attendance_records_for_explorer(
+    start_d: date,
+    end_d: date,
+    region_code: str | None,
+    campuses_csv: str | None,
+    metrics_scope: str,
+    include_youth_metrics: bool,
+):
+    """
+    Same filters as quarterly reports / dashboard — returns raw rows + campus map + human summary.
+    Used by Ministry Stats Explorer (no Google Sheets).
+    """
+    from models import AttendanceRecord, CampusV2, Region
+    from sqlalchemy import func
+
+    q = AttendanceRecord.query.filter(
+        AttendanceRecord.date >= start_d,
+        AttendanceRecord.date <= end_d,
+    )
+    q = apply_attendance_metrics_scope(q, metrics_scope)
+
+    region_obj = None
+    rc = (region_code or "").strip()
+    if rc:
+        region_obj = Region.query.filter(
+            func.upper(Region.code) == rc.upper(),
+            Region.active.is_(True),
+        ).first()
+        if not region_obj:
+            raise ValueError(f"Unknown or inactive region code: {rc}")
+        q = q.filter(AttendanceRecord.region_id == region_obj.id)
+
+    campus_slugs_in = []
+    if campuses_csv and campuses_csv.strip():
+        campus_slugs_in = [s.strip() for s in campuses_csv.split(",") if s.strip()]
+
+    resolved_ids = []
+    display_names = []
+    if campus_slugs_in:
+        seen = set()
+        for raw in campus_slugs_in:
+            slug = _normalize_campus_slug_for_report(raw)
+            c = CampusV2.query.filter(func.lower(CampusV2.campus_id) == slug).first()
+            if not c:
+                raise ValueError(f"Unknown campus: {raw}")
+            if region_obj and c.region_id != region_obj.id:
+                raise ValueError(
+                    f"Campus '{c.display_name}' is not in the selected region ({region_obj.code})"
+                )
+            if c.id not in seen:
+                seen.add(c.id)
+                resolved_ids.append(c.id)
+                display_names.append(c.display_name)
+        q = q.filter(AttendanceRecord.campus_id.in_(resolved_ids))
+
+    records = q.all()
+    campus_ids = {r.campus_id for r in records}
+    campuses_by_id = {}
+    for cid in campus_ids:
+        c = CampusV2.query.get(cid)
+        if c:
+            campuses_by_id[cid] = c
+
+    parts = []
+    parts.append(f"Date range: {start_d} to {end_d}")
+    if region_obj:
+        parts.append(f"Region: {region_obj.display_name} ({region_obj.code})")
+    else:
+        parts.append("Region: all")
+
+    if campus_slugs_in:
+        if len(display_names) <= 6:
+            parts.append("Campuses: " + ", ".join(display_names))
+        else:
+            parts.append(f"Campuses: {len(display_names)} selected")
+    elif region_obj:
+        parts.append("Campuses: all in region")
+    else:
+        parts.append("Campuses: all")
+
+    if not include_youth_metrics:
+        parts.append(
+            "New people & salvations: youth excluded (NP = FTV + visitors; salvations excl. youth salvations)"
+        )
+
+    ms = normalize_metrics_scope(metrics_scope)
+    if ms != "default":
+        scope_labels = {
+            "rollup_only": "Standard services only (entries marked as special events omitted)",
+            "sundays_only": "Calendar Sundays only",
+            "sundays_rollup_only": "Sundays only (standard services)",
+            "special_events_only": "Special events only",
+        }
+        parts.append(scope_labels.get(ms, f"metrics_scope={ms}"))
+
+    filter_summary = " · ".join(parts)
+    return records, campuses_by_id, filter_summary
+
+
 def _parse_report_period() -> str:
     from q1_attendance_report import normalized_report_period
 
@@ -17896,6 +17995,176 @@ def report_q1_attendance_json():
     except Exception as e:
         logger.error(f"Q1 attendance JSON report error: {e}", exc_info=True)
         return jsonify({"error": "Failed to build report"}), 500
+
+
+@app.route('/api/reports/ministry-stats/catalog', methods=['GET'])
+@login_required
+def ministry_stats_catalog():
+    """
+    Metric definitions for Ministry Stats Explorer (labels, groups, descriptions).
+    Same permission as running a stats query.
+    """
+    if not (
+        current_user.has_permission('data_export')
+        or current_user.has_permission('dashboard_access')
+    ):
+        return jsonify({"error": "Access denied"}), 403
+    try:
+        from ministry_stats_explorer import DEFAULT_METRIC_IDS, metric_catalog_public
+
+        return jsonify(
+            {
+                "metrics": metric_catalog_public(),
+                "default_metric_ids": DEFAULT_METRIC_IDS,
+            }
+        )
+    except Exception as e:
+        logger.error(f"Ministry stats catalog error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load metric catalog"}), 500
+
+
+@app.route('/api/reports/ministry-stats', methods=['GET'])
+@login_required
+def ministry_stats_json():
+    """
+    Sum selected metrics from ``attendance_records`` by campus for an inclusive date range.
+    Scoped like quarterly reports (``data_export`` or ``dashboard_access`` + campus picklist).
+    """
+    if not (
+        current_user.has_permission('data_export')
+        or current_user.has_permission('dashboard_access')
+    ):
+        return jsonify({"error": "Access denied"}), 403
+    try:
+        from ministry_stats_explorer import (
+            aggregate_by_campus,
+            build_json_payload,
+            parse_inclusive_date_range,
+            parse_metric_ids_param,
+        )
+
+        region = request.args.get('region', '').strip()
+        campuses = request.args.get('campuses', '').strip()
+        try:
+            region, campuses = _scope_quarterly_report_params_for_current_user(region, campuses)
+        except ValueError as scope_err:
+            return jsonify({"error": str(scope_err)}), 403
+
+        start_d, end_d = parse_inclusive_date_range(
+            request.args.get('start_date'),
+            request.args.get('end_date'),
+        )
+        metrics_scope = _parse_metrics_scope()
+        excl_youth = _parse_exclude_youth_metrics()
+        include_youth_m = not excl_youth
+        metric_ids = parse_metric_ids_param(request.args.get('metrics'))
+
+        records, campuses_by_id, filter_summary = _load_attendance_records_for_explorer(
+            start_d,
+            end_d,
+            region or None,
+            campuses or None,
+            metrics_scope,
+            include_youth_m,
+        )
+        rows, totals, meta = aggregate_by_campus(
+            records,
+            metric_ids,
+            campuses_by_id=campuses_by_id,
+            include_youth_metrics=include_youth_m,
+        )
+        payload = build_json_payload(
+            start_d=start_d,
+            end_d=end_d,
+            metric_ids=metric_ids,
+            rows=rows,
+            totals=totals,
+            meta=meta,
+            filter_summary=filter_summary,
+            metrics_scope=normalize_metrics_scope(metrics_scope),
+            include_youth_metrics=include_youth_m,
+        )
+        payload["requested_region"] = region
+        payload["requested_campuses_csv"] = campuses
+        return jsonify(payload)
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        logger.error(f"Ministry stats JSON error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to build ministry stats"}), 500
+
+
+@app.route('/api/reports/ministry-stats.csv', methods=['GET'])
+@login_required
+def ministry_stats_csv():
+    """Same filters as ``/api/reports/ministry-stats`` — downloadable CSV."""
+    if not (
+        current_user.has_permission('data_export')
+        or current_user.has_permission('dashboard_access')
+    ):
+        return jsonify({"error": "Access denied"}), 403
+    try:
+        from ministry_stats_explorer import (
+            aggregate_by_campus,
+            build_csv_bytes,
+            build_json_payload,
+            parse_inclusive_date_range,
+            parse_metric_ids_param,
+        )
+
+        region = request.args.get('region', '').strip()
+        campuses = request.args.get('campuses', '').strip()
+        try:
+            region, campuses = _scope_quarterly_report_params_for_current_user(region, campuses)
+        except ValueError as scope_err:
+            return jsonify({"error": str(scope_err)}), 403
+
+        start_d, end_d = parse_inclusive_date_range(
+            request.args.get('start_date'),
+            request.args.get('end_date'),
+        )
+        metrics_scope = _parse_metrics_scope()
+        excl_youth = _parse_exclude_youth_metrics()
+        include_youth_m = not excl_youth
+        metric_ids = parse_metric_ids_param(request.args.get('metrics'))
+
+        records, campuses_by_id, filter_summary = _load_attendance_records_for_explorer(
+            start_d,
+            end_d,
+            region or None,
+            campuses or None,
+            metrics_scope,
+            include_youth_m,
+        )
+        rows, totals, meta = aggregate_by_campus(
+            records,
+            metric_ids,
+            campuses_by_id=campuses_by_id,
+            include_youth_metrics=include_youth_m,
+        )
+        json_payload = build_json_payload(
+            start_d=start_d,
+            end_d=end_d,
+            metric_ids=metric_ids,
+            rows=rows,
+            totals=totals,
+            meta=meta,
+            filter_summary=filter_summary,
+            metrics_scope=normalize_metrics_scope(metrics_scope),
+            include_youth_metrics=include_youth_m,
+        )
+        raw = build_csv_bytes(json_payload)
+        fname = f"ministry-stats-{start_d.isoformat()}-to-{end_d.isoformat()}"
+        if region:
+            fname += f"-{region.upper()}"
+        resp = Response(raw, mimetype='text/csv; charset=utf-8')
+        resp.headers['Content-Disposition'] = f'attachment; filename={fname}.csv'
+        return resp
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        logger.error(f"Ministry stats CSV error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to build CSV"}), 500
 
 
 @app.route('/api/export/finance', methods=['GET'])

@@ -292,6 +292,13 @@ const Reports = () => {
           <p className="text-slate-400">
             Download attendance summaries from the Pulse database (not Google Sheets).
           </p>
+          <p className="text-slate-500 text-sm mt-3">
+            Need <strong className="text-slate-400">any metric</strong> (e.g. baptisms) for any campuses and dates?{' '}
+            <Link to="/ministry-stats" className="text-emerald-400 hover:text-emerald-300 underline font-medium">
+              Open Ministry stats
+            </Link>
+            .
+          </p>
         </div>
 
         <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-8 shadow-xl">
