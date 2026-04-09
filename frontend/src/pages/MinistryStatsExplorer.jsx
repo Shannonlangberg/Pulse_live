@@ -280,7 +280,8 @@ const MinistryStatsExplorer = () => {
             <strong className="text-slate-300">kids attendance</strong> (kids plus kids leaders, like the dashboard) use the
             same definitions as the dashboard but are
             shown as <strong className="text-slate-300">averages per service row</strong> in your date range (not a
-            running total). Use each metric&apos;s description for details.
+            running total). Columns marked <strong className="text-slate-300">avg / service</strong> in results use that
+            rule.
           </p>
           <p className="text-slate-500 text-sm mt-2">
             Tip: leave all campuses unchecked to include <strong className="text-slate-400">every campus</strong> in
@@ -484,12 +485,7 @@ const MinistryStatsExplorer = () => {
                               onChange={() => toggleMetric(m.id)}
                               className="mt-1 rounded border-slate-500 text-emerald-600 focus:ring-emerald-500"
                             />
-                            <span>
-                              <span className="text-white font-medium block">{m.label}</span>
-                              {m.description && (
-                                <span className="text-slate-500 text-xs block mt-0.5">{m.description}</span>
-                              )}
-                            </span>
+                            <span className="text-white font-medium">{m.label}</span>
                           </label>
                         ))}
                       </div>
