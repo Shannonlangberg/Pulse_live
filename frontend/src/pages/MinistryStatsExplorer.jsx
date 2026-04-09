@@ -48,6 +48,9 @@ function formatCell(mid, v, catalogById) {
   if (meta?.is_currency) {
     return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+  if (meta?.avg_per_service_row) {
+    return n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
   if (Number.isInteger(n) || Math.abs(n - Math.round(n)) < 1e-6) {
     return Math.round(n).toLocaleString();
   }
@@ -174,6 +177,15 @@ const MinistryStatsExplorer = () => {
     return m;
   }, [catalog]);
 
+  /** Result payload may include newer catalog flags (e.g. avg_per_service_row) than a stale tab cache. */
+  const tableCatalogById = useMemo(() => {
+    const m = { ...catalogById };
+    (result?.metric_catalog || []).forEach((x) => {
+      m[x.id] = { ...(m[x.id] || {}), ...x };
+    });
+    return m;
+  }, [catalogById, result?.metric_catalog]);
+
   const metricsByGroup = useMemo(() => {
     const g = {};
     catalog.forEach((m) => {
@@ -262,10 +274,12 @@ const MinistryStatsExplorer = () => {
             Ministry stats
           </h1>
           <p className="text-slate-400 max-w-3xl">
-            Pick any combination of Pulse stats, campuses, and dates. Numbers are{' '}
-            <strong className="text-slate-300">summed from attendance records</strong> in the database — the same
-            source as the dashboard and quarterly reports. Use the descriptions under each metric to see exactly what
-            is included.
+            Pick any combination of Pulse stats, campuses, and dates. Most columns are{' '}
+            <strong className="text-slate-300">sums</strong> over every matching attendance row.{' '}
+            <strong className="text-slate-300">Sunday</strong>, <strong className="text-slate-300">weekend</strong>, and{' '}
+            <strong className="text-slate-300">kids attendance</strong> use the same definitions as the dashboard but are
+            shown as <strong className="text-slate-300">averages per service row</strong> in your date range (not a
+            running total). Use each metric&apos;s description for details.
           </p>
           <p className="text-slate-500 text-sm mt-2">
             Tip: leave all campuses unchecked to include <strong className="text-slate-400">every campus</strong> in
@@ -527,7 +541,12 @@ const MinistryStatsExplorer = () => {
                         <th className="px-3 py-3 font-semibold text-right">Services</th>
                         {metricIdsInResult.map((mid) => (
                           <th key={mid} className="px-3 py-3 font-semibold text-right whitespace-nowrap">
-                            {catalogById[mid]?.label || mid}
+                            <span className="block">{tableCatalogById[mid]?.label || mid}</span>
+                            {tableCatalogById[mid]?.avg_per_service_row ? (
+                              <span className="block text-[10px] font-normal text-slate-500 normal-case tracking-normal mt-0.5">
+                                avg / service
+                              </span>
+                            ) : null}
                           </th>
                         ))}
                       </tr>
@@ -544,7 +563,7 @@ const MinistryStatsExplorer = () => {
                           <td className="px-3 py-2 text-right tabular-nums">{row.service_rows}</td>
                           {metricIdsInResult.map((mid) => (
                             <td key={mid} className="px-3 py-2 text-right tabular-nums">
-                              {formatCell(mid, row[mid], catalogById)}
+                              {formatCell(mid, row[mid], tableCatalogById)}
                             </td>
                           ))}
                         </tr>
@@ -560,7 +579,7 @@ const MinistryStatsExplorer = () => {
                         </td>
                         {metricIdsInResult.map((mid) => (
                           <td key={mid} className="px-3 py-3 text-right tabular-nums">
-                            {formatCell(mid, result.totals?.[mid], catalogById)}
+                            {formatCell(mid, result.totals?.[mid], tableCatalogById)}
                           </td>
                         ))}
                       </tr>
@@ -570,6 +589,13 @@ const MinistryStatsExplorer = () => {
                 {(result.campuses || []).length === 0 && (
                   <p className="text-slate-500 text-sm mt-4">No attendance rows in this range for your filters.</p>
                 )}
+                {metricIdsInResult.some((mid) => tableCatalogById[mid]?.avg_per_service_row) && (
+                  <p className="text-slate-500 text-xs mt-3">
+                    Columns marked <span className="text-slate-400">avg / service</span> are means per attendance entry.
+                    The <strong className="text-slate-400">All campuses</strong> row uses the same rule across every row
+                    in your filter (weighted by how many services each campus has).
+                  </p>
+                )}
               </div>
             )}
 
@@ -578,7 +604,7 @@ const MinistryStatsExplorer = () => {
               <Link to="/reports" className="text-emerald-400 hover:text-emerald-300 underline">
                 Reports
               </Link>
-              . Ministry stats is for flexible totals and CSV.
+              . Ministry stats is for flexible sums, averages, and CSV export.
             </p>
           </div>
         </div>

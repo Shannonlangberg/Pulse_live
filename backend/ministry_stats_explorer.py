@@ -53,13 +53,15 @@ METRIC_CATALOG: List[Dict[str, Any]] = [
         "id": "sunday_attendance",
         "label": "Sunday attendance",
         "group": "Attendance (combined)",
-        "description": "Adults + saints + kids (incl. leaders), no youth — same logic as dashboard.",
+        "description": "Adults + saints + kids (incl. leaders), no youth — same logic as dashboard. Shown as average per service row in range (not a sum).",
+        "avg_per_service_row": True,
     },
     {
         "id": "weekend_attendance",
         "label": "Weekend attendance",
         "group": "Attendance (combined)",
-        "description": "Sunday + youth + youth leaders.",
+        "description": "Sunday + youth + youth leaders. Shown as average per service row in range (not a sum).",
+        "avg_per_service_row": True,
     },
     {
         "id": "new_people_total",
@@ -145,7 +147,8 @@ METRIC_CATALOG: List[Dict[str, Any]] = [
         "id": "kids_attendance",
         "label": "Kids attendance",
         "group": "Attendance (raw)",
-        "description": "Kids only (excl. leaders).",
+        "description": "Kids only (excl. leaders). Shown as average per service row in range (not a sum).",
+        "avg_per_service_row": True,
     },
     {
         "id": "kids_leaders",
@@ -211,12 +214,20 @@ METRIC_CATALOG: List[Dict[str, Any]] = [
 ]
 
 VALID_METRIC_IDS = frozenset(m["id"] for m in METRIC_CATALOG)
+
+# Mean per attendance row in range (not a sum across weeks). Totals row = same over all matching rows.
+AVG_PER_SERVICE_ROW_METRICS = frozenset(
+    {"sunday_attendance", "weekend_attendance", "kids_attendance"}
+)
+
 DEFAULT_METRIC_IDS = [
     "baptisms",
     "sunday_attendance",
     "weekend_attendance",
+    "kids_attendance",
     "new_people_total",
     "salvations_total",
+    "dream_team",
 ]
 
 
@@ -294,7 +305,11 @@ def aggregate_by_campus(
     include_youth_metrics: bool,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any], Dict[str, float]]:
     """
-    Returns (rows sorted by campus name, totals dict per metric_id, grand service_rows).
+    Returns (rows sorted by campus name, totals dict per metric_id, meta).
+
+    Most metrics are summed per campus; ``AVG_PER_SERVICE_ROW_METRICS`` are mean per
+    service row for that campus. The footer row uses sum for summed metrics and the
+    overall mean per row (all campuses) for average metrics.
     """
     from collections import defaultdict
 
@@ -304,12 +319,17 @@ def aggregate_by_campus(
         return d
 
     sums: Dict[int, Dict[str, Any]] = defaultdict(_empty_campus_agg)
+    grand: Dict[str, float] = {mid: 0.0 for mid in metric_ids}
+    total_service_rows = 0
 
     for r in records:
         cid = r.campus_id
+        total_service_rows += 1
         sums[cid]["_service_rows"] += 1
         for mid in metric_ids:
-            sums[cid][mid] += _get_metric_value(r, mid, include_youth_metrics=include_youth_metrics)
+            v = _get_metric_value(r, mid, include_youth_metrics=include_youth_metrics)
+            sums[cid][mid] += v
+            grand[mid] += v
 
     rows: List[Dict[str, Any]] = []
     for cid, agg in sums.items():
@@ -318,26 +338,31 @@ def aggregate_by_campus(
         reg = ""
         if campus and campus.region:
             reg = (campus.region.code or "").strip()
+        sr = int(agg["_service_rows"])
         row: Dict[str, Any] = {
             "campus_id": cid,
             "campus_name": name,
             "region_code": reg,
-            "service_rows": int(agg["_service_rows"]),
+            "service_rows": sr,
         }
         for mid in metric_ids:
-            row[mid] = agg[mid]
+            raw = float(agg[mid])
+            if mid in AVG_PER_SERVICE_ROW_METRICS:
+                row[mid] = (raw / sr) if sr else 0.0
+            else:
+                row[mid] = raw
         rows.append(row)
 
     rows.sort(key=lambda x: (x["region_code"] or "ZZ", x["campus_name"].lower()))
 
-    totals: Dict[str, float] = {mid: 0.0 for mid in metric_ids}
-    total_rows = 0
-    for row in rows:
-        total_rows += row["service_rows"]
-        for mid in metric_ids:
-            totals[mid] += float(row.get(mid) or 0)
+    totals: Dict[str, float] = {}
+    for mid in metric_ids:
+        if mid in AVG_PER_SERVICE_ROW_METRICS:
+            totals[mid] = (grand[mid] / total_service_rows) if total_service_rows else 0.0
+        else:
+            totals[mid] = grand[mid]
 
-    meta = {"total_service_rows": total_rows, "campus_count": len(rows)}
+    meta = {"total_service_rows": total_service_rows, "campus_count": len(rows)}
     return rows, totals, meta
 
 
@@ -388,6 +413,8 @@ def build_csv_bytes(payload: Dict[str, Any]) -> bytes:
             v = row.get(mid, 0)
             if catalog.get(mid, {}).get("is_currency"):
                 line.append(f"{float(v):.2f}")
+            elif catalog.get(mid, {}).get("avg_per_service_row"):
+                line.append(f"{float(v):.1f}")
             elif isinstance(v, float) and v == int(v):
                 line.append(str(int(v)))
             else:
@@ -398,6 +425,8 @@ def build_csv_bytes(payload: Dict[str, Any]) -> bytes:
         v = totals.get(mid, 0)
         if catalog.get(mid, {}).get("is_currency"):
             sum_row.append(f"{float(v):.2f}")
+        elif catalog.get(mid, {}).get("avg_per_service_row"):
+            sum_row.append(f"{float(v):.1f}")
         elif isinstance(v, float) and v == int(v):
             sum_row.append(str(int(v)))
         else:
