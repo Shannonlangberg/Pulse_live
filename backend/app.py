@@ -10063,11 +10063,16 @@ def api_login():
             except Exception as person_lookup_error:
                 logger.error(f"❌ LOGIN: Could not look up Person record: {person_lookup_error}", exc_info=True)
             
-            # Check if user needs Google Drive auth (ALL users now require this)
-            drive_authenticated = session.get('google_drive_authenticated', False)
-            token_expiry = session.get('google_drive_token_expiry', 0)
+            # Google Drive: restore access from stored refresh token (if user connected before)
+            try:
+                refresh_google_access_token_in_session()
+            except Exception as g_err:
+                logger.warning("Google session hydrate at login: %s", g_err)
+
+            token_expiry = session.get("google_drive_token_expiry", 0)
             token_valid = token_expiry > datetime.now(timezone.utc).timestamp()
-            needs_drive_auth = not (drive_authenticated and token_valid)
+            has_access = bool(session.get("google_drive_access_token"))
+            needs_drive_auth = not (has_access and token_valid)
             
             # Return proper response format for mobile app
             user_campus = getattr(user, 'campus', 'all_campuses')
@@ -11904,26 +11909,29 @@ def session_info():
     
     # Allow unauthenticated access for mobile app session check
     if current_user.is_authenticated:
-        # Check if user needs Google Drive auth (ALL users now require Google auth)
+        # Google Drive: refresh access token using DB refresh token when session is stale
+        try:
+            refresh_google_access_token_in_session()
+        except Exception as g_err:
+            logger.warning("Google session hydrate at /api/session: %s", g_err)
+
         needs_drive_auth = False
         drive_status = {
             'authenticated': False,
             'token_valid': False,
             'has_token': False
         }
-        
-        # Check if Google Drive is authenticated for ALL users
+
         drive_authenticated = session.get('google_drive_authenticated', False)
         drive_status['authenticated'] = drive_authenticated
         drive_status['has_token'] = bool(session.get('google_drive_access_token'))
-        
-        # Check if token is still valid
+
         token_expiry = session.get('google_drive_token_expiry', 0)
         token_valid = token_expiry > datetime.now(timezone.utc).timestamp()
         drive_status['token_valid'] = token_valid
-        
-        # ALL users need Drive auth if not authenticated or token expired
-        needs_drive_auth = not (drive_authenticated and token_valid)
+
+        has_access = bool(session.get('google_drive_access_token'))
+        needs_drive_auth = not (has_access and token_valid)
         
         # Load feature flags from environment variables
         feature_flags = {
@@ -25848,6 +25856,161 @@ def get_resource_categories():
         logger.error(f"Error fetching resource categories: {e}", exc_info=True)
         return jsonify({'error': 'Failed to fetch resource categories'}), 500
 
+# --- Google Drive OAuth: persist refresh token per user (survives logout / idle session) ---
+def _ensure_users_google_refresh_column(cursor):
+    """Add google_refresh_token to users if missing."""
+    try:
+        cursor.execute("SELECT google_refresh_token FROM users LIMIT 1")
+    except Exception:
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN google_refresh_token TEXT DEFAULT NULL")
+            logger.info("Added users.google_refresh_token column")
+        except Exception as e:
+            logger.warning("Could not add google_refresh_token column: %s", e)
+
+
+def _get_user_google_refresh_token(user_id):
+    if user_id is None:
+        return None
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        return None
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        _ensure_users_google_refresh_column(cursor)
+        cursor.execute("SELECT google_refresh_token FROM users WHERE id = ?", (uid,))
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0]:
+            return str(row[0])
+    except Exception as e:
+        logger.warning("_get_user_google_refresh_token: %s", e)
+    return None
+
+
+def _save_user_google_refresh_token(user_id, refresh_token):
+    if not refresh_token or user_id is None:
+        return
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        return
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        _ensure_users_google_refresh_column(cursor)
+        cursor.execute(
+            "UPDATE users SET google_refresh_token = ? WHERE id = ?",
+            (refresh_token, uid),
+        )
+        conn.commit()
+        conn.close()
+        logger.info("Stored Google refresh token for user id=%s", uid)
+    except Exception as e:
+        logger.error("_save_user_google_refresh_token: %s", e, exc_info=True)
+
+
+def _clear_user_google_refresh_token(user_id):
+    if user_id is None:
+        return
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        return
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        _ensure_users_google_refresh_column(cursor)
+        cursor.execute("UPDATE users SET google_refresh_token = NULL WHERE id = ?", (uid,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning("_clear_user_google_refresh_token: %s", e)
+
+
+def refresh_google_access_token_in_session():
+    """
+    Ensure the current session has a valid Google Drive access token.
+    Refreshes using refresh_token from the session or users.google_refresh_token.
+    """
+    try:
+        if not current_user.is_authenticated:
+            return False
+        uid = int(current_user.id)
+    except (TypeError, ValueError, AttributeError):
+        return False
+
+    now = datetime.now(timezone.utc).timestamp()
+    access = session.get("google_drive_access_token")
+    expiry = float(session.get("google_drive_token_expiry") or 0)
+    if access and expiry > now + 120:
+        session["google_drive_authenticated"] = True
+        return True
+
+    rt = session.get("google_drive_refresh_token") or _get_user_google_refresh_token(uid)
+    if not rt:
+        session.pop("google_drive_authenticated", None)
+        return False
+
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        return False
+
+    try:
+        token_response = requests.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "refresh_token": rt,
+                "grant_type": "refresh_token",
+            },
+            timeout=30,
+        )
+    except Exception as e:
+        logger.warning("Google token refresh request failed: %s", e)
+        return False
+
+    if not token_response.ok:
+        try:
+            err = token_response.json()
+            if err.get("error") == "invalid_grant":
+                logger.warning(
+                    "Google refresh token invalid; clearing stored token for user %s", uid
+                )
+                _clear_user_google_refresh_token(uid)
+                session.pop("google_drive_refresh_token", None)
+        except Exception:
+            pass
+        logger.warning(
+            "Google token refresh failed: %s %s",
+            token_response.status_code,
+            (token_response.text or "")[:300],
+        )
+        return False
+
+    tokens = token_response.json()
+    new_access = tokens.get("access_token")
+    if not new_access:
+        return False
+
+    session["google_drive_access_token"] = new_access
+    expires_in = int(tokens.get("expires_in") or 3600)
+    session["google_drive_token_expiry"] = now + expires_in
+    session["google_drive_authenticated"] = True
+    new_rt = tokens.get("refresh_token")
+    if new_rt:
+        _save_user_google_refresh_token(uid, new_rt)
+        session["google_drive_refresh_token"] = new_rt
+    else:
+        session["google_drive_refresh_token"] = rt
+    session.modified = True
+    return True
+
+
 @app.route('/api/google/auth-url', methods=['GET'])
 def get_google_auth_url():
     """Get Google Drive OAuth URL - accessible to all authenticated users"""
@@ -25903,8 +26066,13 @@ def get_google_auth_url():
             'https://www.googleapis.com/auth/drive.file'
         ]
         scope_string = ' '.join(scopes)
-        
-        # Build OAuth URL
+
+        try:
+            has_stored_refresh = bool(_get_user_google_refresh_token(current_user.id))
+        except Exception:
+            has_stored_refresh = False
+
+        # Build OAuth URL (force consent only when we need a new refresh token)
         auth_url = (
             f"https://accounts.google.com/o/oauth2/v2/auth?"
             f"client_id={client_id}&"
@@ -25912,9 +26080,10 @@ def get_google_auth_url():
             f"response_type=code&"
             f"scope={scope_string}&"
             f"state={state_token}&"
-            f"access_type=offline&"
-            f"prompt=consent"
+            f"access_type=offline"
         )
+        if not has_stored_refresh:
+            auth_url += "&prompt=consent"
         
         return jsonify({
             'auth_url': auth_url,
@@ -26005,12 +26174,26 @@ def google_oauth_callback():
             return jsonify({'error': 'Failed to exchange authorization code'}), 500
         
         tokens = token_response.json()
-        
-        # Store tokens in session
-        session['google_drive_access_token'] = tokens.get('access_token')
-        session['google_drive_refresh_token'] = tokens.get('refresh_token')
-        session['google_drive_token_expiry'] = datetime.now(timezone.utc).timestamp() + tokens.get('expires_in', 3600)
-        session['google_drive_authenticated'] = True
+
+        try:
+            uid = int(user_id)
+        except (TypeError, ValueError):
+            uid = None
+
+        new_rt = tokens.get("refresh_token")
+        if new_rt and uid is not None:
+            _save_user_google_refresh_token(uid, new_rt)
+        stored_rt = new_rt
+        if not stored_rt and uid is not None:
+            stored_rt = _get_user_google_refresh_token(uid)
+
+        # Store tokens in session; refresh token also kept in DB for the next login
+        session["google_drive_access_token"] = tokens.get("access_token")
+        session["google_drive_refresh_token"] = stored_rt
+        session["google_drive_token_expiry"] = datetime.now(timezone.utc).timestamp() + int(
+            tokens.get("expires_in") or 3600
+        )
+        session["google_drive_authenticated"] = bool(session.get("google_drive_access_token"))
         
         # Clear OAuth state from both session and in-memory store
         session.pop('google_oauth_state', None)
@@ -26186,6 +26369,7 @@ def get_resource_category_files(category_id):
         drive_error = None
         
         if category.folder_id:
+            refresh_google_access_token_in_session()
             # Check if user has Google Drive access token
             access_token = session.get('google_drive_access_token')
             token_expiry = session.get('google_drive_token_expiry', 0)
@@ -26264,11 +26448,11 @@ def get_resource_folder_files(category_id, folder_id):
         drive_auth_needed = False
         drive_error = None
         
-        # Check if user has Google Drive access token
+        refresh_google_access_token_in_session()
         access_token = session.get('google_drive_access_token')
         token_expiry = session.get('google_drive_token_expiry', 0)
         current_time = datetime.now(timezone.utc).timestamp()
-        
+
         if access_token and current_time < token_expiry:
             # Fetch files from the subfolder
             logger.info(f"Fetching files from Google Drive subfolder: {folder_id}")
