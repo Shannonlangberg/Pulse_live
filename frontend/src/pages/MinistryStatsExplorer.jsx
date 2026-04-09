@@ -277,7 +277,8 @@ const MinistryStatsExplorer = () => {
             Pick any combination of Pulse stats, campuses, and dates. Most columns are{' '}
             <strong className="text-slate-300">sums</strong> over every matching attendance row.{' '}
             <strong className="text-slate-300">Sunday</strong>, <strong className="text-slate-300">weekend</strong>, and{' '}
-            <strong className="text-slate-300">kids attendance</strong> use the same definitions as the dashboard but are
+            <strong className="text-slate-300">kids attendance</strong> (kids plus kids leaders, like the dashboard) use the
+            same definitions as the dashboard but are
             shown as <strong className="text-slate-300">averages per service row</strong> in your date range (not a
             running total). Use each metric&apos;s description for details.
           </p>

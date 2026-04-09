@@ -147,7 +147,7 @@ METRIC_CATALOG: List[Dict[str, Any]] = [
         "id": "kids_attendance",
         "label": "Kids attendance",
         "group": "Attendance (raw)",
-        "description": "Kids only (excl. leaders). Shown as average per service row in range (not a sum).",
+        "description": "Kids in room plus kids leaders — same components as Sunday attendance. Shown as average per service row in range (not a sum).",
         "avg_per_service_row": True,
     },
     {
@@ -254,6 +254,11 @@ def _get_metric_value(record: Any, metric_id: str, *, include_youth_metrics: boo
     if metric_id == "weekend_attendance":
         _, w = _record_sunday_and_weekend_totals(record)
         return float(w)
+    if metric_id == "kids_attendance":
+        k = (getattr(record, "kids_attendance", None) or 0) + (
+            getattr(record, "kids_leaders", None) or 0
+        )
+        return float(int(k))
     if metric_id == "new_people_total":
         return float(_record_new_people_total(record, include_youth_metrics=include_youth_metrics))
     if metric_id == "salvations_total":
