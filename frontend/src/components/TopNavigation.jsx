@@ -31,6 +31,13 @@ const TOP_NAV_PORTAL_ITEMS = [
     featureKey: 'dashboard'
   },
   {
+    name: 'Ministry stats',
+    href: '/ministry-stats',
+    icon: PresentationChartLineIcon,
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
+    featureKey: 'dashboard'
+  },
+  {
     name: 'Finance Input',
     href: '/finance',
     icon: ClipboardIcon,

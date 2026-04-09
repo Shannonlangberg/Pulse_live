@@ -64,7 +64,7 @@ const PORTAL_ITEMS = [
     name: 'Ministry stats', 
     href: '/ministry-stats', 
     icon: PresentationChartLineIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'],
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
     featureKey: 'dashboard'
   },
   { 
@@ -114,6 +114,13 @@ const SETTINGS_ITEMS = [
     icon: TableCellsIcon, 
     roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor'],
     featureKey: 'database_viewer'
+  },
+  { 
+    name: 'Ministry stats', 
+    href: '/ministry-stats', 
+    icon: PresentationChartLineIcon, 
+    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
+    featureKey: 'dashboard'
   },
   { 
     name: 'Homepage Manager', 
@@ -173,13 +180,13 @@ const EnhancedNavigation = ({
     const path = location.pathname;
     if (path === '/') {
       setActiveSection('home');
-    } else if (path === '/stats' || path === '/dashboard' || path === '/ministry-stats' || path === '/resources') {
+    } else if (path === '/stats' || path === '/dashboard' || path === '/resources') {
       setActiveSection('portal');
     } else if (path.startsWith('/users') || path.startsWith('/role-manager') || 
                path.startsWith('/campuses') || path.startsWith('/profile') || 
                path.startsWith('/beacons') || path.startsWith('/resources/manage') ||
                path.startsWith('/tv/manage') || path.startsWith('/events/manage') ||
-               path.startsWith('/notifications') || path.startsWith('/export') || path.startsWith('/reports') || path.startsWith('/attendance-data') ||
+               path.startsWith('/notifications') || path.startsWith('/export') || path.startsWith('/reports') || path.startsWith('/ministry-stats') || path.startsWith('/attendance-data') ||
                path.startsWith('/homepage-manager')) {
       setActiveSection('settings');
     }

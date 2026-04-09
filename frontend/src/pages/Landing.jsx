@@ -10,6 +10,7 @@ import {
   UserGroupIcon,
   BookOpenIcon,
   ChartBarIcon,
+  PresentationChartLineIcon,
   BuildingOfficeIcon,
   BoltIcon,
   UserCircleIcon,
@@ -27,16 +28,64 @@ const getTimeOfDayGreeting = () => {
   return 'Good evening';
 };
 
+/** API role strings sometimes differ; normalize so quick-action filters match. */
+const normalizeRoleForLanding = (raw) => {
+  if (raw == null || raw === '') return 'user';
+  const s = String(raw).trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (s === 'super_administrator' || s === 'super_admin') return 'superadmin';
+  if (s === 'leadership' || s === 'seniorleadership') return 'senior_leadership';
+  return s;
+};
+
+const MINISTRY_STATS_ACTION = {
+  name: 'Ministry stats',
+  href: '/ministry-stats',
+  icon: PresentationChartLineIcon,
+  color: 'emerald',
+};
+
 // Quick actions filtered by role
 const getQuickActions = (userRole) => {
   const allActions = [
     { name: 'My Profile', href: '/profile', icon: UserCircleIcon, color: 'blue', roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'] },
     { name: 'Input', href: '/stats', icon: ClipboardIcon, color: 'purple', roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'campus_pastor'] },
     { name: 'Dashboard', href: '/dashboard', icon: ChartBarIcon, color: 'cyan', roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'campus_pastor'] },
+    {
+      ...MINISTRY_STATS_ACTION,
+      roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
+    },
     { name: 'Resources', href: '/resources', icon: BookOpenIcon, color: 'teal', roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'] },
   ];
-  
-  return allActions.filter(action => action.roles.includes(userRole));
+
+  return allActions.filter((action) => action.roles.includes(userRole));
+};
+
+/** If role matched oddly, still show Ministry stats when user clearly has Input or Dashboard. */
+const MINISTRY_STATS_ELIGIBLE_ROLES = new Set([
+  'superadmin',
+  'admin',
+  'senior_leadership',
+  'senior_leader',
+  'senior_pastor',
+  'lead_pastor',
+  'campus_pastor',
+  'pastor',
+  'user',
+  'staff',
+  'finance',
+]);
+
+const ensureMinistryStatsQuickAction = (actions, canonicalRole) => {
+  if (actions.some((a) => a.href === '/ministry-stats')) return actions;
+  const hasInput = actions.some((a) => a.href === '/stats');
+  const hasDashboard = actions.some((a) => a.href === '/dashboard');
+  if (!hasInput && !hasDashboard) return actions;
+  if (!MINISTRY_STATS_ELIGIBLE_ROLES.has(canonicalRole)) return actions;
+  const idx = actions.findIndex((a) => a.href === '/dashboard');
+  const next = [...actions];
+  const insertAt = idx >= 0 ? idx + 1 : actions.length;
+  next.splice(insertAt, 0, { ...MINISTRY_STATS_ACTION });
+  return next;
 };
 
 const Landing = () => {
@@ -124,9 +173,9 @@ const Landing = () => {
   };
 
   const featuredCategories = categories.filter(Boolean);
-  const actualRole = session?.role || 'user';
+  const actualRole = normalizeRoleForLanding(session?.role || 'user');
   const isAdmin = actualRole === 'superadmin' || actualRole === 'admin';
-  const quickActions = getQuickActions(actualRole);
+  const quickActions = ensureMinistryStatsQuickAction(getQuickActions(actualRole), actualRole);
 
   const supportItems = [
     {
@@ -152,6 +201,7 @@ const Landing = () => {
     cyan: { bg: 'from-cyan-500/20 to-cyan-600/20', border: 'border-cyan-400/30', icon: 'text-cyan-300', iconBg: 'bg-cyan-500/30' },
     teal: { bg: 'from-teal-500/20 to-teal-600/20', border: 'border-teal-400/30', icon: 'text-teal-300', iconBg: 'bg-teal-500/30' },
     orange: { bg: 'from-orange-500/20 to-orange-600/20', border: 'border-orange-400/30', icon: 'text-orange-300', iconBg: 'bg-orange-500/30' },
+    emerald: { bg: 'from-emerald-500/20 to-emerald-600/20', border: 'border-emerald-400/30', icon: 'text-emerald-300', iconBg: 'bg-emerald-500/30' },
   };
 
   return (
@@ -378,7 +428,7 @@ const Landing = () => {
                   Key management tools and system overview
                 </p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
                 <button
                   onClick={() => navigate('/users')}
                   className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
@@ -411,6 +461,17 @@ const Landing = () => {
                   </div>
                   <h3 className="text-base sm:text-lg font-semibold text-white mb-1">Resource Manager</h3>
                   <p className="text-xs sm:text-sm text-white/60">Organize and manage resources</p>
+                </button>
+                <button
+                  onClick={() => navigate('/ministry-stats')}
+                  className="bg-gradient-to-br from-emerald-500/10 to-green-600/10 border border-emerald-400/40 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
+                >
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <PresentationChartLineIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-emerald-300 group-active:scale-95 lg:group-hover:scale-110 transition-transform" />
+                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300/50 lg:group-hover:text-emerald-300 lg:group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-semibold text-white mb-1">Ministry stats</h3>
+                  <p className="text-xs sm:text-sm text-white/60">Baptisms &amp; totals by campus and date</p>
                 </button>
                 <button
                   onClick={() => navigate('/platform-settings')}

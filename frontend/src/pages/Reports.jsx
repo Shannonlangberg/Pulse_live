@@ -292,13 +292,29 @@ const Reports = () => {
           <p className="text-slate-400">
             Download attendance summaries from the Pulse database (not Google Sheets).
           </p>
-          <p className="text-slate-500 text-sm mt-3">
-            Need <strong className="text-slate-400">any metric</strong> (e.g. baptisms) for any campuses and dates?{' '}
-            <Link to="/ministry-stats" className="text-emerald-400 hover:text-emerald-300 underline font-medium">
-              Open Ministry stats
-            </Link>
-            .
-          </p>
+        </div>
+
+        <div className="mb-8 rounded-2xl border border-emerald-500/40 bg-emerald-950/25 p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400/90 mb-1">
+              Different tool — not on this form
+            </p>
+            <h2 className="text-lg sm:text-xl font-semibold text-white">
+              Want baptisms, dedications, or other totals by campus?
+            </h2>
+            <p className="text-slate-400 text-sm mt-2 leading-relaxed">
+              This screen is only for <strong className="text-slate-300">quarterly / YTD PDF &amp; CSV</strong> charts.
+              Use <strong className="text-emerald-200">Ministry stats</strong> to tick metrics (e.g. baptisms), pick
+              dates, region, and campuses — then run a table or CSV.
+            </p>
+          </div>
+          <Link
+            to="/ministry-stats"
+            className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm sm:text-base transition-colors shadow-lg shadow-emerald-900/30"
+          >
+            Open Ministry stats
+            <span aria-hidden>→</span>
+          </Link>
         </div>
 
         <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-8 shadow-xl">
