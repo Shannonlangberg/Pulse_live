@@ -293,6 +293,7 @@ const MinistryStatsExplorer = () => {
   const metricIdsInResult = result?.metric_ids || [];
   const isEntryLayout = result?.granularity === 'entry';
   const resultBodyRows = isEntryLayout ? result?.entries || [] : result?.campuses || [];
+  const resultServiceTime = (result?.service_time || '').trim();
 
   return (
     <div className="min-h-screen bg-slate-900 p-6">
@@ -414,10 +415,16 @@ const MinistryStatsExplorer = () => {
                   onChange={(e) => setMetricsScope(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white"
                 >
-                  <option value="default">All services (Sundays + special events)</option>
+                  <option value="default">All entries (standard Sundays + special events)</option>
                   <option value="sundays_rollup_only">Sundays only (standard services)</option>
                   <option value="special_events_only">Special events only</option>
                 </select>
+                <p className="text-slate-500 text-xs mt-2">
+                  This chooses which <strong className="text-slate-400">weekly stats rows</strong> are included (e.g.
+                  omit special events). It does <strong className="text-slate-400">not</strong> add up 9:00 + 11:00 +
+                  5:30 — use <strong className="text-slate-400">Service time</strong> below only if you want one clock
+                  time; leave it blank for combined campus totals.
+                </p>
               </div>
               <div className="mb-4">
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
@@ -455,12 +462,20 @@ const MinistryStatsExplorer = () => {
                   ))}
                 </datalist>
                 <p className="text-slate-500 text-xs mt-2">
-                  When set, Sunday / weekend / kids / total / kids-leaders columns use that slot from each week&apos;s
-                  stored breakdown (must match labels like <span className="text-slate-400">5:30 PM</span> and{' '}
-                  <span className="text-slate-400">Kids 5:30 PM</span>). Weekend uses the same slot slice as Sunday
-                  (youth is not split by service time). Baptisms, salvations, giving, etc. still sum the whole weekly
-                  entry.
+                  When set, Sunday / weekend / kids / total / kids-leaders columns use <strong className="text-slate-400">only that clock time</strong> from each week&apos;s stored breakdown (labels must match, e.g.{' '}
+                  <span className="text-slate-400">5:30 PM</span> and <span className="text-slate-400">Kids 5:30 PM</span>
+                  ). <strong className="text-slate-400">Clear this field</strong> to show attendance for{' '}
+                  <strong className="text-slate-400">all service times combined</strong> (still one combined number per
+                  week, not a separate row per slot). Weekend matches that slot slice; baptisms, salvations, giving, etc.
+                  still use the whole weekly entry.
                 </p>
+                {serviceTime.trim() ? (
+                  <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                    Service time is set — Sunday / weekend / kids columns use <strong>only {serviceTime.trim()}</strong>{' '}
+                    from each week&apos;s breakdown, not every clock time. &quot;All entries&quot; above only widens
+                    which <em>weeks</em> count, not which times are summed.
+                  </div>
+                ) : null}
               </div>
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
@@ -629,7 +644,12 @@ const MinistryStatsExplorer = () => {
                             <th className="px-3 py-3 font-semibold sticky left-14 bg-slate-900 z-10 min-w-[10rem]">
                               Campus
                             </th>
-                            <th className="px-3 py-3 font-semibold text-right">Services</th>
+                            <th className="px-3 py-3 font-semibold text-right whitespace-nowrap">
+                              <span className="block">Stats rows</span>
+                              <span className="block text-[10px] font-normal text-slate-500 normal-case tracking-normal mt-0.5">
+                                weekly entries
+                              </span>
+                            </th>
                           </>
                         )}
                         {metricIdsInResult.map((mid) => (
@@ -714,9 +734,16 @@ const MinistryStatsExplorer = () => {
                 )}
                 {metricIdsInResult.some((mid) => tableCatalogById[mid]?.avg_per_service_row) && !isEntryLayout && (
                   <p className="text-slate-500 text-xs mt-3">
-                    Columns marked <span className="text-slate-400">avg / service</span> are means per attendance entry.
-                    The <strong className="text-slate-400">All campuses</strong> row uses the same rule across every row
-                    in your filter (weighted by how many services each campus has).
+                    Columns marked <span className="text-slate-400">avg / service</span> are means per weekly stats row
+                    in your date range (not “number of Sunday services run”). The{' '}
+                    <strong className="text-slate-400">All campuses</strong> row uses the same rule across every row in
+                    your filter.
+                    {resultServiceTime ? (
+                      <>
+                        {' '}
+                        With a service time filter, those columns are the average for <strong className="text-slate-400">that slot only</strong>.
+                      </>
+                    ) : null}
                   </p>
                 )}
                 {isEntryLayout && metricIdsInResult.some((mid) => tableCatalogById[mid]?.avg_per_service_row) && (

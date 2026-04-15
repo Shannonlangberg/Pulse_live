@@ -675,7 +675,7 @@ def build_csv_bytes(payload: Dict[str, Any]) -> bytes:
         w.writerow(sum_row)
     else:
         rows = list(payload.get("campuses") or [])
-        headers = ["Region", "Campus", "Service rows"] + [
+        headers = ["Region", "Campus", "Stats rows"] + [
             catalog.get(mid, {}).get("label", mid) for mid in metric_ids
         ]
         w.writerow(headers)
