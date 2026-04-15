@@ -78,6 +78,7 @@ const MinistryStatsExplorer = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [metricsScope, setMetricsScope] = useState('default');
+  const [reportGranularity, setReportGranularity] = useState('campus');
   const [serviceTime, setServiceTime] = useState('');
   const [excludeYouth, setExcludeYouth] = useState(false);
   const [catalog, setCatalog] = useState([]);
@@ -239,6 +240,7 @@ const MinistryStatsExplorer = () => {
     if (metricsScope && metricsScope !== 'default') params.set('metrics_scope', metricsScope);
     const st = serviceTime.trim();
     if (st) params.set('service_time', st);
+    if (reportGranularity === 'entry') params.set('granularity', 'entry');
     return params.toString();
   }, [
     startDate,
@@ -249,6 +251,7 @@ const MinistryStatsExplorer = () => {
     excludeYouth,
     metricsScope,
     serviceTime,
+    reportGranularity,
   ]);
 
   const runQuery = async () => {
@@ -288,6 +291,8 @@ const MinistryStatsExplorer = () => {
   };
 
   const metricIdsInResult = result?.metric_ids || [];
+  const isEntryLayout = result?.granularity === 'entry';
+  const resultBodyRows = isEntryLayout ? result?.entries || [] : result?.campuses || [];
 
   return (
     <div className="min-h-screen bg-slate-900 p-6">
@@ -314,7 +319,8 @@ const MinistryStatsExplorer = () => {
             shown as <strong className="text-slate-300">averages per service row</strong> in your date range (not a
             running total). Columns marked <strong className="text-slate-300">avg / service</strong> in results use that
             rule. Optionally restrict attendance columns to a single <strong className="text-slate-300">service time</strong>{' '}
-            (e.g. 5:30 PM) using stored per-slot breakdowns.
+            (e.g. 5:30 PM) using stored per-slot breakdowns. Use <strong className="text-slate-300">week-to-week</strong>{' '}
+            layout for one table row per logged service date (per campus).
           </p>
           <p className="text-slate-500 text-sm mt-2">
             Tip: leave all campuses unchecked to include <strong className="text-slate-400">every campus</strong> in
@@ -412,6 +418,23 @@ const MinistryStatsExplorer = () => {
                   <option value="sundays_rollup_only">Sundays only (standard services)</option>
                   <option value="special_events_only">Special events only</option>
                 </select>
+              </div>
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                  Report layout
+                </label>
+                <select
+                  value={reportGranularity}
+                  onChange={(e) => setReportGranularity(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white"
+                >
+                  <option value="campus">Summary — one row per campus</option>
+                  <option value="entry">Week to week — one row per service date (per campus)</option>
+                </select>
+                <p className="text-slate-500 text-xs mt-2">
+                  Week-to-week shows each stats entry in date order (same metrics as above). Large ranges may hit a row
+                  limit; use CSV or narrow dates if needed.
+                </p>
               </div>
               <div className="mb-4">
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
@@ -590,15 +613,29 @@ const MinistryStatsExplorer = () => {
                   <table className="min-w-full text-sm text-left">
                     <thead>
                       <tr className="bg-slate-900/90 text-slate-400 text-xs uppercase tracking-wide">
-                        <th className="px-3 py-3 font-semibold sticky left-0 bg-slate-900 z-10">Region</th>
-                        <th className="px-3 py-3 font-semibold sticky left-14 bg-slate-900 z-10 min-w-[10rem]">
-                          Campus
-                        </th>
-                        <th className="px-3 py-3 font-semibold text-right">Services</th>
+                        {isEntryLayout ? (
+                          <>
+                            <th className="px-3 py-3 font-semibold sticky left-0 bg-slate-900 z-10 min-w-[7.5rem]">
+                              Service date
+                            </th>
+                            <th className="px-3 py-3 font-semibold sticky left-[7.5rem] bg-slate-900 z-10">Region</th>
+                            <th className="px-3 py-3 font-semibold sticky left-[11.5rem] bg-slate-900 z-10 min-w-[10rem]">
+                              Campus
+                            </th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="px-3 py-3 font-semibold sticky left-0 bg-slate-900 z-10">Region</th>
+                            <th className="px-3 py-3 font-semibold sticky left-14 bg-slate-900 z-10 min-w-[10rem]">
+                              Campus
+                            </th>
+                            <th className="px-3 py-3 font-semibold text-right">Services</th>
+                          </>
+                        )}
                         {metricIdsInResult.map((mid) => (
                           <th key={mid} className="px-3 py-3 font-semibold text-right whitespace-nowrap">
                             <span className="block">{tableCatalogById[mid]?.label || mid}</span>
-                            {tableCatalogById[mid]?.avg_per_service_row ? (
+                            {tableCatalogById[mid]?.avg_per_service_row && !isEntryLayout ? (
                               <span className="block text-[10px] font-normal text-slate-500 normal-case tracking-normal mt-0.5">
                                 avg / service
                               </span>
@@ -608,31 +645,61 @@ const MinistryStatsExplorer = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700">
-                      {(result.campuses || []).map((row) => (
-                        <tr key={row.campus_id} className="hover:bg-slate-800/50 text-slate-200">
-                          <td className="px-3 py-2 sticky left-0 bg-slate-900/95 z-10 text-slate-400">
-                            {row.region_code || '—'}
-                          </td>
-                          <td className="px-3 py-2 sticky left-14 bg-slate-900/95 z-10 font-medium text-white">
-                            {row.campus_name}
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums">{row.service_rows}</td>
-                          {metricIdsInResult.map((mid) => (
-                            <td key={mid} className="px-3 py-2 text-right tabular-nums">
-                              {formatCell(mid, row[mid], tableCatalogById)}
-                            </td>
+                      {isEntryLayout
+                        ? resultBodyRows.map((row) => (
+                            <tr
+                              key={`${row.campus_id}-${row.service_date}`}
+                              className="hover:bg-slate-800/50 text-slate-200"
+                            >
+                              <td className="px-3 py-2 sticky left-0 bg-slate-900/95 z-10 text-slate-300 tabular-nums">
+                                {row.service_date || '—'}
+                              </td>
+                              <td className="px-3 py-2 sticky left-[7.5rem] bg-slate-900/95 z-10 text-slate-400">
+                                {row.region_code || '—'}
+                              </td>
+                              <td className="px-3 py-2 sticky left-[11.5rem] bg-slate-900/95 z-10 font-medium text-white">
+                                {row.campus_name}
+                              </td>
+                              {metricIdsInResult.map((mid) => (
+                                <td key={mid} className="px-3 py-2 text-right tabular-nums">
+                                  {formatCell(mid, row[mid], tableCatalogById)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        : resultBodyRows.map((row) => (
+                            <tr key={row.campus_id} className="hover:bg-slate-800/50 text-slate-200">
+                              <td className="px-3 py-2 sticky left-0 bg-slate-900/95 z-10 text-slate-400">
+                                {row.region_code || '—'}
+                              </td>
+                              <td className="px-3 py-2 sticky left-14 bg-slate-900/95 z-10 font-medium text-white">
+                                {row.campus_name}
+                              </td>
+                              <td className="px-3 py-2 text-right tabular-nums">{row.service_rows}</td>
+                              {metricIdsInResult.map((mid) => (
+                                <td key={mid} className="px-3 py-2 text-right tabular-nums">
+                                  {formatCell(mid, row[mid], tableCatalogById)}
+                                </td>
+                              ))}
+                            </tr>
                           ))}
-                        </tr>
-                      ))}
                     </tbody>
                     <tfoot>
                       <tr className="bg-emerald-950/40 text-white font-semibold border-t-2 border-emerald-600/40">
-                        <td className="px-3 py-3 sticky left-0 bg-emerald-950/80 z-10" colSpan={2}>
-                          All campuses
-                        </td>
-                        <td className="px-3 py-3 text-right tabular-nums">
-                          {result.meta?.total_service_rows ?? '—'}
-                        </td>
+                        {isEntryLayout ? (
+                          <td className="px-3 py-3 sticky left-0 bg-emerald-950/80 z-10" colSpan={3}>
+                            All rows ({result.meta?.total_service_rows ?? '—'})
+                          </td>
+                        ) : (
+                          <>
+                            <td className="px-3 py-3 sticky left-0 bg-emerald-950/80 z-10" colSpan={2}>
+                              All campuses
+                            </td>
+                            <td className="px-3 py-3 text-right tabular-nums">
+                              {result.meta?.total_service_rows ?? '—'}
+                            </td>
+                          </>
+                        )}
                         {metricIdsInResult.map((mid) => (
                           <td key={mid} className="px-3 py-3 text-right tabular-nums">
                             {formatCell(mid, result.totals?.[mid], tableCatalogById)}
@@ -642,14 +709,20 @@ const MinistryStatsExplorer = () => {
                     </tfoot>
                   </table>
                 </div>
-                {(result.campuses || []).length === 0 && (
+                {resultBodyRows.length === 0 && (
                   <p className="text-slate-500 text-sm mt-4">No attendance rows in this range for your filters.</p>
                 )}
-                {metricIdsInResult.some((mid) => tableCatalogById[mid]?.avg_per_service_row) && (
+                {metricIdsInResult.some((mid) => tableCatalogById[mid]?.avg_per_service_row) && !isEntryLayout && (
                   <p className="text-slate-500 text-xs mt-3">
                     Columns marked <span className="text-slate-400">avg / service</span> are means per attendance entry.
                     The <strong className="text-slate-400">All campuses</strong> row uses the same rule across every row
                     in your filter (weighted by how many services each campus has).
+                  </p>
+                )}
+                {isEntryLayout && metricIdsInResult.some((mid) => tableCatalogById[mid]?.avg_per_service_row) && (
+                  <p className="text-slate-500 text-xs mt-3">
+                    Each row is that service date&apos;s value. The footer matches the campus summary: sums for count
+                    metrics, and means across all listed weeks for Sunday / weekend / kids attendance.
                   </p>
                 )}
               </div>

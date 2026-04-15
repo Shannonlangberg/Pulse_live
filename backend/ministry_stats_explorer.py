@@ -13,6 +13,9 @@ import json
 from datetime import date, datetime
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+# Max rows returned for week-to-week (per-entry) layout to keep JSON/CSV bounded.
+MAX_ENTRY_TIMELINE_ROWS = 4000
+
 # Metrics whose values are taken from per-service JSON when ``service_time`` is set.
 _SLICE_METRICS = frozenset(
     {
@@ -271,6 +274,28 @@ def append_service_time_to_summary(summary: str, service_time: Optional[str]) ->
     return f"{summary} · {note}" if summary else note
 
 
+def parse_granularity_param(raw: Optional[str]) -> str:
+    """
+    ``campus`` (default): one result row per campus (aggregated).
+    ``entry``: one row per logged attendance date per campus (week-to-week).
+    """
+    s = (raw or "").strip().lower()
+    if s in ("", "campus", "summary", "aggregate"):
+        return "campus"
+    if s in ("entry", "weekly", "week", "by_date", "timeline"):
+        return "entry"
+    raise ValueError(
+        "Invalid granularity — use campus (default) or entry for week-to-week rows."
+    )
+
+
+def append_timeline_mode_to_summary(summary: str, granularity: str) -> str:
+    if granularity != "entry":
+        return summary
+    bit = "Layout: week-to-week (one row per logged service date and campus)"
+    return f"{summary} · {bit}" if summary else bit
+
+
 def parse_metric_ids_param(raw: Optional[str]) -> List[str]:
     if not raw or not str(raw).strip():
         return list(DEFAULT_METRIC_IDS)
@@ -493,8 +518,75 @@ def aggregate_by_campus(
         "total_service_rows": total_service_rows,
         "campus_count": len(rows),
         "service_time": service_time or None,
+        "granularity": "campus",
     }
     return rows, totals, meta
+
+
+def aggregate_by_entry_timeline(
+    records: Iterable[Any],
+    metric_ids: List[str],
+    *,
+    campuses_by_id: Dict[int, Any],
+    include_youth_metrics: bool,
+    service_time: Optional[str] = None,
+) -> Tuple[List[Dict[str, Any]], Dict[str, float], Dict[str, Any]]:
+    """
+    One output row per ``AttendanceRecord`` (campus + date), sorted by date then campus.
+    Metric cells are that week's values (not period averages). Footer uses the same
+    totals rules as the campus summary (sums; means for ``AVG_PER_SERVICE_ROW_METRICS``).
+    """
+    rec_list = list(records)
+    n_all = len(rec_list)
+    if n_all > MAX_ENTRY_TIMELINE_ROWS:
+        raise ValueError(
+            f"Too many rows for week-to-week layout ({n_all} > {MAX_ENTRY_TIMELINE_ROWS}). "
+            "Narrow the date range or filter campuses, or use the campus summary."
+        )
+    rec_list.sort(key=lambda r: (r.date, r.campus_id))
+    grand: Dict[str, float] = {mid: 0.0 for mid in metric_ids}
+    out_rows: List[Dict[str, Any]] = []
+
+    for r in rec_list:
+        campus = campuses_by_id.get(r.campus_id)
+        name = campus.display_name if campus else f"Campus ID {r.campus_id}"
+        reg = ""
+        if campus and campus.region:
+            reg = (campus.region.code or "").strip()
+        row: Dict[str, Any] = {
+            "campus_id": r.campus_id,
+            "campus_name": name,
+            "region_code": reg,
+            "service_date": r.date.isoformat() if getattr(r, "date", None) else "",
+        }
+        for mid in metric_ids:
+            v = float(
+                _get_metric_value(
+                    r,
+                    mid,
+                    include_youth_metrics=include_youth_metrics,
+                    service_time=service_time,
+                )
+            )
+            row[mid] = v
+            grand[mid] += v
+        out_rows.append(row)
+
+    n = len(rec_list)
+    totals: Dict[str, float] = {}
+    for mid in metric_ids:
+        if mid in AVG_PER_SERVICE_ROW_METRICS:
+            totals[mid] = (grand[mid] / n) if n else 0.0
+        else:
+            totals[mid] = grand[mid]
+
+    meta = {
+        "total_service_rows": n,
+        "campus_count": len({r.campus_id for r in rec_list}),
+        "service_time": service_time or None,
+        "granularity": "entry",
+    }
+    return out_rows, totals, meta
 
 
 def build_json_payload(
@@ -509,11 +601,21 @@ def build_json_payload(
     metrics_scope: str,
     include_youth_metrics: bool,
     service_time: Optional[str] = None,
+    granularity: str = "campus",
+    timeline_rows: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     catalog = [m for m in METRIC_CATALOG if m["id"] in metric_ids]
     # Preserve requested order
     order = {mid: i for i, mid in enumerate(metric_ids)}
     catalog.sort(key=lambda m: order.get(m["id"], 99))
+
+    g = granularity if granularity in ("campus", "entry") else "campus"
+    if g == "entry":
+        campus_out: List[Dict[str, Any]] = []
+        entry_out = list(timeline_rows or [])
+    else:
+        campus_out = list(rows)
+        entry_out = []
 
     return {
         "start": start_d.isoformat(),
@@ -521,48 +623,69 @@ def build_json_payload(
         "metrics_scope": metrics_scope,
         "include_youth_metrics": include_youth_metrics,
         "service_time": service_time or None,
+        "granularity": g,
         "filter_summary": filter_summary,
         "metric_ids": metric_ids,
         "metric_catalog": catalog,
-        "campuses": rows,
+        "campuses": campus_out,
+        "entries": entry_out,
         "totals": totals,
         "meta": meta,
     }
 
 
+def _csv_format_metric_cell(catalog: Dict[str, Dict[str, Any]], mid: str, v: Any) -> str:
+    if catalog.get(mid, {}).get("is_currency"):
+        return f"{float(v):.2f}"
+    if catalog.get(mid, {}).get("avg_per_service_row"):
+        return f"{float(v):.1f}"
+    if isinstance(v, float) and v == int(v):
+        return str(int(v))
+    return str(v)
+
+
 def build_csv_bytes(payload: Dict[str, Any]) -> bytes:
     metric_ids: List[str] = list(payload.get("metric_ids") or [])
-    rows: List[Dict[str, Any]] = list(payload.get("campuses") or [])
     totals: Dict[str, float] = dict(payload.get("totals") or {})
     catalog = {m["id"]: m for m in (payload.get("metric_catalog") or [])}
+    granularity = payload.get("granularity") or "campus"
 
     buf = io.StringIO()
-    headers = ["Region", "Campus", "Service rows"] + [catalog.get(mid, {}).get("label", mid) for mid in metric_ids]
     w = csv.writer(buf)
-    w.writerow(headers)
-    for row in rows:
-        line = [row.get("region_code") or "", row.get("campus_name") or "", row.get("service_rows") or 0]
+
+    if granularity == "entry":
+        rows: List[Dict[str, Any]] = list(payload.get("entries") or [])
+        headers = ["Region", "Campus", "Service date"] + [
+            catalog.get(mid, {}).get("label", mid) for mid in metric_ids
+        ]
+        w.writerow(headers)
+        for row in rows:
+            line = [
+                row.get("region_code") or "",
+                row.get("campus_name") or "",
+                row.get("service_date") or "",
+            ]
+            for mid in metric_ids:
+                line.append(_csv_format_metric_cell(catalog, mid, row.get(mid, 0)))
+            w.writerow(line)
+        n = payload.get("meta", {}).get("total_service_rows", len(rows))
+        sum_row = ["", "ALL ROWS", str(n)]
         for mid in metric_ids:
-            v = row.get(mid, 0)
-            if catalog.get(mid, {}).get("is_currency"):
-                line.append(f"{float(v):.2f}")
-            elif catalog.get(mid, {}).get("avg_per_service_row"):
-                line.append(f"{float(v):.1f}")
-            elif isinstance(v, float) and v == int(v):
-                line.append(str(int(v)))
-            else:
-                line.append(str(v))
-        w.writerow(line)
-    sum_row = ["", "ALL CAMPUSES", payload.get("meta", {}).get("total_service_rows", 0)]
-    for mid in metric_ids:
-        v = totals.get(mid, 0)
-        if catalog.get(mid, {}).get("is_currency"):
-            sum_row.append(f"{float(v):.2f}")
-        elif catalog.get(mid, {}).get("avg_per_service_row"):
-            sum_row.append(f"{float(v):.1f}")
-        elif isinstance(v, float) and v == int(v):
-            sum_row.append(str(int(v)))
-        else:
-            sum_row.append(str(v))
-    w.writerow(sum_row)
+            sum_row.append(_csv_format_metric_cell(catalog, mid, totals.get(mid, 0)))
+        w.writerow(sum_row)
+    else:
+        rows = list(payload.get("campuses") or [])
+        headers = ["Region", "Campus", "Service rows"] + [
+            catalog.get(mid, {}).get("label", mid) for mid in metric_ids
+        ]
+        w.writerow(headers)
+        for row in rows:
+            line = [row.get("region_code") or "", row.get("campus_name") or "", row.get("service_rows") or 0]
+            for mid in metric_ids:
+                line.append(_csv_format_metric_cell(catalog, mid, row.get(mid, 0)))
+            w.writerow(line)
+        sum_row = ["", "ALL CAMPUSES", payload.get("meta", {}).get("total_service_rows", 0)]
+        for mid in metric_ids:
+            sum_row.append(_csv_format_metric_cell(catalog, mid, totals.get(mid, 0)))
+        w.writerow(sum_row)
     return buf.getvalue().encode("utf-8-sig")
