@@ -18046,9 +18046,11 @@ def ministry_stats_json():
     try:
         from ministry_stats_explorer import (
             aggregate_by_campus,
+            append_service_time_to_summary,
             build_json_payload,
             parse_inclusive_date_range,
             parse_metric_ids_param,
+            parse_service_time_param,
         )
 
         region = request.args.get('region', '').strip()
@@ -18066,6 +18068,7 @@ def ministry_stats_json():
         excl_youth = _parse_exclude_youth_metrics()
         include_youth_m = not excl_youth
         metric_ids = parse_metric_ids_param(request.args.get('metrics'))
+        service_time = parse_service_time_param(request.args.get('service_time'))
 
         records, campuses_by_id, filter_summary = _load_attendance_records_for_explorer(
             start_d,
@@ -18075,11 +18078,13 @@ def ministry_stats_json():
             metrics_scope,
             include_youth_m,
         )
+        filter_summary = append_service_time_to_summary(filter_summary, service_time)
         rows, totals, meta = aggregate_by_campus(
             records,
             metric_ids,
             campuses_by_id=campuses_by_id,
             include_youth_metrics=include_youth_m,
+            service_time=service_time,
         )
         payload = build_json_payload(
             start_d=start_d,
@@ -18091,6 +18096,7 @@ def ministry_stats_json():
             filter_summary=filter_summary,
             metrics_scope=normalize_metrics_scope(metrics_scope),
             include_youth_metrics=include_youth_m,
+            service_time=service_time,
         )
         payload["requested_region"] = region
         payload["requested_campuses_csv"] = campuses
@@ -18114,10 +18120,12 @@ def ministry_stats_csv():
     try:
         from ministry_stats_explorer import (
             aggregate_by_campus,
+            append_service_time_to_summary,
             build_csv_bytes,
             build_json_payload,
             parse_inclusive_date_range,
             parse_metric_ids_param,
+            parse_service_time_param,
         )
 
         region = request.args.get('region', '').strip()
@@ -18135,6 +18143,7 @@ def ministry_stats_csv():
         excl_youth = _parse_exclude_youth_metrics()
         include_youth_m = not excl_youth
         metric_ids = parse_metric_ids_param(request.args.get('metrics'))
+        service_time = parse_service_time_param(request.args.get('service_time'))
 
         records, campuses_by_id, filter_summary = _load_attendance_records_for_explorer(
             start_d,
@@ -18144,11 +18153,13 @@ def ministry_stats_csv():
             metrics_scope,
             include_youth_m,
         )
+        filter_summary = append_service_time_to_summary(filter_summary, service_time)
         rows, totals, meta = aggregate_by_campus(
             records,
             metric_ids,
             campuses_by_id=campuses_by_id,
             include_youth_metrics=include_youth_m,
+            service_time=service_time,
         )
         json_payload = build_json_payload(
             start_d=start_d,
@@ -18160,11 +18171,16 @@ def ministry_stats_csv():
             filter_summary=filter_summary,
             metrics_scope=normalize_metrics_scope(metrics_scope),
             include_youth_metrics=include_youth_m,
+            service_time=service_time,
         )
         raw = build_csv_bytes(json_payload)
         fname = f"ministry-stats-{start_d.isoformat()}-to-{end_d.isoformat()}"
         if region:
             fname += f"-{region.upper()}"
+        if service_time:
+            slug = re.sub(r"[^\w.\-]+", "_", service_time, flags=re.ASCII)[:50].strip("_")
+            if slug:
+                fname += f"-{slug}"
         resp = Response(raw, mimetype='text/csv; charset=utf-8')
         resp.headers['Content-Disposition'] = f'attachment; filename={fname}.csv'
         return resp

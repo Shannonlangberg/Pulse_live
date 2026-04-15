@@ -9,6 +9,18 @@ import {
 
 const REPORT_METRICS_SCOPES = ['default', 'sundays_rollup_only', 'special_events_only'];
 
+/** Sort labels like "5:30 PM" for datalist ordering. */
+function parseServiceTimeMinutes(timeStr) {
+  const match = String(timeStr).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return 0;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
 function ymd(d) {
   return d.toISOString().slice(0, 10);
 }
@@ -66,6 +78,7 @@ const MinistryStatsExplorer = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [metricsScope, setMetricsScope] = useState('default');
+  const [serviceTime, setServiceTime] = useState('');
   const [excludeYouth, setExcludeYouth] = useState(false);
   const [catalog, setCatalog] = useState([]);
   const [defaultMetricIds, setDefaultMetricIds] = useState([]);
@@ -136,6 +149,22 @@ const MinistryStatsExplorer = () => {
       .filter((c) => !regionCode || (c.region && c.region.code === regionCode))
       .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
   }, [campuses, regionCode]);
+
+  const serviceTimeSuggestions = useMemo(() => {
+    const pool =
+      selectedCampusSlugs.size > 0
+        ? filteredCampuses.filter((c) => selectedCampusSlugs.has(c.campus_id))
+        : filteredCampuses;
+    const out = new Set();
+    pool.forEach((c) => {
+      const st = Array.isArray(c.service_times) ? c.service_times : [];
+      st.forEach((t) => {
+        const s = String(t).trim();
+        if (s) out.add(s);
+      });
+    });
+    return Array.from(out).sort((a, b) => parseServiceTimeMinutes(a) - parseServiceTimeMinutes(b));
+  }, [filteredCampuses, selectedCampusSlugs]);
 
   const onRegionChange = (code) => {
     setRegionCode(code);
@@ -208,6 +237,8 @@ const MinistryStatsExplorer = () => {
     }
     if (excludeYouth) params.set('exclude_youth_metrics', 'true');
     if (metricsScope && metricsScope !== 'default') params.set('metrics_scope', metricsScope);
+    const st = serviceTime.trim();
+    if (st) params.set('service_time', st);
     return params.toString();
   }, [
     startDate,
@@ -217,6 +248,7 @@ const MinistryStatsExplorer = () => {
     selectedCampusSlugs,
     excludeYouth,
     metricsScope,
+    serviceTime,
   ]);
 
   const runQuery = async () => {
@@ -281,7 +313,8 @@ const MinistryStatsExplorer = () => {
             same definitions as the dashboard but are
             shown as <strong className="text-slate-300">averages per service row</strong> in your date range (not a
             running total). Columns marked <strong className="text-slate-300">avg / service</strong> in results use that
-            rule.
+            rule. Optionally restrict attendance columns to a single <strong className="text-slate-300">service time</strong>{' '}
+            (e.g. 5:30 PM) using stored per-slot breakdowns.
           </p>
           <p className="text-slate-500 text-sm mt-2">
             Tip: leave all campuses unchecked to include <strong className="text-slate-400">every campus</strong> in
@@ -379,6 +412,32 @@ const MinistryStatsExplorer = () => {
                   <option value="sundays_rollup_only">Sundays only (standard services)</option>
                   <option value="special_events_only">Special events only</option>
                 </select>
+              </div>
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                  Service time (optional)
+                </label>
+                <input
+                  type="text"
+                  list="ministry-stats-service-time-suggestions"
+                  value={serviceTime}
+                  onChange={(e) => setServiceTime(e.target.value)}
+                  placeholder="All slots — e.g. 5:30 PM"
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder:text-slate-600"
+                  autoComplete="off"
+                />
+                <datalist id="ministry-stats-service-time-suggestions">
+                  {serviceTimeSuggestions.map((t) => (
+                    <option key={t} value={t} />
+                  ))}
+                </datalist>
+                <p className="text-slate-500 text-xs mt-2">
+                  When set, Sunday / weekend / kids / total / kids-leaders columns use that slot from each week&apos;s
+                  stored breakdown (must match labels like <span className="text-slate-400">5:30 PM</span> and{' '}
+                  <span className="text-slate-400">Kids 5:30 PM</span>). Weekend uses the same slot slice as Sunday
+                  (youth is not split by service time). Baptisms, salvations, giving, etc. still sum the whole weekly
+                  entry.
+                </p>
               </div>
               <label className="flex items-start gap-3 cursor-pointer">
                 <input

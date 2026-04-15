@@ -9,8 +9,21 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 from datetime import date, datetime
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+# Metrics whose values are taken from per-service JSON when ``service_time`` is set.
+_SLICE_METRICS = frozenset(
+    {
+        "sunday_attendance",
+        "weekend_attendance",
+        "kids_attendance",
+        "kids_leaders",
+        "total_attendance",
+        "saints",
+    }
+)
 
 # Duplicated from q1_attendance_report (keep in sync) — avoids importing matplotlib via q1 module.
 def _record_sunday_and_weekend_totals(record: Any) -> Tuple[int, int]:
@@ -236,6 +249,28 @@ def metric_catalog_public() -> List[Dict[str, Any]]:
     return list(METRIC_CATALOG)
 
 
+def parse_service_time_param(raw: Optional[str]) -> Optional[str]:
+    """Optional clock-time slot (e.g. ``5:30 PM``) matching keys in attendance JSON breakdowns."""
+    s = (raw or "").strip()
+    if not s:
+        return None
+    if len(s) > 120:
+        raise ValueError("service_time is too long (max 120 characters)")
+    if "\n" in s or "\r" in s or "\x00" in s:
+        raise ValueError("Invalid service_time")
+    return s
+
+
+def append_service_time_to_summary(summary: str, service_time: Optional[str]) -> str:
+    if not service_time:
+        return summary
+    note = (
+        f"Service time: {service_time} — attendance metrics use that slot from stored "
+        "breakdowns; growth, milestones, and finance still sum the whole weekly entry"
+    )
+    return f"{summary} · {note}" if summary else note
+
+
 def parse_metric_ids_param(raw: Optional[str]) -> List[str]:
     if not raw or not str(raw).strip():
         return list(DEFAULT_METRIC_IDS)
@@ -247,7 +282,88 @@ def parse_metric_ids_param(raw: Optional[str]) -> List[str]:
     return out if out else list(DEFAULT_METRIC_IDS)
 
 
-def _get_metric_value(record: Any, metric_id: str, *, include_youth_metrics: bool) -> float:
+def _parse_breakdown_json(raw: Optional[str]) -> Dict[str, int]:
+    if not raw:
+        return {}
+    try:
+        d = json.loads(raw)
+        if not isinstance(d, dict):
+            return {}
+        out: Dict[str, int] = {}
+        for k, v in d.items():
+            try:
+                out[str(k)] = int(float(str(v).replace(",", "").strip()))
+            except (TypeError, ValueError):
+                continue
+        return out
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
+def _dict_get_ci(d: Dict[str, int], key: str) -> int:
+    if key in d:
+        return int(d[key])
+    lk = key.strip().lower()
+    for k, v in d.items():
+        if str(k).strip().lower() == lk:
+            return int(v)
+    return 0
+
+
+def _sum_kids_room_in_json(kids_d: Dict[str, int]) -> int:
+    return sum(v for k, v in kids_d.items() if str(k).strip().lower().startswith("kids "))
+
+
+def _slot_slice_floats(record: Any, service_time: str) -> Tuple[float, float, float, float]:
+    """
+    Per-week counts for one service-time label.
+
+    Returns (sunday_slice, weekend_slice, kids_kpi_slice, kids_leaders_slice)
+    where kids_kpi_slice = kids room + allocated leaders (same basis as ``kids_attendance`` metric).
+    """
+    adult_d = _parse_breakdown_json(getattr(record, "adult_service_breakdown", None))
+    kids_d = _parse_breakdown_json(getattr(record, "kids_service_breakdown", None))
+    st = service_time.strip()
+    adult_slot = float(_dict_get_ci(adult_d, st))
+    kids_room = float(_dict_get_ci(kids_d, f"Kids {st}"))
+    ka = float(int(getattr(record, "kids_attendance", None) or 0))
+    kl = float(int(getattr(record, "kids_leaders", None) or 0))
+    total_kids_json = float(_sum_kids_room_in_json(kids_d))
+    if total_kids_json > 0.0 and kids_room > 0.0:
+        leader_part = kl * (kids_room / total_kids_json)
+    elif ka > 0.0 and kids_room > 0.0:
+        leader_part = kl * (kids_room / ka)
+    else:
+        leader_part = 0.0
+    sunday_slice = adult_slot + kids_room + leader_part
+    # Youth is not stored per clock-time slot; do not fold whole-campus youth into a single slot.
+    weekend_slice = sunday_slice
+    kids_kpi = kids_room + leader_part
+    return sunday_slice, weekend_slice, kids_kpi, leader_part
+
+
+def _get_metric_value(
+    record: Any,
+    metric_id: str,
+    *,
+    include_youth_metrics: bool,
+    service_time: Optional[str] = None,
+) -> float:
+    if service_time and metric_id in _SLICE_METRICS:
+        sunday_slice, weekend_slice, kids_kpi, leader_part = _slot_slice_floats(record, service_time)
+        if metric_id == "sunday_attendance":
+            return float(sunday_slice)
+        if metric_id == "weekend_attendance":
+            return float(weekend_slice)
+        if metric_id == "kids_attendance":
+            return float(kids_kpi)
+        if metric_id == "kids_leaders":
+            return float(leader_part)
+        if metric_id == "total_attendance":
+            return float(sunday_slice)
+        if metric_id == "saints":
+            return 0.0
+
     if metric_id == "sunday_attendance":
         s, _ = _record_sunday_and_weekend_totals(record)
         return float(s)
@@ -308,6 +424,7 @@ def aggregate_by_campus(
     *,
     campuses_by_id: Dict[int, Any],
     include_youth_metrics: bool,
+    service_time: Optional[str] = None,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any], Dict[str, float]]:
     """
     Returns (rows sorted by campus name, totals dict per metric_id, meta).
@@ -332,7 +449,12 @@ def aggregate_by_campus(
         total_service_rows += 1
         sums[cid]["_service_rows"] += 1
         for mid in metric_ids:
-            v = _get_metric_value(r, mid, include_youth_metrics=include_youth_metrics)
+            v = _get_metric_value(
+                r,
+                mid,
+                include_youth_metrics=include_youth_metrics,
+                service_time=service_time,
+            )
             sums[cid][mid] += v
             grand[mid] += v
 
@@ -367,7 +489,11 @@ def aggregate_by_campus(
         else:
             totals[mid] = grand[mid]
 
-    meta = {"total_service_rows": total_service_rows, "campus_count": len(rows)}
+    meta = {
+        "total_service_rows": total_service_rows,
+        "campus_count": len(rows),
+        "service_time": service_time or None,
+    }
     return rows, totals, meta
 
 
@@ -382,6 +508,7 @@ def build_json_payload(
     filter_summary: str,
     metrics_scope: str,
     include_youth_metrics: bool,
+    service_time: Optional[str] = None,
 ) -> Dict[str, Any]:
     catalog = [m for m in METRIC_CATALOG if m["id"] in metric_ids]
     # Preserve requested order
@@ -393,6 +520,7 @@ def build_json_payload(
         "end": end_d.isoformat(),
         "metrics_scope": metrics_scope,
         "include_youth_metrics": include_youth_metrics,
+        "service_time": service_time or None,
         "filter_summary": filter_summary,
         "metric_ids": metric_ids,
         "metric_catalog": catalog,
