@@ -634,10 +634,19 @@ def build_json_payload(
     }
 
 
-def _csv_format_metric_cell(catalog: Dict[str, Dict[str, Any]], mid: str, v: Any) -> str:
+def _csv_format_metric_cell(
+    catalog: Dict[str, Dict[str, Any]],
+    mid: str,
+    v: Any,
+    *,
+    granularity: str = "campus",
+) -> str:
     if catalog.get(mid, {}).get("is_currency"):
         return f"{float(v):.2f}"
     if catalog.get(mid, {}).get("avg_per_service_row"):
+        # Week-to-week rows are weekly headcounts; footer is mean across weeks — whole people.
+        if granularity == "entry":
+            return str(int(round(float(v))))
         return f"{float(v):.1f}"
     if isinstance(v, float) and v == int(v):
         return str(int(v))
@@ -666,12 +675,16 @@ def build_csv_bytes(payload: Dict[str, Any]) -> bytes:
                 row.get("service_date") or "",
             ]
             for mid in metric_ids:
-                line.append(_csv_format_metric_cell(catalog, mid, row.get(mid, 0)))
+                line.append(
+                    _csv_format_metric_cell(catalog, mid, row.get(mid, 0), granularity="entry")
+                )
             w.writerow(line)
         n = payload.get("meta", {}).get("total_service_rows", len(rows))
         sum_row = ["", "ALL ROWS", str(n)]
         for mid in metric_ids:
-            sum_row.append(_csv_format_metric_cell(catalog, mid, totals.get(mid, 0)))
+            sum_row.append(
+                _csv_format_metric_cell(catalog, mid, totals.get(mid, 0), granularity="entry")
+            )
         w.writerow(sum_row)
     else:
         rows = list(payload.get("campuses") or [])

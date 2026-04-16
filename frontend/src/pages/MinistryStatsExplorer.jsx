@@ -53,7 +53,13 @@ function presetRange(key) {
   return { start: ymd(today), end: ymd(today) };
 }
 
-function formatCell(mid, v, catalogById) {
+/**
+ * @param {'campus' | 'entry_row' | 'entry_footer'} displayMode
+ *   campus — period averages for avg/ service metrics (one decimal).
+ *   entry_row — one week per row; headcounts are whole people (integers).
+ *   entry_footer — mean across weeks; show whole people for attendance metrics.
+ */
+function formatCell(mid, v, catalogById, displayMode = 'campus') {
   const meta = catalogById[mid];
   if (v == null || Number.isNaN(Number(v))) return '—';
   const n = Number(v);
@@ -61,6 +67,9 @@ function formatCell(mid, v, catalogById) {
     return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   if (meta?.avg_per_service_row) {
+    if (displayMode === 'entry_row' || displayMode === 'entry_footer') {
+      return Math.round(n).toLocaleString();
+    }
     return n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   }
   if (Number.isInteger(n) || Math.abs(n - Math.round(n)) < 1e-6) {
@@ -682,7 +691,7 @@ const MinistryStatsExplorer = () => {
                               </td>
                               {metricIdsInResult.map((mid) => (
                                 <td key={mid} className="px-3 py-2 text-right tabular-nums">
-                                  {formatCell(mid, row[mid], tableCatalogById)}
+                                  {formatCell(mid, row[mid], tableCatalogById, 'entry_row')}
                                 </td>
                               ))}
                             </tr>
@@ -698,7 +707,7 @@ const MinistryStatsExplorer = () => {
                               <td className="px-3 py-2 text-right tabular-nums">{row.service_rows}</td>
                               {metricIdsInResult.map((mid) => (
                                 <td key={mid} className="px-3 py-2 text-right tabular-nums">
-                                  {formatCell(mid, row[mid], tableCatalogById)}
+                                  {formatCell(mid, row[mid], tableCatalogById, 'campus')}
                                 </td>
                               ))}
                             </tr>
@@ -722,7 +731,12 @@ const MinistryStatsExplorer = () => {
                         )}
                         {metricIdsInResult.map((mid) => (
                           <td key={mid} className="px-3 py-3 text-right tabular-nums">
-                            {formatCell(mid, result.totals?.[mid], tableCatalogById)}
+                            {formatCell(
+                              mid,
+                              result.totals?.[mid],
+                              tableCatalogById,
+                              isEntryLayout ? 'entry_footer' : 'campus'
+                            )}
                           </td>
                         ))}
                       </tr>
@@ -748,8 +762,9 @@ const MinistryStatsExplorer = () => {
                 )}
                 {isEntryLayout && metricIdsInResult.some((mid) => tableCatalogById[mid]?.avg_per_service_row) && (
                   <p className="text-slate-500 text-xs mt-3">
-                    Each row is that service date&apos;s value. The footer matches the campus summary: sums for count
-                    metrics, and means across all listed weeks for Sunday / weekend / kids attendance.
+                    Each row is that week&apos;s headcount (whole numbers). Sunday / weekend / kids columns in the footer
+                    are the average across listed weeks. If you use a service-time filter, kids leaders may be split
+                    across slots in the data — values are rounded for display.
                   </p>
                 )}
               </div>
