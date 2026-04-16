@@ -323,12 +323,13 @@ const MinistryStatsExplorer = () => {
           <p className="text-slate-400 max-w-3xl">
             Pick any combination of Pulse stats, campuses, and dates. Most columns are{' '}
             <strong className="text-slate-300">sums</strong> over every matching attendance row.{' '}
-            <strong className="text-slate-300">Sunday</strong>, <strong className="text-slate-300">weekend</strong>, and{' '}
-            <strong className="text-slate-300">kids attendance</strong> (kids plus kids leaders, like the dashboard) use the
-            same definitions as the dashboard but are
+            <strong className="text-slate-300">Sunday</strong> and <strong className="text-slate-300">weekend</strong> match
+            the dashboard; <strong className="text-slate-300">Kids in room</strong> and{' '}
+            <strong className="text-slate-300">Kids leaders</strong> are separate columns (room headcount vs total leaders
+            for the week). Sunday / weekend / kids-in-room are
             shown as <strong className="text-slate-300">averages per service row</strong> in your date range (not a
             running total). Columns marked <strong className="text-slate-300">avg / service</strong> in results use that
-            rule. Optionally restrict attendance columns to a single <strong className="text-slate-300">service time</strong>{' '}
+            rule. Optionally restrict slot-based columns to a <strong className="text-slate-300">service time</strong>{' '}
             (e.g. 5:30 PM) using stored per-slot breakdowns. Use <strong className="text-slate-300">week-to-week</strong>{' '}
             layout for one table row per logged service date (per campus).
           </p>
@@ -471,18 +472,18 @@ const MinistryStatsExplorer = () => {
                   ))}
                 </datalist>
                 <p className="text-slate-500 text-xs mt-2">
-                  When set, Sunday / weekend / kids / total / kids-leaders columns use <strong className="text-slate-400">only that clock time</strong> from each week&apos;s stored breakdown (labels must match, e.g.{' '}
-                  <span className="text-slate-400">5:30 PM</span> and <span className="text-slate-400">Kids 5:30 PM</span>
-                  ). <strong className="text-slate-400">Clear this field</strong> to show attendance for{' '}
-                  <strong className="text-slate-400">all service times combined</strong> (still one combined number per
-                  week, not a separate row per slot). Weekend matches that slot slice; baptisms, salvations, giving, etc.
-                  still use the whole weekly entry.
+                  When set, Sunday / weekend / kids-in-room / total use <strong className="text-slate-400">only that slot</strong>{' '}
+                  from stored breakdowns (labels must match, e.g. <span className="text-slate-400">5:30 PM</span> and{' '}
+                  <span className="text-slate-400">Kids 5:30 PM</span>).{' '}
+                  <strong className="text-slate-400">Kids leaders</strong> stays the{' '}
+                  <strong className="text-slate-400">full weekend total</strong> for that entry — not split or estimated
+                  per slot. <strong className="text-slate-400">Clear this field</strong> for combined campus totals.
+                  Baptisms, salvations, giving, etc. still use the whole weekly entry.
                 </p>
                 {serviceTime.trim() ? (
                   <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                    Service time is set — Sunday / weekend / kids columns use <strong>only {serviceTime.trim()}</strong>{' '}
-                    from each week&apos;s breakdown, not every clock time. &quot;All entries&quot; above only widens
-                    which <em>weeks</em> count, not which times are summed.
+                    Service time is set — slot-based columns use <strong>only {serviceTime.trim()}</strong> from the
+                    breakdown. <strong>Kids leaders</strong> is still the full weekend total for that week (not split).
                   </div>
                 ) : null}
               </div>
@@ -762,9 +763,9 @@ const MinistryStatsExplorer = () => {
                 )}
                 {isEntryLayout && metricIdsInResult.some((mid) => tableCatalogById[mid]?.avg_per_service_row) && (
                   <p className="text-slate-500 text-xs mt-3">
-                    Each row is that week&apos;s headcount (whole numbers). Sunday / weekend / kids columns in the footer
-                    are the average across listed weeks. If you use a service-time filter, kids leaders may be split
-                    across slots in the data — values are rounded for display.
+                    Each row is that week&apos;s values (whole numbers for attendance metrics). Sunday / weekend /
+                    kids-in-room footers are averages across listed weeks; <strong className="text-slate-400">Kids leaders</strong>{' '}
+                    is the full weekly total each row (not split by service time).
                   </p>
                 )}
               </div>

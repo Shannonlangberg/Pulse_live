@@ -17,12 +17,12 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 MAX_ENTRY_TIMELINE_ROWS = 4000
 
 # Metrics whose values are taken from per-service JSON when ``service_time`` is set.
+# ``kids_leaders`` is handled separately: full weekly total, never split across slots.
 _SLICE_METRICS = frozenset(
     {
         "sunday_attendance",
         "weekend_attendance",
         "kids_attendance",
-        "kids_leaders",
         "total_attendance",
         "saints",
     }
@@ -161,16 +161,17 @@ METRIC_CATALOG: List[Dict[str, Any]] = [
     },
     {
         "id": "kids_attendance",
-        "label": "Kids attendance",
+        "label": "Kids in room",
         "group": "Attendance (raw)",
-        "description": "Kids in room plus kids leaders — same components as Sunday attendance. Shown as average per service row in range (not a sum).",
+        "description": "Kids in room only (excludes kids leaders). With a service-time filter, uses that slot from kids breakdown. Shown as average per service row in campus summary.",
         "avg_per_service_row": True,
     },
     {
         "id": "kids_leaders",
         "label": "Kids leaders",
         "group": "Attendance (raw)",
-        "description": "Leaders count per entry.",
+        "description": "Kids leaders for that stats entry (whole weekend). Not split by service time — same value on each row when filtering by slot. Campus summary = average per weekly entry.",
+        "avg_per_service_row": True,
     },
     {
         "id": "youth_attendance",
@@ -233,7 +234,7 @@ VALID_METRIC_IDS = frozenset(m["id"] for m in METRIC_CATALOG)
 
 # Mean per attendance row in range (not a sum across weeks). Totals row = same over all matching rows.
 AVG_PER_SERVICE_ROW_METRICS = frozenset(
-    {"sunday_attendance", "weekend_attendance", "kids_attendance"}
+    {"sunday_attendance", "weekend_attendance", "kids_attendance", "kids_leaders"}
 )
 
 DEFAULT_METRIC_IDS = [
@@ -241,6 +242,7 @@ DEFAULT_METRIC_IDS = [
     "sunday_attendance",
     "weekend_attendance",
     "kids_attendance",
+    "kids_leaders",
     "new_people_total",
     "salvations_total",
     "dream_team",
@@ -268,8 +270,9 @@ def append_service_time_to_summary(summary: str, service_time: Optional[str]) ->
     if not service_time:
         return summary
     note = (
-        f"Service time: {service_time} — attendance metrics use that slot from stored "
-        "breakdowns; growth, milestones, and finance still sum the whole weekly entry"
+        f"Service time: {service_time} — slot columns use stored breakdowns; "
+        "Kids attendance = kids in room for that slot only; Kids leaders = full weekly total (not split by slot). "
+        "Growth/milestones/finance still use the whole weekly entry."
     )
     return f"{summary} · {note}" if summary else note
 
@@ -335,36 +338,19 @@ def _dict_get_ci(d: Dict[str, int], key: str) -> int:
     return 0
 
 
-def _sum_kids_room_in_json(kids_d: Dict[str, int]) -> int:
-    return sum(v for k, v in kids_d.items() if str(k).strip().lower().startswith("kids "))
-
-
-def _slot_slice_floats(record: Any, service_time: str) -> Tuple[float, float, float, float]:
+def _slot_slice_for_service_time(record: Any, service_time: str) -> Tuple[float, float, float]:
     """
-    Per-week counts for one service-time label.
-
-    Returns (sunday_slice, weekend_slice, kids_kpi_slice, kids_leaders_slice)
-    where kids_kpi_slice = kids room + allocated leaders (same basis as ``kids_attendance`` metric).
+    One clock-time slice: adults in slot + kids in room for that slot only.
+    Does not allocate kids leaders across slots (leaders are reported separately).
     """
     adult_d = _parse_breakdown_json(getattr(record, "adult_service_breakdown", None))
     kids_d = _parse_breakdown_json(getattr(record, "kids_service_breakdown", None))
     st = service_time.strip()
     adult_slot = float(_dict_get_ci(adult_d, st))
     kids_room = float(_dict_get_ci(kids_d, f"Kids {st}"))
-    ka = float(int(getattr(record, "kids_attendance", None) or 0))
-    kl = float(int(getattr(record, "kids_leaders", None) or 0))
-    total_kids_json = float(_sum_kids_room_in_json(kids_d))
-    if total_kids_json > 0.0 and kids_room > 0.0:
-        leader_part = kl * (kids_room / total_kids_json)
-    elif ka > 0.0 and kids_room > 0.0:
-        leader_part = kl * (kids_room / ka)
-    else:
-        leader_part = 0.0
-    sunday_slice = adult_slot + kids_room + leader_part
-    # Youth is not stored per clock-time slot; do not fold whole-campus youth into a single slot.
+    sunday_slice = adult_slot + kids_room
     weekend_slice = sunday_slice
-    kids_kpi = kids_room + leader_part
-    return sunday_slice, weekend_slice, kids_kpi, leader_part
+    return sunday_slice, weekend_slice, kids_room
 
 
 def _get_metric_value(
@@ -374,20 +360,21 @@ def _get_metric_value(
     include_youth_metrics: bool,
     service_time: Optional[str] = None,
 ) -> float:
-    if service_time and metric_id in _SLICE_METRICS:
-        sunday_slice, weekend_slice, kids_kpi, leader_part = _slot_slice_floats(record, service_time)
-        if metric_id == "sunday_attendance":
-            return float(sunday_slice)
-        if metric_id == "weekend_attendance":
-            return float(weekend_slice)
-        if metric_id == "kids_attendance":
-            return float(kids_kpi)
+    if service_time:
         if metric_id == "kids_leaders":
-            return float(leader_part)
-        if metric_id == "total_attendance":
-            return float(sunday_slice)
-        if metric_id == "saints":
-            return 0.0
+            return float(int(getattr(record, "kids_leaders", None) or 0))
+        if metric_id in _SLICE_METRICS:
+            sunday_slice, weekend_slice, kids_room = _slot_slice_for_service_time(record, service_time)
+            if metric_id == "sunday_attendance":
+                return float(sunday_slice)
+            if metric_id == "weekend_attendance":
+                return float(weekend_slice)
+            if metric_id == "kids_attendance":
+                return float(kids_room)
+            if metric_id == "total_attendance":
+                return float(sunday_slice)
+            if metric_id == "saints":
+                return 0.0
 
     if metric_id == "sunday_attendance":
         s, _ = _record_sunday_and_weekend_totals(record)
@@ -396,10 +383,7 @@ def _get_metric_value(
         _, w = _record_sunday_and_weekend_totals(record)
         return float(w)
     if metric_id == "kids_attendance":
-        k = (getattr(record, "kids_attendance", None) or 0) + (
-            getattr(record, "kids_leaders", None) or 0
-        )
-        return float(int(k))
+        return float(int(getattr(record, "kids_attendance", None) or 0))
     if metric_id == "new_people_total":
         return float(_record_new_people_total(record, include_youth_metrics=include_youth_metrics))
     if metric_id == "salvations_total":
