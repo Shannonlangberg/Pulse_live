@@ -199,16 +199,15 @@ const UserManagement = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // Reload users first, then close modal and show success
         await loadUsers();
         handleCloseModal();
-        alert(data.message || 'User saved successfully');
+        alert((data.message || 'User saved successfully') + '\n\n⚠️ The affected user must log out and log back in for changes to take effect.');
       } else {
-        alert(data.error || 'Failed to save user');
+        alert(data.error || `Failed to save user (HTTP ${response.status}). Check you are still logged in and try again.`);
       }
     } catch (err) {
       console.error('Error saving user:', err);
-      alert('Failed to save user');
+      alert('Failed to save user — could not reach the server. Please refresh the page and try again.');
     }
   };
 

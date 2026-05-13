@@ -16905,7 +16905,7 @@ def create_user_api():
         return jsonify({"error": "Failed to create user"}), 500
 
 @app.route('/api/users/<user_id>/edit', methods=['POST'])
-@admin_required
+@admin_required_json
 def edit_user_api(user_id):
     """API endpoint for editing a user"""
     try:
