@@ -111,7 +111,12 @@ const UserManagement = () => {
   const loadUsers = async () => {
     try {
       const response = await fetch('/api/users', {
-        credentials: 'include'
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        }
       });
       
       if (response.ok) {
@@ -187,13 +192,20 @@ const UserManagement = () => {
         ? `/api/users/${editingUser.id}/edit`
         : '/api/users/create';
       
+      // Build payload — only include region_id if it has been explicitly set
+      // to avoid silently wiping it on every save when the field is undefined
+      const payload = { ...formData };
+      if (payload.region_id === undefined) {
+        delete payload.region_id;
+      }
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();

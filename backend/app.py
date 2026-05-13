@@ -1944,7 +1944,7 @@ def load_users_database():
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, username, password_hash, full_name, email, role, campus, active, custom_permissions
+            SELECT id, username, password_hash, full_name, email, role, campus, active, custom_permissions, region_id
             FROM users
             WHERE active = 1
         ''')
@@ -1968,7 +1968,8 @@ def load_users_database():
                 'role': row[5],
                 'campus': row[6] or '',
                 'active': bool(row[7]),
-                'custom_permissions': custom_permissions
+                'custom_permissions': custom_permissions,
+                'region_id': row[9] if len(row) > 9 else None
             }
         
         conn.close()
@@ -24988,6 +24989,7 @@ def get_users():
                 'full_name': user_data.get('full_name'),
                 'role': user_data.get('role'),
                 'campus': user_data.get('campus'),
+                'region_id': user_data.get('region_id'),
                 'active': user_data.get('active', True),
                 'last_login': user_data.get('last_login'),
                 'created_date': user_data.get('created_date'),
@@ -24995,7 +24997,10 @@ def get_users():
             }
             users_list.append(user_info)
         
-        return jsonify({'users': users_list, 'success': True})
+        response = jsonify({'users': users_list, 'success': True})
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        return response
     except Exception as e:
         logger.error(f"Error fetching users: {e}")
         return jsonify({'error': 'Failed to fetch users'}), 500
