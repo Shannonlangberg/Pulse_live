@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserGroupIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { UserGroupIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 const UserManagement = () => {
   const navigate = useNavigate();
@@ -22,6 +22,9 @@ const UserManagement = () => {
     campus: 'all_campuses',
     region_id: null
   });
+  // null = no restriction (all campuses); array = only these campus ids
+  const [allowedCampuses, setAllowedCampuses] = useState(null);
+  const [restrictCampusAccess, setRestrictCampusAccess] = useState(false);
 
   const roles = [
     { value: 'superadmin', label: 'Super Admin' },
@@ -133,9 +136,58 @@ const UserManagement = () => {
     }
   };
 
+  const realCampuses = campuses.filter((c) => c.id && c.id !== 'all_campuses');
+
+  const campusesForRegion = (region) =>
+    realCampuses.filter(
+      (c) =>
+        c.region_id === region.id ||
+        (c.region_code || '').toUpperCase() === (region.code || '').toUpperCase()
+    );
+
+  const isCampusAllowed = (campusId) => {
+    if (!restrictCampusAccess || !allowedCampuses) return false;
+    return allowedCampuses.includes(campusId);
+  };
+
+  const toggleCampusAccess = (campusId) => {
+    setAllowedCampuses((prev) => {
+      const list = prev || [];
+      if (list.includes(campusId)) {
+        const next = list.filter((id) => id !== campusId);
+        return next.length ? next : [];
+      }
+      return [...list, campusId];
+    });
+  };
+
+  const selectAllInRegion = (region) => {
+    const ids = campusesForRegion(region).map((c) => c.id);
+    if (!ids.length) return;
+    setRestrictCampusAccess(true);
+    setAllowedCampuses((prev) => {
+      const set = new Set([...(prev || []), ...ids]);
+      return Array.from(set);
+    });
+  };
+
+  const clearAllInRegion = (region) => {
+    const ids = new Set(campusesForRegion(region).map((c) => c.id));
+    setAllowedCampuses((prev) => {
+      if (!prev) return [];
+      const next = prev.filter((id) => !ids.has(id));
+      return next.length ? next : [];
+    });
+  };
+
   const handleOpenModal = (user = null) => {
     if (user) {
       setEditingUser(user);
+      const perms = user.custom_permissions || {};
+      const ac = perms.allowed_campuses;
+      const hasRestriction = Array.isArray(ac) && ac.length > 0;
+      setRestrictCampusAccess(hasRestriction);
+      setAllowedCampuses(hasRestriction ? [...ac] : null);
       setFormData({
         username: user.username,
         password: '', // Leave empty for edit
@@ -147,6 +199,8 @@ const UserManagement = () => {
       });
     } else {
       setEditingUser(null);
+      setRestrictCampusAccess(false);
+      setAllowedCampuses(null);
       setFormData({
         username: '',
         password: '',
@@ -163,14 +217,37 @@ const UserManagement = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingUser(null);
+    setRestrictCampusAccess(false);
+    setAllowedCampuses(null);
     setFormData({
       username: '',
       password: '',
       full_name: '',
       email: '',
       role: 'staff',
-      campus: 'all_campuses'
+      campus: 'all_campuses',
+      region_id: null
     });
+  };
+
+  const saveCampusPermissions = async (userId, existingPermissions = {}) => {
+    const perms = { ...(existingPermissions || {}) };
+    if (restrictCampusAccess && allowedCampuses && allowedCampuses.length > 0) {
+      perms.allowed_campuses = [...allowedCampuses];
+    } else {
+      delete perms.allowed_campuses;
+    }
+    const response = await fetch(`/api/users/${userId}/permissions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ permissions: perms }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to save campus access');
+    }
+    return data;
   };
 
   const handleSubmit = async (e) => {
@@ -184,6 +261,11 @@ const UserManagement = () => {
     
     if (!editingUser && !formData.password) {
       alert('Password is required for new users');
+      return;
+    }
+
+    if (restrictCampusAccess && (!allowedCampuses || allowedCampuses.length === 0)) {
+      alert('Select at least one campus under "What can this user see?", or choose "All campuses".');
       return;
     }
 
@@ -211,6 +293,13 @@ const UserManagement = () => {
       const data = await response.json();
 
       if (response.ok) {
+        const userId = editingUser?.id ?? data.id;
+        const hadCampusRestrictions =
+          Array.isArray(editingUser?.custom_permissions?.allowed_campuses) &&
+          editingUser.custom_permissions.allowed_campuses.length > 0;
+        if (userId && (restrictCampusAccess || hadCampusRestrictions)) {
+          await saveCampusPermissions(userId, editingUser?.custom_permissions || {});
+        }
         await loadUsers();
         handleCloseModal();
         alert((data.message || 'User saved successfully') + '\n\n⚠️ The affected user must log out and log back in for changes to take effect.');
@@ -580,8 +669,103 @@ const UserManagement = () => {
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-slate-400">
-                  Regional users can only see data from their assigned region. Leave blank for superadmin/admin with global access.
+                  Optional reporting scope. For mixed access (e.g. one AU campus + all Indonesia), leave Global and use campus visibility below.
                 </p>
+              </div>
+
+              {/* Campus visibility — cross-region */}
+              <div className="rounded-lg border border-slate-600 bg-slate-700/30 p-4">
+                <label className="block text-sm font-medium text-slate-300 mb-3">
+                  What can this user see?
+                </label>
+                <div className="flex flex-col gap-2 mb-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="campusAccess"
+                      checked={!restrictCampusAccess}
+                      onChange={() => {
+                        setRestrictCampusAccess(false);
+                        setAllowedCampuses(null);
+                      }}
+                      className="text-blue-500"
+                    />
+                    <span className="text-slate-300 text-sm">All campuses (role default)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="campusAccess"
+                      checked={restrictCampusAccess}
+                      onChange={() => {
+                        setRestrictCampusAccess(true);
+                        setAllowedCampuses((prev) => (prev && prev.length ? prev : []));
+                      }}
+                      className="text-blue-500"
+                    />
+                    <span className="text-slate-300 text-sm">Only selected campuses (can mix regions)</span>
+                  </label>
+                </div>
+
+                {restrictCampusAccess && (
+                  <div className="space-y-4 max-h-64 overflow-y-auto pr-1">
+                    {regions.filter((r) => r.active !== false).map((region) => {
+                      const regionCampuses = campusesForRegion(region);
+                      if (!regionCampuses.length) return null;
+                      const allSelected = regionCampuses.every((c) => isCampusAllowed(c.id));
+                      return (
+                        <div key={region.id} className="border border-slate-600/80 rounded-lg p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <span className="text-sm font-medium text-white">
+                              {region.display_name || region.name}
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => selectAllInRegion(region)}
+                                className="text-xs px-2 py-1 rounded bg-blue-600/30 text-blue-300 hover:bg-blue-600/50"
+                              >
+                                {allSelected ? 'All selected' : 'Select all'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => clearAllInRegion(region)}
+                                className="text-xs px-2 py-1 rounded bg-slate-600 text-slate-300 hover:bg-slate-500"
+                              >
+                                Clear
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {regionCampuses.map((campus) => {
+                              const on = isCampusAllowed(campus.id);
+                              return (
+                                <button
+                                  key={campus.id}
+                                  type="button"
+                                  onClick={() => toggleCampusAccess(campus.id)}
+                                  className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                                    on
+                                      ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                                      : 'bg-slate-800 text-slate-400 border-slate-600 hover:border-slate-500'
+                                  }`}
+                                >
+                                  <span className="inline-flex items-center gap-1">
+                                    {on && <CheckIcon className="w-3.5 h-3.5" />}
+                                    {campus.name || campus.id}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <p className="text-xs text-slate-400">
+                      Example: tick Adelaide City under Australia, then &quot;Select all&quot; under Indonesia so they keep one AU campus but see every Indo campus.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}

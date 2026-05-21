@@ -16879,7 +16879,7 @@ def create_user_api():
                 conn.close()
                 
                 logger.info(f"Reactivated user: {username} with role: {data.get('role')}")
-                return jsonify({"success": True, "message": "User reactivated and updated successfully"})
+                return jsonify({"success": True, "message": "User reactivated and updated successfully", "id": user_id})
         else:
             # Insert new user
             cursor.execute('''
@@ -16895,12 +16895,11 @@ def create_user_api():
                 region_id,
                 1
             ))
-            
+            new_user_id = cursor.lastrowid
             conn.commit()
-        conn.close()
-        
-        logger.info(f"Created new user: {username} with role: {data.get('role')}")
-        return jsonify({"success": True, "message": "User created successfully"})
+            conn.close()
+            logger.info(f"Created new user: {username} with role: {data.get('role')}")
+            return jsonify({"success": True, "message": "User created successfully", "id": new_user_id})
     except Exception as e:
         logger.error(f"Create user API error: {e}", exc_info=True)
         return jsonify({"error": "Failed to create user"}), 500
