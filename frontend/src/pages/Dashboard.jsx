@@ -420,13 +420,13 @@ const Dashboard = () => {
   // No role-name checks, no redirects: just a clear panel.
   if (!session.loading && !session.permissions.dashboard_access) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center max-w-md px-6">
-          <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+      <div className="min-h-screen bg-fc-cream flex items-center justify-center">
+        <div className="text-center max-w-md px-6 fc-card p-8">
+          <div className="w-20 h-20 bg-fc-wash-peach border border-fc-wash-peach-border rounded-2xl flex items-center justify-center mx-auto mb-6">
             <span className="text-4xl">🔒</span>
           </div>
-          <div className="text-white text-2xl font-bold mb-2">You don't have dashboard access</div>
-          <div className="text-white/60 text-lg">
+          <div className="text-fc-midnight text-2xl font-semibold mb-2">You don't have dashboard access</div>
+          <div className="text-fc-brown text-lg">
             Ask an administrator to grant dashboard access via the Role Manager if you need it.
           </div>
         </div>
@@ -436,15 +436,15 @@ const Dashboard = () => {
 
   if (loading || session.loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-fc-cream flex items-center justify-center">
         <div className="text-center">
-          <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 animate-pulse">
+          <div className="w-20 h-20 bg-fc-wash-mint border border-fc-wash-mint-border rounded-2xl flex items-center justify-center mx-auto mb-6 animate-pulse">
             <span className="text-4xl">⛪</span>
           </div>
-          <div className="text-white text-2xl font-bold mb-2">Loading Dashboard</div>
-          <div className="text-white/60 text-lg">Fetching ministry data...</div>
-          <div className="mt-6 w-64 bg-white/10 rounded-full h-2 mx-auto">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full animate-pulse"></div>
+          <div className="text-fc-midnight text-2xl font-semibold mb-2">Loading Dashboard</div>
+          <div className="text-fc-brown text-lg">Fetching ministry data...</div>
+          <div className="mt-6 w-64 bg-fc-cream2 rounded-full h-2 mx-auto">
+            <div className="bg-fc-olive h-2 rounded-full animate-pulse"></div>
           </div>
         </div>
       </div>
@@ -453,16 +453,16 @@ const Dashboard = () => {
 
   if (!data) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+      <div className="min-h-screen bg-fc-cream flex items-center justify-center">
+        <div className="text-center fc-card p-8">
+          <div className="w-20 h-20 bg-fc-wash-peach border border-fc-wash-peach-border rounded-2xl flex items-center justify-center mx-auto mb-6">
             <span className="text-4xl">⚠️</span>
           </div>
-          <div className="text-white text-2xl font-bold mb-2">No Data Available</div>
-          <div className="text-white/60 text-lg">Unable to load ministry data at this time</div>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-6 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-3 rounded-2xl font-semibold hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-blue-500/25"
+          <div className="text-fc-midnight text-2xl font-semibold mb-2">No Data Available</div>
+          <div className="text-fc-brown text-lg">Unable to load ministry data at this time</div>
+          <button
+            onClick={() => window.location.reload()}
+            className="fc-btn-primary mt-6 px-8 py-3"
           >
             Try Again
           </button>
@@ -477,16 +477,16 @@ const Dashboard = () => {
       {
         label: 'Current Year',
         data: data.chart_data?.attendance || [],
-        borderColor: '#62b4ff',
-        backgroundColor: 'rgba(98, 180, 255, 0.1)',
+        borderColor: '#639922',
+        backgroundColor: 'rgba(99, 153, 34, 0.1)',
         borderWidth: 3,
         tension: 0.4,
       },
       ...(showPreviousYear ? [{
         label: 'Previous Year',
         data: data.previous_year_data?.attendance || [],
-        borderColor: '#e444b9',
-        backgroundColor: 'rgba(228, 68, 185, 0.1)',
+        borderColor: '#C5C6A4',
+        backgroundColor: 'rgba(197, 198, 164, 0.1)',
         borderWidth: 3,
         borderDash: [5, 5],
         tension: 0.4,
@@ -500,16 +500,16 @@ const Dashboard = () => {
       {
         label: 'New People',
         data: data.chart_data?.new_people || [],
-        borderColor: '#ffff5f',
-        backgroundColor: 'rgba(255, 255, 95, 0.1)',
+        borderColor: '#C4A44A',
+        backgroundColor: 'rgba(196, 164, 74, 0.1)',
         borderWidth: 3,
         tension: 0.4,
       },
       {
         label: 'New Christians',
         data: data.chart_data?.new_christians || [],
-        borderColor: '#ff8432',
-        backgroundColor: 'rgba(255, 132, 50, 0.1)',
+        borderColor: '#C45236',
+        backgroundColor: 'rgba(196, 82, 54, 0.1)',
         borderWidth: 3,
         tension: 0.4,
       }
@@ -526,16 +526,16 @@ const Dashboard = () => {
     plugins: {
       legend: {
         labels: {
-          color: 'rgba(255, 255, 255, 0.8)',
+          color: '#50482E',
           font: { size: 12 },
           padding: 20
         }
       },
       tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: 'rgba(255, 255, 255, 0.9)',
-        bodyColor: 'rgba(255, 255, 255, 0.8)',
-        borderColor: 'rgba(255, 255, 255, 0.2)',
+        backgroundColor: '#1C1C16',
+        titleColor: '#FAF9F4',
+        bodyColor: '#F0EDE4',
+        borderColor: 'rgba(250, 249, 244, 0.15)',
         borderWidth: 1,
         cornerRadius: 8,
         displayColors: true,
@@ -554,24 +554,24 @@ const Dashboard = () => {
     scales: {
       x: {
         ticks: {
-          color: 'rgba(255, 255, 255, 0.6)',
+          color: '#50482E',
           font: { size: 11 }
         },
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          color: '#F0EDE4',
           drawBorder: false
         }
       },
       y: {
         ticks: {
-          color: 'rgba(255, 255, 255, 0.6)',
+          color: '#50482E',
           font: { size: 11 },
           callback: function(value) {
             return value.toLocaleString();
           }
         },
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          color: '#F0EDE4',
           drawBorder: false
         }
       }
@@ -591,13 +591,13 @@ const Dashboard = () => {
   // Show loading while determining what to show
   if (loading || !userRole) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-fc-cream flex items-center justify-center">
         <div className="text-center">
-          <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 animate-pulse">
+          <div className="w-20 h-20 bg-fc-wash-mint border border-fc-wash-mint-border rounded-2xl flex items-center justify-center mx-auto mb-6 animate-pulse">
             <span className="text-4xl">⛪</span>
           </div>
-          <div className="text-white text-2xl font-bold mb-2">Loading Dashboard</div>
-          <div className="text-white/60 text-lg">Determining your access level...</div>
+          <div className="text-fc-midnight text-2xl font-semibold mb-2">Loading Dashboard</div>
+          <div className="text-fc-brown text-lg">Determining your access level...</div>
         </div>
       </div>
     );

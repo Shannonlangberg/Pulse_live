@@ -274,73 +274,74 @@ const Reports = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 p-6">
+    <div className="min-h-screen bg-fc-cream p-6">
       <div className="max-w-6xl mx-auto">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-6"
+          className="inline-flex items-center gap-2 text-fc-brown hover:text-fc-midnight text-sm mb-6"
         >
           <ArrowLeftIcon className="w-4 h-4" />
           Back to home
         </Link>
 
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-            <DocumentChartBarIcon className="w-10 h-10 text-violet-400" />
+          <div className="fc-label mb-2">Reporting</div>
+          <h1 className="fc-display fc-display-md mb-2 flex items-center gap-3">
+            <DocumentChartBarIcon className="w-9 h-9 text-fc-olive" />
             Reports
           </h1>
-          <p className="text-slate-400">
+          <p className="text-fc-brown">
             Download attendance summaries from the Pulse database (not Google Sheets).
           </p>
         </div>
 
-        <div className="mb-8 rounded-2xl border border-emerald-500/40 bg-emerald-950/25 p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="mb-8 rounded-2xl border border-fc-olive/40 bg-fc-wash-mint p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400/90 mb-1">
+            <p className="fc-label mb-1">
               Different tool — not on this form
             </p>
-            <h2 className="text-lg sm:text-xl font-semibold text-white">
+            <h2 className="text-lg sm:text-xl font-semibold text-fc-midnight">
               Want baptisms, dedications, or other totals by campus?
             </h2>
-            <p className="text-slate-400 text-sm mt-2 leading-relaxed">
-              This screen is only for <strong className="text-slate-300">quarterly / YTD PDF &amp; CSV</strong> charts.
-              Use <strong className="text-emerald-200">Ministry stats</strong> to tick metrics (e.g. baptisms), pick
+            <p className="text-fc-brown text-sm mt-2 leading-relaxed">
+              This screen is only for <strong className="text-fc-midnight">quarterly / YTD PDF &amp; CSV</strong> charts.
+              Use <strong className="text-fc-midnight">Ministry stats</strong> to tick metrics (e.g. baptisms), pick
               dates, region, and campuses — then run a table or CSV.
             </p>
           </div>
           <Link
             to="/ministry-stats"
-            className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm sm:text-base transition-colors shadow-lg shadow-emerald-900/30"
+            className="shrink-0 fc-btn-primary"
           >
             Open Ministry stats
             <span aria-hidden>→</span>
           </Link>
         </div>
 
-        <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-8 shadow-xl">
-          <h2 className="text-xl font-semibold text-white mb-2">Quarterly &amp; YTD attendance</h2>
-          <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-            Choose <strong className="text-slate-300">Q1–Q4</strong>,{' '}
-            <strong className="text-slate-300">YTD</strong> (year-to-date: Jan 1 through today when the
+        <div className="fc-card p-8">
+          <h2 className="fc-display fc-display-sm mb-2">Quarterly &amp; YTD attendance</h2>
+          <p className="text-fc-brown text-sm mb-6 leading-relaxed">
+            Choose <strong className="text-fc-midnight">Q1–Q4</strong>,{' '}
+            <strong className="text-fc-midnight">YTD</strong> (year-to-date: Jan 1 through today when the
             report year is the current calendar year; full Jan–Dec for past years), or a{' '}
-            <strong className="text-slate-300">custom date range</strong> (up to ~3 years, end date not in the future).{' '}
-            <strong className="text-slate-300">Every quarter uses the same Pulse DB export</strong> — identical
+            <strong className="text-fc-midnight">custom date range</strong> (up to ~3 years, end date not in the future).{' '}
+            <strong className="text-fc-midnight">Every quarter uses the same Pulse DB export</strong> — identical
             PDF/CSV layout, charts, optional year-over-year %, and field rules. Filter by region and/or campuses.
             Sunday = adults + saints + kids; weekend = Sunday + youth + youth leaders. New people and salvations come
-            from <strong className="text-slate-300">attendance_records</strong> only (dashboard field mix), with region
-            subtotals before the all-campuses total. Optionally exclude <strong className="text-slate-300">youth</strong>{' '}
+            from <strong className="text-fc-midnight">attendance_records</strong> only (dashboard field mix), with region
+            subtotals before the all-campuses total. Optionally exclude <strong className="text-fc-midnight">youth</strong>{' '}
             from new people and salvations.
           </p>
 
           {loadError && (
-            <div className="mb-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 px-4 py-3 text-sm">
+            <div className="mb-4 rounded-lg bg-fc-wash-peach border border-fc-wash-peach-border text-fc-midnight px-4 py-3 text-sm">
               {loadError}
             </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <div>
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+              <label className="fc-label text-[11px] block mb-2">
                 Report year
               </label>
               <select
@@ -351,7 +352,7 @@ const Reports = () => {
                   setYear(y);
                   if (y <= 2000) setIncludePreviousYear(false);
                 }}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                className="fc-input disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {buildYearOptions().map((y) => (
                   <option key={y} value={y}>
@@ -360,11 +361,11 @@ const Reports = () => {
                 ))}
               </select>
               {period === 'custom' && (
-                <p className="text-slate-500 text-xs mt-2">Custom range uses the dates below (year is taken from the range).</p>
+                <p className="text-fc-brown/70 text-xs mt-2">Custom range uses the dates below (year is taken from the range).</p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+              <label className="fc-label text-[11px] block mb-2">
                 Period
               </label>
               <select
@@ -378,7 +379,7 @@ const Reports = () => {
                     setCustomEndDate((prev) => prev || end);
                   }
                 }}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                className="fc-input"
               >
                 {PERIOD_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -390,37 +391,37 @@ const Reports = () => {
             {period === 'custom' && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                  <label className="fc-label text-[11px] block mb-2">
                     Start date
                   </label>
                   <input
                     type="date"
                     value={customStartDate}
                     onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    className="fc-input"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                  <label className="fc-label text-[11px] block mb-2">
                     End date
                   </label>
                   <input
                     type="date"
                     value={customEndDate}
                     onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    className="fc-input"
                   />
                 </div>
               </>
             )}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+              <label className="fc-label text-[11px] block mb-2">
                 Region
               </label>
               <select
                 value={regionCode}
                 onChange={(e) => onRegionChange(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                className="fc-input"
               >
                 <option value="">All regions</option>
                 {regions.map((r) => (
@@ -431,20 +432,20 @@ const Reports = () => {
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+              <label className="fc-label text-[11px] block mb-2">
                 What counts in this report (charts &amp; totals)
               </label>
               <select
                 value={metricsScope}
                 onChange={(e) => setMetricsScope(e.target.value)}
                 title="Matches the campus dashboard: all saved rows; or Sundays that are not flagged special; or only special-event rows."
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                className="fc-input"
               >
                 <option value="default">All services (Sundays + special events)</option>
                 <option value="sundays_rollup_only">Sundays only (standard services)</option>
                 <option value="special_events_only">Special events only</option>
               </select>
-              <p className="text-slate-500 text-xs mt-2">
+              <p className="text-fc-brown/70 text-xs mt-2">
                 Same three choices as the campus dashboard. Special events are entries you flagged when logging stats (e.g. Good Friday).
               </p>
             </div>
@@ -456,13 +457,13 @@ const Reports = () => {
               checked={includePreviousYear}
               onChange={(e) => setIncludePreviousYear(e.target.checked)}
               disabled={year <= 2000}
-              className="mt-1 rounded border-slate-500 text-violet-600 focus:ring-violet-500 disabled:opacity-40"
+              className="mt-1 rounded border-fc-cream2 text-fc-olive focus:ring-fc-olive disabled:opacity-40"
             />
             <span>
-              <span className="text-white font-medium group-hover:text-violet-200 transition-colors">
+              <span className="text-fc-midnight font-medium">
                 Include previous year (year-over-year)
               </span>
-              <span className="block text-slate-500 text-sm mt-0.5">
+              <span className="block text-fc-brown/70 text-sm mt-0.5">
                 Same period in the prior year (for YTD, the same calendar end date in {year > 2000 ? year - 1 : '—'}).
                 For a custom range, the comparison window is the same calendar dates shifted back one year.
                 PDF/CSV show both years side by side.
@@ -475,13 +476,13 @@ const Reports = () => {
               type="checkbox"
               checked={pdfOnePagePerCampus}
               onChange={(e) => setPdfOnePagePerCampus(e.target.checked)}
-              className="mt-1 rounded border-slate-500 text-violet-600 focus:ring-violet-500"
+              className="mt-1 rounded border-fc-cream2 text-fc-olive focus:ring-fc-olive"
             />
             <span>
-              <span className="text-white font-medium group-hover:text-violet-200 transition-colors">
+              <span className="text-fc-midnight font-medium">
                 PDF: one page per campus
               </span>
-              <span className="block text-slate-500 text-sm mt-0.5">
+              <span className="block text-fc-brown/70 text-sm mt-0.5">
                 Each campus gets its own charts and table in the PDF, and the same layout in the report preview below.
                 CSV is unchanged.
               </span>
@@ -493,13 +494,13 @@ const Reports = () => {
               type="checkbox"
               checked={excludeYouthMetrics}
               onChange={(e) => setExcludeYouthMetrics(e.target.checked)}
-              className="mt-1 rounded border-slate-500 text-violet-600 focus:ring-violet-500"
+              className="mt-1 rounded border-fc-cream2 text-fc-olive focus:ring-fc-olive"
             />
             <span>
-              <span className="text-white font-medium group-hover:text-violet-200 transition-colors">
+              <span className="text-fc-midnight font-medium">
                 Exclude youth (new people &amp; salvations)
               </span>
-              <span className="block text-slate-500 text-sm mt-0.5">
+              <span className="block text-fc-brown/70 text-sm mt-0.5">
                 Default: new people include youth new people; salvations include youth salvations (all from the Pulse
                 database). When checked: new people = first-time visitors + visitors only; salvations exclude youth
                 salvations. Same PDF/CSV layout and year-over-year % columns either way.
@@ -509,41 +510,41 @@ const Reports = () => {
 
           <div className="mb-6">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              <label className="fc-label text-[11px]">
                 Campuses (optional — leave none checked for all in scope)
               </label>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={selectAllVisible}
-                  className="text-xs text-violet-400 hover:text-violet-300"
+                  className="text-xs text-fc-olive hover:underline"
                 >
                   Select all listed
                 </button>
-                <span className="text-slate-600">|</span>
+                <span className="text-fc-cream2">|</span>
                 <button
                   type="button"
                   onClick={clearCampusSelection}
-                  className="text-xs text-slate-400 hover:text-slate-300"
+                  className="text-xs text-fc-brown hover:text-fc-midnight"
                 >
                   Clear
                 </button>
               </div>
             </div>
-            <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-600 bg-slate-900/80 p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="max-h-56 overflow-y-auto rounded-lg border border-fc-cream2 bg-fc-cream p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {filteredCampuses.length === 0 ? (
-                <p className="text-slate-500 text-sm col-span-full">No campuses match this region.</p>
+                <p className="text-fc-brown/70 text-sm col-span-full">No campuses match this region.</p>
               ) : (
                 filteredCampuses.map((c) => (
                   <label
                     key={c.campus_id}
-                    className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer hover:text-white"
+                    className="flex items-center gap-2 text-sm text-fc-brown cursor-pointer hover:text-fc-midnight"
                   >
                     <input
                       type="checkbox"
                       checked={selectedCampusSlugs.has(c.campus_id)}
                       onChange={() => toggleCampus(c.campus_id)}
-                      className="rounded border-slate-500 text-violet-600 focus:ring-violet-500"
+                      className="rounded border-fc-cream2 text-fc-olive focus:ring-fc-olive"
                     />
                     <span className="truncate" title={c.display_name}>
                       {c.display_name}
@@ -554,10 +555,10 @@ const Reports = () => {
             </div>
           </div>
 
-          <p className="text-slate-500 text-xs mb-6 border-l-2 border-violet-500/50 pl-3">{filterHint}</p>
+          <p className="text-fc-brown text-xs mb-6 border-l-2 border-fc-olive pl-3">{filterHint}</p>
 
           {error && (
-            <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 px-4 py-3 text-sm">
+            <div className="mb-6 rounded-lg bg-fc-wash-peach border border-fc-wash-peach-border text-fc-midnight px-4 py-3 text-sm">
               {error}
             </div>
           )}
@@ -569,7 +570,7 @@ const Reports = () => {
               onClick={() =>
                 downloadFile(pdfUrl, `pulse-${period}-attendance.pdf`, setLoadingPdf)
               }
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
+              className="fc-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
               {loadingPdf ? 'Building PDF…' : 'Download PDF (charts + table)'}
@@ -580,7 +581,7 @@ const Reports = () => {
               onClick={() =>
                 downloadFile(csvUrl, `pulse-${period}-attendance.csv`, setLoadingCsv)
               }
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 border border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
+              className="fc-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
               {loadingCsv ? 'Building CSV…' : 'Download CSV'}
@@ -596,12 +597,12 @@ const Reports = () => {
           fetchEnabled={customRangeReady}
         />
 
-        <p className="mt-8 text-slate-500 text-sm">
+        <p className="mt-8 text-fc-brown/70 text-sm">
           Raw sheet exports are still on{' '}
-          <Link to="/export" className="text-violet-400 hover:text-violet-300 underline">
+          <Link to="/export" className="text-fc-olive hover:underline">
             Data Export
           </Link>
-          . These reports use <strong className="text-slate-400">attendance_records</strong> only.
+          . These reports use <strong className="text-fc-brown">attendance_records</strong> only.
         </p>
       </div>
     </div>

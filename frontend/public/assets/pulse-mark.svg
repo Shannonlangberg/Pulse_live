@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" fill="none" role="img" aria-label="Pulse">
+  <circle cx="28" cy="28" r="22" stroke="#639922" stroke-width="2" opacity=".3"></circle>
+  <circle cx="28" cy="28" r="14" stroke="#639922" stroke-width="2" opacity=".5"></circle>
+  <circle cx="28" cy="28" r="6" stroke="#639922" stroke-width="2" opacity=".8"></circle>
+  <circle cx="28" cy="28" r="2.5" fill="#639922"></circle>
+  <path d="M28 28 L46 14" stroke="#639922" stroke-width="2.5" stroke-linecap="round"></path>
+</svg>

@@ -181,10 +181,10 @@ const TopNavigation = ({ activeSection }) => {
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-30 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700/50 lg:block hidden"
+      className="fixed top-0 left-0 right-0 z-30 bg-fc-cream/95 backdrop-blur-sm border-b border-fc-cream2 lg:block hidden"
       aria-label="Section pages"
     >
-      <div className="lg:pl-64">
+      <div className="lg:pl-56">
         <div className="flex items-stretch h-16 min-w-0 px-1 sm:px-2 lg:px-3 gap-0.5">
           {hasOverflow && (
             <button
@@ -192,7 +192,7 @@ const TopNavigation = ({ activeSection }) => {
               aria-label="Scroll tabs left"
               disabled={!canScrollLeft}
               onClick={() => scrollTabsBy(-280)}
-              className="flex-shrink-0 self-center w-9 h-9 rounded-lg flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800/70 disabled:opacity-25 disabled:pointer-events-none disabled:hover:bg-transparent transition-colors"
+              className="flex-shrink-0 self-center w-9 h-9 rounded-lg flex items-center justify-center text-fc-brown hover:text-fc-midnight hover:bg-fc-cream2 disabled:opacity-25 disabled:pointer-events-none disabled:hover:bg-transparent transition-colors"
             >
               <ChevronLeftIcon className="h-5 w-5" aria-hidden />
             </button>
@@ -215,12 +215,12 @@ const TopNavigation = ({ activeSection }) => {
                     className={`
                       flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0
                       ${isActive
-                        ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/20'
-                        : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
+                        ? 'bg-fc-olive/[0.12] text-fc-midnight border border-fc-olive/30'
+                        : 'text-fc-brown hover:text-fc-midnight hover:bg-fc-cream2 border border-transparent'
                       }
                     `}
                   >
-                    <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
+                    <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-fc-olive' : 'text-fc-thistle'}`} />
                     <span>{item.name}</span>
                   </Link>
                 );
@@ -233,7 +233,7 @@ const TopNavigation = ({ activeSection }) => {
               aria-label="Scroll tabs right"
               disabled={!canScrollRight}
               onClick={() => scrollTabsBy(280)}
-              className="flex-shrink-0 self-center w-9 h-9 rounded-lg flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800/70 disabled:opacity-25 disabled:pointer-events-none disabled:hover:bg-transparent transition-colors"
+              className="flex-shrink-0 self-center w-9 h-9 rounded-lg flex items-center justify-center text-fc-brown hover:text-fc-midnight hover:bg-fc-cream2 disabled:opacity-25 disabled:pointer-events-none disabled:hover:bg-transparent transition-colors"
             >
               <ChevronRightIcon className="h-5 w-5" aria-hidden />
             </button>

@@ -23,26 +23,26 @@ const RESOURCE_ALLOWED_ROLES = ['superadmin', 'admin'];
 
 const DriveAuthModal = ({ onConnect, connecting, error }) => {
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-white/10 rounded-3xl shadow-2xl max-w-lg w-full p-8 space-y-6">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-fc-midnight/60 backdrop-blur-sm p-4">
+      <div className="bg-white border border-fc-cream2 rounded-3xl shadow-pop max-w-lg w-full p-8 space-y-6">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-purple-500/20 flex items-center justify-center text-3xl">
+          <div className="w-14 h-14 rounded-2xl bg-fc-wash-butter flex items-center justify-center text-3xl">
             🔐
           </div>
           <div>
-            <h2 className="text-white text-2xl font-semibold">Connect Google Drive</h2>
-            <p className="text-white/70 text-sm">
+            <h2 className="text-fc-midnight text-2xl font-semibold">Connect Google Drive</h2>
+            <p className="text-fc-brown text-sm">
               Futures PULSE needs access to the shared Drive folders before you continue. Authorise with your Futures Church Google account to unlock Resources.
             </p>
           </div>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white/70 text-sm">
+        <div className="bg-fc-cream border border-fc-cream2 rounded-2xl px-4 py-3 text-fc-brown text-sm">
           You will be redirected to Google to authorize access. Once you approve, you&apos;ll be returned to the app automatically.
         </div>
 
         {error && (
-          <div className="bg-red-900/30 border border-red-500/40 text-red-200 rounded-2xl px-4 py-3 text-sm">
+          <div className="bg-fc-wash-peach border border-fc-wash-peach-border text-fc-copper rounded-2xl px-4 py-3 text-sm">
             {error}
           </div>
         )}
@@ -52,7 +52,7 @@ const DriveAuthModal = ({ onConnect, connecting, error }) => {
           onClick={onConnect}
           disabled={connecting}
           className={`w-full inline-flex items-center justify-center gap-3 px-5 py-3 rounded-2xl font-semibold transition-all duration-300
-            ${connecting ? 'bg-blue-500/40 text-white/70 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:scale-105'}
+            ${connecting ? 'bg-fc-cream2 text-fc-brown cursor-not-allowed' : 'bg-fc-copper text-white hover:brightness-95'}
           `}
         >
           <span className="text-xl">🔗</span>
@@ -307,8 +307,8 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen bg-fc-cream flex items-center justify-center">
+        <div className="text-fc-midnight text-xl font-display italic font-light">Loading...</div>
       </div>
     );
   }

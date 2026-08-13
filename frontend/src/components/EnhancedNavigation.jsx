@@ -277,23 +277,23 @@ const EnhancedNavigation = ({
       {/* Mobile Sub-Menu Modal */}
       {showMobileSubMenu && mobileSubMenuSection && (
         <div
-          className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 lg:hidden"
+          className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 lg:hidden"
           onClick={() => {
             setShowMobileSubMenu(false);
             setMobileSubMenuSection(null);
           }}
         >
           <div
-            className="bg-slate-900 border border-slate-700/50 rounded-3xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col"
+            className="bg-fc-midnight border border-white/10 rounded-2xl shadow-pop max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 flex items-center justify-center border border-blue-500/30">
-                  <mobileSubMenuSection.icon className="h-6 w-6 text-blue-400" />
+                <div className="w-10 h-10 rounded-lg bg-fc-olive/15 flex items-center justify-center border border-fc-olive/30">
+                  <mobileSubMenuSection.icon className="h-6 w-6 text-fc-olive" />
                 </div>
-                <h2 className="text-xl font-semibold text-white">
+                <h2 className="text-xl font-semibold text-fc-dark-text">
                   {mobileSubMenuSection.name}
                 </h2>
               </div>
@@ -302,7 +302,7 @@ const EnhancedNavigation = ({
                   setShowMobileSubMenu(false);
                   setMobileSubMenuSection(null);
                 }}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-lg text-fc-dark-text/50 hover:text-fc-dark-text hover:bg-white/5 transition-colors"
               >
                 <XMarkIcon className="h-6 w-6" />
               </button>
@@ -320,18 +320,15 @@ const EnhancedNavigation = ({
                     key={item.name}
                     onClick={() => handleMobileSubPageClick(item.href)}
                     className={`
-                      w-full flex items-center gap-4 px-5 py-4 rounded-xl transition-all duration-200
+                      w-full flex items-center gap-4 px-5 py-4 rounded-xl transition-all duration-200 border-l-2
                       ${isActive
-                        ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/20'
-                        : 'text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent'
+                        ? 'bg-fc-olive/15 text-fc-dark-text border-fc-olive'
+                        : 'text-fc-dark-text/55 hover:text-fc-dark-text hover:bg-white/5 border-transparent'
                       }
                     `}
                   >
-                    <div className={`
-                      w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
-                      ${isActive ? 'bg-blue-500/20' : 'bg-slate-800/50'}
-                    `}>
-                      <ItemIcon className={`h-5 w-5 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <ItemIcon className={`h-5 w-5 ${isActive ? 'text-fc-olive' : 'text-fc-thistle/40'}`} />
                     </div>
                     <span className="text-base font-medium">{item.name}</span>
                   </button>
@@ -344,31 +341,37 @@ const EnhancedNavigation = ({
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-56 transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        bg-slate-900 border-r border-slate-700/50 flex flex-col
+        bg-fc-midnight flex flex-col
       `}>
         <div className="flex h-full flex-col min-h-0">
           {/* Logo/Brand */}
-          <div className="flex h-16 items-center justify-between px-6 border-b border-slate-700/50 flex-shrink-0">
-            <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-              <img
-                src="/static/logo.png?v=3"
-                alt="Futures PULSE Logo"
-                className="h-8 w-auto object-contain"
-              />
-              <span className="text-white font-semibold text-lg">Futures PULSE</span>
+          <div className="px-5 pt-5 pb-4 border-b border-white/[0.08] flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity mb-2.5">
+                <img
+                  src="/static/logo.png?v=3"
+                  alt="Futures Church"
+                  className="h-4 w-auto object-contain opacity-70"
+                />
+                <span className="text-[10px] font-bold tracking-[3px] uppercase text-fc-thistle/45">Futures</span>
+              </Link>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden p-1 rounded-md text-fc-thistle/50 hover:text-fc-dark-text hover:bg-white/5"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <img src="/assets/pulse-mark.svg" alt="" className="w-6 h-6 flex-shrink-0" />
+              <span className="font-display italic font-light text-[26px] text-fc-dark-text leading-none tracking-tight">Pulse</span>
             </Link>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800"
-            >
-              <XMarkIcon className="h-5 w-5" />
-            </button>
           </div>
 
           {/* Main Navigation Sections */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto min-h-0">
+          <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto min-h-0">
             {filteredSections.map((section) => {
               const isActive = activeSection === section.id;
               const SectionIcon = section.icon;
@@ -378,19 +381,19 @@ const EnhancedNavigation = ({
                   key={section.id}
                   onClick={() => handleSectionClick(section)}
                   className={`
-                    w-full flex items-center justify-between px-4 py-4 text-base font-medium rounded-xl transition-all duration-200
+                    w-full flex items-center justify-between px-3 py-2.5 text-[13px] rounded-lg transition-all duration-150 border-l-2
                     ${isActive
-                      ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/20'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent'
+                      ? 'bg-fc-olive/[0.14] text-fc-dark-text font-medium border-fc-olive'
+                      : 'text-fc-dark-text/55 hover:text-fc-dark-text hover:bg-white/5 font-normal border-transparent'
                     }
                   `}
                 >
-                  <div className="flex items-center gap-3">
-                    <SectionIcon className={`h-6 w-6 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
+                  <div className="flex items-center gap-2.5">
+                    <SectionIcon className={`h-[18px] w-[18px] ${isActive ? 'text-fc-olive' : 'text-fc-thistle/35'}`} />
                     <span>{section.name}</span>
                   </div>
                   {section.hasSubPages && (
-                    <ChevronRightIcon className={`h-5 w-5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
+                    <ChevronRightIcon className={`h-4 w-4 ${isActive ? 'text-fc-olive' : 'text-fc-thistle/25'}`} />
                   )}
                 </button>
               );
@@ -398,22 +401,23 @@ const EnhancedNavigation = ({
           </nav>
 
           {/* Footer with User Info and Logout */}
-          <div className="p-4 border-t border-slate-700/50 space-y-3 flex-shrink-0 bg-slate-900">
-            <Link
-              to="/profile"
-              className="block px-4 py-2 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors"
-            >
-              <div className="text-sm text-slate-300 font-medium truncate">{userName}</div>
-              <div className="text-xs text-slate-500">{getRoleDisplayName(role)}</div>
-            </Link>
-
-            <button
-              onClick={onLogout}
-              className="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-red-300 hover:text-red-200 hover:bg-red-900/20"
-            >
-              <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5" />
-              Logout
-            </button>
+          <div className="px-3 py-3.5 border-t border-white/[0.08] flex-shrink-0">
+            <div className="flex items-center gap-2.5 px-3 py-2">
+              <div className="w-7 h-7 rounded-full bg-fc-olive/20 border border-fc-olive/40 text-fc-dark-text flex items-center justify-center text-[11px] font-semibold flex-shrink-0">
+                {userName ? userName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() : ''}
+              </div>
+              <Link to="/profile" className="min-w-0 flex-1 hover:opacity-80 transition-opacity">
+                <div className="text-xs text-fc-dark-text font-medium truncate">{userName}</div>
+                <div className="text-[11px] text-fc-dark-text/40 truncate">{getRoleDisplayName(role)}</div>
+              </Link>
+              <button
+                onClick={onLogout}
+                title="Sign out"
+                className="p-1 text-fc-thistle/35 hover:text-fc-dark-text transition-colors flex-shrink-0"
+              >
+                <ArrowRightOnRectangleIcon className="h-[15px] w-[15px]" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

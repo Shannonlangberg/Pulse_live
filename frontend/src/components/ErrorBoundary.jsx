@@ -21,10 +21,10 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-slate-800 rounded-xl p-6 border border-red-500/20">
-            <h2 className="text-xl font-bold text-white mb-4">Something went wrong</h2>
-            <p className="text-white/70 mb-4">
+        <div className="min-h-screen bg-fc-cream flex items-center justify-center p-4 font-sans">
+          <div className="max-w-md w-full bg-white rounded-xl shadow-card p-6 border border-fc-cream2">
+            <h2 className="text-xl font-semibold text-fc-midnight mb-4">Something went wrong</h2>
+            <p className="text-fc-brown mb-4">
               An error occurred while loading this page. Please try refreshing.
             </p>
             <button
@@ -32,14 +32,14 @@ class ErrorBoundary extends React.Component {
                 this.setState({ hasError: false, error: null, errorInfo: null });
                 window.location.reload();
               }}
-              className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+              className="fc-btn-primary w-full justify-center"
             >
               Reload Page
             </button>
             {process.env.NODE_ENV === 'development' && this.state.error && (
-              <details className="mt-4 text-xs text-white/50">
+              <details className="mt-4 text-xs text-fc-brown/70">
                 <summary className="cursor-pointer mb-2">Error Details</summary>
-                <pre className="overflow-auto bg-slate-900 p-2 rounded">
+                <pre className="overflow-auto bg-fc-cream2 p-2 rounded">
                   {this.state.error.toString()}
                   {this.state.errorInfo?.componentStack}
                 </pre>

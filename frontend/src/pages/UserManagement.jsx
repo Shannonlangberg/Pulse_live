@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserGroupIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { UserGroupIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon, CheckIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { useSession } from '../lib/useSession';
 
 const UserManagement = () => {
@@ -27,6 +27,9 @@ const UserManagement = () => {
   // null = no restriction (all campuses); array = only these campus ids
   const [allowedCampuses, setAllowedCampuses] = useState(null);
   const [restrictCampusAccess, setRestrictCampusAccess] = useState(false);
+  // Display-only filters (no API impact) — search by name/username/email/campus, filter by role
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
 
   const roles = [
     { value: 'superadmin', label: 'Super Admin' },
@@ -98,7 +101,7 @@ const UserManagement = () => {
           'Pragma': 'no-cache',
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users || []);
@@ -243,13 +246,13 @@ const UserManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.username) {
       alert('Username is required');
       return;
     }
-    
+
     if (!editingUser && !formData.password) {
       alert('Password is required for new users');
       return;
@@ -261,10 +264,10 @@ const UserManagement = () => {
     }
 
     try {
-      const url = editingUser 
+      const url = editingUser
         ? `/api/users/${editingUser.id}/edit`
         : '/api/users/create';
-      
+
       // Build payload — only include region_id if it has been explicitly set
       // to avoid silently wiping it on every save when the field is undefined
       const payload = { ...formData };
@@ -328,22 +331,6 @@ const UserManagement = () => {
     }
   };
 
-  const getRoleBadgeColor = (role) => {
-    const colors = {
-      'superadmin': 'bg-red-600/20 text-red-300 border-red-600/30',
-      'admin': 'bg-red-500/20 text-red-400 border-red-500/30',
-      'senior_leadership': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      'senior_leader': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      'senior_pastor': 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-      'lead_pastor': 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-      'campus_pastor': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      'pastor': 'bg-green-500/20 text-green-400 border-green-500/30',
-      'finance': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      'staff': 'bg-slate-500/20 text-slate-400 border-slate-500/30'
-    };
-    return colors[role] || 'bg-slate-500/20 text-slate-400 border-slate-500/30';
-  };
-
   const getRoleDisplayName = (role) => {
     const names = {
       'superadmin': 'Super Administrator',
@@ -359,13 +346,51 @@ const UserManagement = () => {
     return names[role] || role;
   };
 
+  // Tint used for the avatar ring, keyed by role. Full static class strings
+  // (not template-built) so Tailwind's content scanner can find them.
+  const AVATAR_ACCENTS = {
+    'superadmin': 'bg-fc-copper/15 border border-fc-copper/30 text-fc-copper',
+    'admin': 'bg-fc-copper/15 border border-fc-copper/30 text-fc-copper',
+    'senior_leadership': 'bg-fc-violet/15 border border-fc-violet/30 text-fc-violet',
+    'senior_leader': 'bg-fc-violet/15 border border-fc-violet/30 text-fc-violet',
+    'senior_pastor': 'bg-fc-violet/15 border border-fc-violet/30 text-fc-violet',
+    'lead_pastor': 'bg-fc-teal/15 border border-fc-teal/30 text-fc-teal',
+    'campus_pastor': 'bg-fc-teal/15 border border-fc-teal/30 text-fc-teal',
+    'pastor': 'bg-fc-olive/15 border border-fc-olive/30 text-fc-olive',
+    'finance': 'bg-fc-gold/15 border border-fc-gold/30 text-fc-gold',
+    'staff': 'bg-fc-brown/15 border border-fc-brown/30 text-fc-brown'
+  };
+  const getRoleAccent = (role) => AVATAR_ACCENTS[role] || AVATAR_ACCENTS.staff;
+
+  const getInitials = (name, username) => {
+    const source = (name || username || '?').trim();
+    if (!source) return '?';
+    const parts = source.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  const filteredUsers = users.filter((user) => {
+    if (roleFilter && user.role !== roleFilter) return false;
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    const campusName = user.campus === 'all_campuses' ? 'all campuses' : (user.campus || '');
+    return (
+      (user.full_name || '').toLowerCase().includes(search) ||
+      (user.username || '').toLowerCase().includes(search) ||
+      (user.email || '').toLowerCase().includes(search) ||
+      campusName.toLowerCase().includes(search) ||
+      getRoleDisplayName(user.role).toLowerCase().includes(search)
+    );
+  });
+
   // Show loading while checking authorization
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-fc-cream p-6 flex items-center justify-center">
         <div className="text-center">
-          <UserGroupIcon className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-pulse" />
-          <div className="text-white text-xl">Checking authorization...</div>
+          <UserGroupIcon className="w-16 h-16 text-fc-copper mx-auto mb-4 animate-pulse" />
+          <div className="fc-display fc-display-sm text-fc-midnight">Checking authorization…</div>
         </div>
       </div>
     );
@@ -373,122 +398,154 @@ const UserManagement = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
-        <div className="text-white text-xl">Loading users...</div>
+      <div className="min-h-screen bg-fc-cream p-6 flex items-center justify-center">
+        <div className="fc-display fc-display-sm text-fc-midnight">Loading users…</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-6">
+    <div className="min-h-screen bg-fc-cream p-4 sm:p-6 lg:p-10">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 flex items-center">
-                <UserGroupIcon className="w-8 h-8 sm:w-10 sm:h-10 mr-2 sm:mr-3 text-blue-500" />
-                User Management
-              </h1>
-              <p className="text-slate-400 text-sm sm:text-base">Manage user accounts and permissions</p>
-            </div>
-            <button
-              onClick={() => handleOpenModal()}
-              className="flex items-center justify-center px-4 sm:px-6 py-2.5 sm:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
-            >
-              <PlusIcon className="w-5 h-5 mr-2" />
-              Add User
-            </button>
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-7 flex-wrap">
+          <div>
+            <div className="fc-label mb-2.5">Settings</div>
+            <h1 className="fc-display fc-display-md mb-2">People with access</h1>
+            <p className="text-[15px] text-fc-brown">Who can log a weekend, who can read the numbers, and where.</p>
           </div>
+          <button
+            onClick={() => handleOpenModal()}
+            className="fc-btn-primary whitespace-nowrap"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Invite someone
+          </button>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400">
+          <div className="mb-6 p-4 bg-fc-wash-peach border border-fc-wash-peach-border rounded-lg text-fc-copper">
             {error}
           </div>
         )}
 
+        {/* Search + Role filter */}
+        <div className="flex gap-2.5 mb-4 flex-wrap">
+          <div className="relative flex-1 min-w-[240px]">
+            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fc-thistle pointer-events-none" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by name, campus or role"
+              className="fc-input pl-10"
+            />
+          </div>
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="fc-input w-auto"
+          >
+            <option value="">All roles</option>
+            {roles.map((role) => (
+              <option key={role.value} value={role.value}>{role.label}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Mobile Scroll Hint */}
-        <div className="lg:hidden mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-center">
-          <p className="text-sm text-blue-300">
+        <div className="lg:hidden mb-4 p-3 bg-fc-wash-sky border border-fc-wash-sky-border rounded-lg text-center">
+          <p className="text-sm text-fc-brown">
             👆 <strong>Swipe left/right</strong> to see all user details
           </p>
         </div>
 
         {/* Users Table */}
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+        <div className="fc-card overflow-hidden">
+          <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-700/50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Name</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Username</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Email</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Role</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Campus</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Region</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Last Login</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-slate-300">Actions</th>
+              <thead>
+                <tr className="bg-fc-cream">
+                  <th className="text-left px-6 py-2.5 fc-label whitespace-nowrap">Name</th>
+                  <th className="text-left px-4 py-2.5 fc-label whitespace-nowrap">Role</th>
+                  <th className="text-left px-4 py-2.5 fc-label whitespace-nowrap">Campus</th>
+                  <th className="text-left px-4 py-2.5 fc-label whitespace-nowrap">Region</th>
+                  <th className="text-left px-4 py-2.5 fc-label whitespace-nowrap">Status</th>
+                  <th className="text-left px-4 py-2.5 fc-label whitespace-nowrap">Last login</th>
+                  <th className="px-6 py-2.5"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700/50">
-                {users.length === 0 ? (
+              <tbody>
+                {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="px-6 py-12 text-center text-slate-400">
-                      No users found
+                    <td colSpan="7" className="px-6 py-12 text-center text-fc-brown">
+                      {searchTerm || roleFilter ? 'No users match your search' : 'No users found'}
                     </td>
                   </tr>
                 ) : (
-                  users.map((user) => (
-                    <tr key={user.id} className="hover:bg-slate-700/30 transition-colors">
-                      <td className="px-6 py-4 text-white font-medium">{user.full_name}</td>
-                      <td className="px-6 py-4 text-slate-300">{user.username}</td>
-                      <td className="px-6 py-4 text-slate-300">{user.email || 'N/A'}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium border ${getRoleBadgeColor(user.role)}`}>
-                          {getRoleDisplayName(user.role)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-slate-300">
-                        {user.campus === 'all_campuses' ? 'All Campuses' : user.campus}
-                      </td>
-                      <td className="px-6 py-4 text-slate-300">
-                        {user.region_id ? regions.find(r => r.id === user.region_id)?.display_name || 'Unknown' : 'Global'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium border ${
-                          user.active 
-                            ? 'bg-green-500/20 text-green-400 border-green-500/30' 
-                            : 'bg-slate-500/20 text-slate-400 border-slate-500/30'
-                        }`}>
-                          {user.active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-slate-300 text-sm">
-                        {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenModal(user)}
-                            title="Edit User"
-                            className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors"
-                          >
-                            <PencilIcon className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(user)}
-                            title="Delete User"
-                            className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
-                          >
-                            <TrashIcon className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  filteredUsers.map((user) => {
+                    const accentClasses = getRoleAccent(user.role);
+                    return (
+                      <tr key={user.id} className="border-t border-fc-cream2 hover:bg-fc-cream/60 transition-colors">
+                        <td className="px-6 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div
+                              className={`w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0 ${accentClasses}`}
+                            >
+                              {getInitials(user.full_name, user.username)}
+                            </div>
+                            <div>
+                              <div className="text-sm text-fc-midnight">{user.full_name || user.username}</div>
+                              <div className="text-xs text-fc-brown">{user.username}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-fc-cream2 text-fc-brown">
+                            {getRoleDisplayName(user.role)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-sm text-fc-brown">
+                          {user.campus === 'all_campuses' ? 'All Campuses' : user.campus}
+                        </td>
+                        <td className="px-4 py-3.5 text-sm text-fc-brown">
+                          {user.region_id ? regions.find(r => r.id === user.region_id)?.display_name || 'Unknown' : 'Global'}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
+                            user.active
+                              ? 'bg-fc-wash-mint text-fc-olive'
+                              : 'bg-fc-cream2 text-fc-brown'
+                          }`}>
+                            {user.active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-sm text-fc-brown">
+                          {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
+                        </td>
+                        <td className="px-6 py-3.5">
+                          <div className="flex items-center justify-end gap-3">
+                            <button
+                              onClick={() => handleOpenModal(user)}
+                              title="Edit User"
+                              className="text-fc-copper text-[13px] font-medium hover:underline inline-flex items-center gap-1"
+                            >
+                              <PencilIcon className="w-3.5 h-3.5" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(user)}
+                              title="Delete User"
+                              className="p-1.5 text-fc-brown hover:text-fc-copper rounded-lg transition-colors"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -496,26 +553,26 @@ const UserManagement = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-            <div className="text-slate-400 text-sm mb-1">Total Users</div>
-            <div className="text-3xl font-bold text-white">{users.length}</div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mt-7">
+          <div className="fc-card p-5">
+            <div className="text-fc-brown text-sm mb-1">Total Users</div>
+            <div className="text-3xl fc-display text-fc-midnight">{users.length}</div>
           </div>
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-            <div className="text-slate-400 text-sm mb-1">Active Users</div>
-            <div className="text-3xl font-bold text-green-400">
+          <div className="fc-card p-5">
+            <div className="text-fc-brown text-sm mb-1">Active Users</div>
+            <div className="text-3xl fc-display text-fc-olive">
               {users.filter(u => u.active).length}
             </div>
           </div>
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-            <div className="text-slate-400 text-sm mb-1">Administrators</div>
-            <div className="text-3xl font-bold text-red-400">
+          <div className="fc-card p-5">
+            <div className="text-fc-brown text-sm mb-1">Administrators</div>
+            <div className="text-3xl fc-display text-fc-copper">
               {users.filter(u => u.role === 'superadmin' || u.role === 'admin').length}
             </div>
           </div>
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-            <div className="text-slate-400 text-sm mb-1">Campus Pastors</div>
-            <div className="text-3xl font-bold text-blue-400">
+          <div className="fc-card p-5">
+            <div className="text-fc-brown text-sm mb-1">Campus Pastors</div>
+            <div className="text-3xl fc-display text-fc-teal">
               {users.filter(u => u.role === 'campus_pastor').length}
             </div>
           </div>
@@ -524,64 +581,64 @@ const UserManagement = () => {
 
       {/* Add/Edit User Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
-          <div className="bg-slate-800 rounded-xl border border-slate-700 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6 border-b border-slate-700 flex items-center justify-between sticky top-0 bg-slate-800 z-10">
-              <h2 className="text-xl sm:text-2xl font-bold text-white">
-                {editingUser ? 'Edit User' : 'Add New User'}
+        <div className="fixed inset-0 bg-fc-midnight/40 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white rounded-xl shadow-pop max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-fc-cream2 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h2 className="fc-display fc-display-sm text-fc-midnight">
+                {editingUser ? 'Edit user' : 'Add new user'}
               </h2>
               <button
                 onClick={handleCloseModal}
-                className="p-2 hover:bg-slate-700 rounded-lg transition-colors touch-manipulation"
+                className="p-2 hover:bg-fc-cream rounded-lg transition-colors touch-manipulation"
               >
-                <XMarkIcon className="w-6 h-6 text-slate-400" />
+                <XMarkIcon className="w-5 h-5 text-fc-brown" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Username */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Username <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-fc-midnight mb-2">
+                  Username <span className="text-fc-copper">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="fc-input"
                   placeholder="john.smith"
                 />
               </div>
 
               {/* Full Name */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-fc-midnight mb-2">
                   Full Name
                 </label>
                 <input
                   type="text"
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="fc-input"
                   placeholder="John Smith"
                 />
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-fc-midnight mb-2">
                   Email
                 </label>
                 <input
                   type="text"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="fc-input"
                   placeholder="john.smith@futures.church"
                 />
                 {formData.email && formData.email.includes(' ') && (
-                  <p className="mt-1 text-xs text-yellow-400">
+                  <p className="mt-1 text-xs text-fc-gold">
                     Note: Email contains spaces. Standard email format uses dots instead (e.g., tony.corbridge@futures.church)
                   </p>
                 )}
@@ -589,30 +646,30 @@ const UserManagement = () => {
 
               {/* Password */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Password {!editingUser && <span className="text-red-400">*</span>}
-                  {editingUser && <span className="text-slate-500 text-xs ml-2">(leave blank to keep current)</span>}
+                <label className="block text-sm font-medium text-fc-midnight mb-2">
+                  Password {!editingUser && <span className="text-fc-copper">*</span>}
+                  {editingUser && <span className="text-fc-brown text-xs ml-2">(leave blank to keep current)</span>}
                 </label>
                 <input
                   type="password"
                   required={!editingUser}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="fc-input"
                   placeholder="••••••••"
                 />
               </div>
 
               {/* Role */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Role <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-fc-midnight mb-2">
+                  Role <span className="text-fc-copper">*</span>
                 </label>
                 <select
                   required
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="fc-input"
                 >
                   {roles.map(role => (
                     <option key={role.value} value={role.value}>
@@ -620,21 +677,21 @@ const UserManagement = () => {
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-fc-brown">
                   Staff have no stats access by default - grant via Role Manager or campus access.
                 </p>
               </div>
 
               {/* Campus */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Campus <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-fc-midnight mb-2">
+                  Campus <span className="text-fc-copper">*</span>
                 </label>
                 <select
                   required
                   value={formData.campus}
                   onChange={(e) => setFormData({ ...formData, campus: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="fc-input"
                 >
                   <option value="all_campuses">All Campuses</option>
                   {campuses.map(campus => (
@@ -647,13 +704,13 @@ const UserManagement = () => {
 
               {/* Region */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Region <span className="text-slate-500 text-xs ml-2">(optional - leave blank for global access)</span>
+                <label className="block text-sm font-medium text-fc-midnight mb-2">
+                  Region <span className="text-fc-brown text-xs ml-2">(optional - leave blank for global access)</span>
                 </label>
                 <select
                   value={formData.region_id || ''}
                   onChange={(e) => setFormData({ ...formData, region_id: e.target.value ? parseInt(e.target.value) : null })}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="fc-input"
                 >
                   <option value="">All Regions (Global Access)</option>
                   {regions.filter(r => r.active).map(region => (
@@ -662,17 +719,17 @@ const UserManagement = () => {
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-fc-brown">
                   Optional reporting scope. For mixed access (e.g. one AU campus + all Indonesia), leave Global and use campus visibility below.
                 </p>
               </div>
 
               {/* Campus access — cross-region (saved as custom_permissions.allowed_campuses) */}
-              <div className="rounded-lg border border-slate-600 bg-slate-700/30 p-4">
-                <label className="block text-sm font-medium text-slate-300 mb-1">
+              <div className="rounded-lg border border-fc-cream2 bg-fc-cream p-4">
+                <label className="block text-sm font-medium text-fc-midnight mb-1">
                   Campus access
                 </label>
-                <p className="text-xs text-slate-400 mb-3">
+                <p className="text-xs text-fc-brown mb-3">
                   Which campuses this user can input stats and view dashboards for.
                 </p>
                 <div className="flex flex-col gap-2 mb-4">
@@ -685,9 +742,9 @@ const UserManagement = () => {
                         setRestrictCampusAccess(false);
                         setAllowedCampuses(null);
                       }}
-                      className="text-blue-500"
+                      className="text-fc-olive"
                     />
-                    <span className="text-slate-300 text-sm">All campuses (role default)</span>
+                    <span className="text-fc-midnight text-sm">All campuses (role default)</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -698,9 +755,9 @@ const UserManagement = () => {
                         setRestrictCampusAccess(true);
                         setAllowedCampuses((prev) => (prev && prev.length ? prev : []));
                       }}
-                      className="text-blue-500"
+                      className="text-fc-olive"
                     />
-                    <span className="text-slate-300 text-sm">Only selected campuses (can mix regions)</span>
+                    <span className="text-fc-midnight text-sm">Only selected campuses (can mix regions)</span>
                   </label>
                 </div>
 
@@ -711,23 +768,23 @@ const UserManagement = () => {
                       if (!regionCampuses.length) return null;
                       const allSelected = regionCampuses.every((c) => isCampusAllowed(c.id));
                       return (
-                        <div key={region.id} className="border border-slate-600/80 rounded-lg p-3">
+                        <div key={region.id} className="border border-fc-cream2 rounded-lg p-3 bg-white">
                           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                            <span className="text-sm font-medium text-white">
+                            <span className="text-sm font-medium text-fc-midnight">
                               {region.display_name || region.name}
                             </span>
                             <div className="flex gap-2">
                               <button
                                 type="button"
                                 onClick={() => selectAllInRegion(region)}
-                                className="text-xs px-2 py-1 rounded bg-blue-600/30 text-blue-300 hover:bg-blue-600/50"
+                                className="text-xs px-2 py-1 rounded bg-fc-wash-sky text-fc-teal hover:brightness-95"
                               >
                                 {allSelected ? 'All selected' : 'Select all'}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => clearAllInRegion(region)}
-                                className="text-xs px-2 py-1 rounded bg-slate-600 text-slate-300 hover:bg-slate-500"
+                                className="text-xs px-2 py-1 rounded bg-fc-cream2 text-fc-brown hover:brightness-95"
                               >
                                 Clear
                               </button>
@@ -743,8 +800,8 @@ const UserManagement = () => {
                                   onClick={() => toggleCampusAccess(campus.id)}
                                   className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
                                     on
-                                      ? 'bg-green-500/20 text-green-300 border-green-500/40'
-                                      : 'bg-slate-800 text-slate-400 border-slate-600 hover:border-slate-500'
+                                      ? 'bg-fc-wash-mint text-fc-olive border-fc-wash-mint-border'
+                                      : 'bg-fc-cream text-fc-brown border-fc-cream2 hover:border-fc-thistle'
                                   }`}
                                 >
                                   <span className="inline-flex items-center gap-1">
@@ -758,7 +815,7 @@ const UserManagement = () => {
                         </div>
                       );
                     })}
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-fc-brown">
                       Example: tick Adelaide City under Australia, then &quot;Select all&quot; under Indonesia so they keep one AU campus but see every Indo campus.
                     </p>
                   </div>
@@ -766,17 +823,17 @@ const UserManagement = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-slate-700">
+              <div className="flex gap-3 pt-4 border-t border-fc-cream2">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="flex-1 px-4 sm:px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors touch-manipulation text-sm sm:text-base"
+                  className="fc-btn-secondary flex-1 justify-center touch-manipulation"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 sm:px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors touch-manipulation text-sm sm:text-base font-medium"
+                  className="fc-btn-primary flex-1 justify-center touch-manipulation"
                 >
                   {editingUser ? 'Update User' : 'Create User'}
                 </button>

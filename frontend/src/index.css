@@ -1,24 +1,111 @@
+@import './styles/futures-tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--fc-font-sans);
   }
-  
+
   body {
-    @apply bg-slate-900 text-white;
+    @apply bg-fc-cream text-fc-midnight;
+    font-family: var(--fc-font-sans);
+  }
+
+  ::selection {
+    background: var(--fc-olive);
+    color: #FFFFFF;
+  }
+
+  /* Editorial display — serif italic light. The brand voice. */
+  .fc-display {
+    font-family: var(--fc-font-display);
+    font-weight: 300;
+    font-style: italic;
+    letter-spacing: var(--fc-tracking-display);
+    line-height: var(--fc-lh-display);
+    color: var(--fc-fg);
+  }
+  .fc-display-md { font-size: var(--fc-fs-display-md); }
+  .fc-display-lg { font-size: var(--fc-fs-display-lg); }
+  .fc-display-sm { font-size: var(--fc-fs-display-sm); }
+
+  /* The signature label — wide-tracked, copper, micro caps. */
+  .fc-label {
+    font-family: var(--fc-font-sans);
+    font-size: var(--fc-fs-label);
+    font-weight: 700;
+    letter-spacing: var(--fc-tracking-label);
+    text-transform: uppercase;
+    color: var(--fc-copper);
+  }
+
+  .fc-card {
+    background: var(--fc-bg-elevated);
+    border-radius: var(--fc-radius-lg);
+    box-shadow: var(--fc-shadow-card);
+  }
+
+  .fc-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 22px;
+    border-radius: var(--fc-radius-md);
+    background: var(--fc-copper);
+    border: none;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--fc-transition);
+  }
+  .fc-btn-primary:hover { filter: brightness(0.93); }
+  .fc-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .fc-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: var(--fc-radius-md);
+    background: transparent;
+    border: 1px solid rgba(80,72,46,.18);
+    color: var(--fc-midnight);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--fc-transition);
+  }
+  .fc-btn-secondary:hover { background: var(--fc-cream-2); }
+
+  .fc-input {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: var(--fc-radius-md);
+    border: 1px solid var(--fc-cream-2);
+    background: #fff;
+    font-size: 14px;
+    color: var(--fc-midnight);
+    outline: none;
+    font-family: var(--fc-font-sans);
+    transition: var(--fc-transition);
+  }
+  .fc-input:focus {
+    border-color: var(--fc-olive);
+    box-shadow: 0 0 0 3px rgba(99,153,34,0.12);
   }
 }
 
 @layer components {
   .glass-effect {
-    @apply bg-slate-800/50 backdrop-blur-sm border border-slate-700/50;
+    @apply bg-white border border-fc-cream2;
   }
   
   .glow-effect {
-    @apply shadow-lg shadow-slate-900/20;
+    @apply shadow-card;
   }
   
   .particle-container {
@@ -34,7 +121,7 @@
   }
   
   .voice-button-idle {
-    @apply shadow-lg shadow-blue-500/25 hover:shadow-blue-400/30;
+    @apply shadow-lg shadow-fc-copper/20 hover:shadow-fc-copper/30;
   }
   
   .input-container {
@@ -46,7 +133,7 @@
   }
   
   .input-focus {
-    @apply focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300;
+    @apply focus:ring-2 focus:ring-fc-olive focus:border-transparent transition-all duration-300;
   }
   
   .particle-area {
@@ -58,7 +145,7 @@
   }
   
   .particle-text {
-    @apply text-slate-400 text-lg font-medium;
+    @apply text-fc-brown text-lg font-medium;
   }
   
   .clean-layout {
@@ -66,7 +153,7 @@
   }
   
   .main-card {
-    @apply bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-8;
+    @apply bg-white border border-fc-cream2 rounded-xl p-8 shadow-card;
   }
   
   .voice-button-large {
@@ -79,17 +166,17 @@
   }
   
   .scrollbar-thin::-webkit-scrollbar-track {
-    background: #1e293b; /* slate-800 */
+    background: var(--fc-cream2);
     border-radius: 3px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #475569; /* slate-600 */
+    background: var(--fc-thistle);
     border-radius: 3px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #64748b; /* slate-500 */
+    background: var(--fc-brown);
   }
   
   /* Ensure dropdown is always visible */
@@ -123,21 +210,21 @@
   
   /* Enhanced card hover effects */
   .event-card-hover {
-    @apply transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-1;
+    @apply transition-all duration-300 hover:shadow-card-hover hover:-translate-y-1;
   }
   
   /* Smooth focus transitions */
   .focus-smooth {
-    @apply focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 transition-all duration-200;
+    @apply focus:ring-2 focus:ring-fc-olive/20 focus:border-fc-olive transition-all duration-200;
   }
   
   /* Glass morphism effects */
   .glass-card {
-    @apply bg-slate-800/50 backdrop-blur-sm border border-slate-700/50;
+    @apply bg-white border border-fc-cream2;
   }
   
   .glass-input {
-    @apply bg-slate-700/50 backdrop-blur-sm border border-slate-600/50 focus:border-blue-400/50;
+    @apply bg-white border border-fc-cream2 focus:border-fc-olive;
   }
   
   /* Fallback for browsers without webkit scrollbar support */
@@ -156,7 +243,7 @@
   }
   
   .settings-dropdown::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
+    background: var(--fc-thistle);
   }
   
   /* Hide scrollbar utility */
@@ -175,22 +262,22 @@
   }
 
   .top-nav-tabs-scroll::-webkit-scrollbar-track {
-    background: rgba(30, 41, 59, 0.45);
+    background: var(--fc-cream2);
     border-radius: 3px;
   }
 
   .top-nav-tabs-scroll::-webkit-scrollbar-thumb {
-    background: #64748b;
+    background: var(--fc-thistle);
     border-radius: 3px;
   }
 
   .top-nav-tabs-scroll::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: var(--fc-brown);
   }
 
   .top-nav-tabs-scroll {
     scrollbar-width: thin;
-    scrollbar-color: #64748b rgba(30, 41, 59, 0.45);
+    scrollbar-color: var(--fc-thistle) var(--fc-cream2);
     overscroll-behavior-x: contain;
   }
   

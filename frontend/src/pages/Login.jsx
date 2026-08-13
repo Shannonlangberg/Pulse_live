@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { UserIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, LinkIcon } from '@heroicons/react/24/outline';
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -192,44 +192,44 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-fc-cream flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-[400px]">
         {/* Logo/Brand */}
-        <div className="text-center mb-8">
-          <div className="mx-auto w-20 h-20 mb-6">
-            <img 
-              src="/static/logo.png?v=3" 
-              alt="Futures PULSE Logo" 
-              className="w-full h-full object-contain"
-            />
+        <div className="mb-8 sm:mb-9">
+          <img
+            src="/static/logo.png?v=3"
+            alt="Futures Church"
+            className="h-10 sm:h-[46px] w-auto object-contain mb-5 sm:mb-6"
+          />
+          <div className="fc-label mb-3">Futures Church</div>
+          <div className="flex items-center gap-3.5 mb-3.5">
+            <img src="/assets/pulse-mark.svg" alt="" className="w-10 h-10 sm:w-[46px] sm:h-[46px] flex-shrink-0" />
+            <span className="fc-display text-4xl sm:text-[56px] leading-none tracking-tight">Pulse</span>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-3">Futures PULSE</h1>
+          <p className="m-0 text-[15px] text-fc-brown">
+            The weekend, counted. Sign in to log your campus.
+          </p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">Welcome Back</h2>
-            <p className="text-slate-400">Sign in to access your dashboard</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="fc-card p-6 sm:p-[26px]">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-[18px]">
             {/* Username Field */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-3">
+              <label htmlFor="username" className="block text-[13px] text-fc-brown mb-[7px]">
                 Username
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <UserIcon className="h-5 w-5 text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <UserIcon className="h-4 w-4 text-fc-thistle" />
                 </div>
                 <input
                   id="username"
                   name="username"
                   type="text"
                   required
-                  className="block w-full pl-12 pr-4 py-4 border border-slate-600 rounded-xl bg-slate-700/50 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base"
-                  placeholder="Enter your username"
+                  className="fc-input pl-10"
+                  placeholder="ashley.peters"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
@@ -238,32 +238,32 @@ const Login = ({ onLogin }) => {
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-3">
+              <label htmlFor="password" className="block text-[13px] text-fc-brown mb-[7px]">
                 Password
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <LockClosedIcon className="h-5 w-5 text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <LockClosedIcon className="h-4 w-4 text-fc-thistle" />
                 </div>
                 <input
                   id="password"
                   name="password"
                   type={showPassword ? "text" : "password"}
                   required
-                  className="block w-full pl-12 pr-12 py-4 border border-slate-600 rounded-xl bg-slate-700/50 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base"
-                  placeholder="Enter your password"
+                  className="fc-input pl-10 pr-10"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-slate-400 hover:text-slate-300 transition-colors" />
+                    <EyeSlashIcon className="h-4 w-4 text-fc-thistle hover:text-fc-brown transition-colors" />
                   ) : (
-                    <EyeIcon className="h-5 w-5 text-slate-400 hover:text-slate-300 transition-colors" />
+                    <EyeIcon className="h-4 w-4 text-fc-thistle hover:text-fc-brown transition-colors" />
                   )}
                 </button>
               </div>
@@ -271,28 +271,28 @@ const Login = ({ onLogin }) => {
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4">
-                <p className="text-red-400 text-sm font-medium">{error}</p>
+              <div className="bg-fc-wash-peach border border-fc-wash-peach-border rounded-lg p-3.5">
+                <p className="text-fc-copper text-sm font-medium">{error}</p>
               </div>
             )}
 
             {/* Google Drive Auth Prompt */}
             {isDriveAuthRequired && !isDriveConnecting && (
-              <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 space-y-3">
+              <div className="bg-fc-wash-sky border border-fc-wash-sky-border rounded-lg p-3.5 space-y-3">
                 <div>
-                  <p className="text-blue-200 text-sm font-medium mb-1">
+                  <p className="text-fc-midnight text-sm font-medium mb-1">
                     Connect Google Account
                   </p>
-                  <p className="text-blue-300/80 text-xs">
+                  <p className="text-fc-brown text-xs">
                     Please connect your Google account to access Pulse resources and features. Click below to authorize.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={startGoogleAuth}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
+                  className="fc-btn-secondary w-full justify-center bg-white"
                 >
-                  <span className="text-lg">🔗</span>
+                  <LinkIcon className="h-3.5 w-3.5" />
                   Connect with Google
                 </button>
               </div>
@@ -300,19 +300,19 @@ const Login = ({ onLogin }) => {
 
             {/* Google Drive Connecting Status */}
             {isDriveConnecting && (
-              <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 space-y-1">
-                <p className="text-blue-200 text-sm font-medium">
+              <div className="bg-fc-wash-sky border border-fc-wash-sky-border rounded-lg p-3.5 space-y-1">
+                <p className="text-fc-midnight text-sm font-medium">
                   Connecting Google Drive for your admin account…
                 </p>
-                <p className="text-blue-300/80 text-xs">
+                <p className="text-fc-brown text-xs">
                   You will be redirected to Google to authorize access. Once you approve, you'll be returned to the app.
                 </p>
               </div>
             )}
 
             {driveError && (
-              <div className="bg-amber-900/20 border border-amber-500/40 rounded-xl p-4">
-                <p className="text-amber-200 text-sm font-medium">{driveError}</p>
+              <div className="bg-fc-wash-butter border border-fc-wash-butter-border rounded-lg p-3.5">
+                <p className="text-fc-brown text-sm font-medium">{driveError}</p>
               </div>
             )}
 
@@ -320,26 +320,24 @@ const Login = ({ onLogin }) => {
             <button
               type="submit"
               disabled={isLoading || isDriveConnecting}
-              className="w-full flex justify-center py-4 px-6 border border-transparent rounded-xl text-base font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30"
+              className="fc-btn-primary w-full justify-center"
             >
               {isLoading || isDriveConnecting ? (
                 <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-3"></div>
                   Signing in...
                 </div>
               ) : (
-                'Sign In'
+                'Sign in'
               )}
             </button>
           </form>
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-xs text-slate-500">
-            © 2025 Futures Church. All rights reserved.
-          </p>
-        </div>
+        <p className="mt-[22px] mb-0 text-xs text-fc-brown">
+          © 2025 Futures Church
+        </p>
       </div>
     </div>
   );

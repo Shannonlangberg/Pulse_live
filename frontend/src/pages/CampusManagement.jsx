@@ -262,10 +262,10 @@ const CampusManagement = () => {
   // Show loading while checking authorization
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-fc-cream p-6 flex items-center justify-center">
         <div className="text-center">
-          <BuildingOfficeIcon className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-pulse" />
-          <div className="text-white text-xl">Checking authorization...</div>
+          <BuildingOfficeIcon className="w-16 h-16 text-fc-copper mx-auto mb-4 animate-pulse" />
+          <div className="text-fc-midnight text-xl">Checking authorization...</div>
         </div>
       </div>
     );
@@ -273,24 +273,24 @@ const CampusManagement = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
-        <div className="text-white text-xl">Loading campuses...</div>
+      <div className="min-h-screen bg-fc-cream p-6 flex items-center justify-center">
+        <div className="text-fc-midnight text-xl">Loading campuses...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 p-6">
+    <div className="min-h-screen bg-fc-cream p-6">
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Campus Management</h1>
-            <p className="text-white/60">Manage church campuses across all regions</p>
+            <h1 className="text-4xl font-bold text-fc-midnight mb-2">Campus Management</h1>
+            <p className="text-fc-brown">Manage church campuses across all regions</p>
           </div>
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-purple-500/50 transition-all"
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-fc-copper to-fc-copper text-fc-midnight rounded-xl font-semibold hover:shadow-lg hover:shadow-card transition-all"
           >
             <PlusIcon className="w-5 h-5" />
             Add Campus
@@ -303,8 +303,8 @@ const CampusManagement = () => {
             onClick={() => setSelectedRegion('all')}
             className={`px-4 py-2 rounded-lg font-medium transition-all ${
               selectedRegion === 'all'
-                ? 'bg-white/20 text-white shadow-lg'
-                : 'bg-white/5 text-white/60 hover:bg-white/10'
+                ? 'bg-white/20 text-fc-midnight shadow-lg'
+                : 'bg-white/5 text-fc-brown hover:bg-fc-cream2'
             }`}
           >
             All Regions ({campuses.length})
@@ -315,15 +315,15 @@ const CampusManagement = () => {
               onClick={() => setSelectedRegion(region.id.toString())}
               className={`px-4 py-2 rounded-lg font-medium transition-all ${
                 selectedRegion === region.id.toString()
-                  ? 'bg-white/20 text-white shadow-lg'
-                  : 'bg-white/5 text-white/60 hover:bg-white/10'
+                  ? 'bg-white/20 text-fc-midnight shadow-lg'
+                  : 'bg-white/5 text-fc-brown hover:bg-fc-cream2'
               }`}
             >
               <span className="flex items-center gap-2">
                 <GlobeAltIcon className="w-4 h-4" />
                 {region.display_name} ({campusesByRegion[region.id]?.length || 0})
                 {region.coming_soon && (
-                  <span className="text-xs bg-blue-500/30 px-2 py-0.5 rounded">Coming Soon</span>
+                  <span className="text-xs bg-fc-copper/30 px-2 py-0.5 rounded">Coming Soon</span>
                 )}
               </span>
             </button>
@@ -334,9 +334,9 @@ const CampusManagement = () => {
       {/* Campuses Grid */}
       <div className="max-w-7xl mx-auto">
         {loading ? (
-          <div className="text-center text-white/60 py-20">Loading campuses...</div>
+          <div className="text-center text-fc-brown py-20">Loading campuses...</div>
         ) : filteredCampuses.length === 0 ? (
-          <div className="text-center text-white/60 py-20">
+          <div className="text-center text-fc-brown py-20">
             No campuses found. Click "Add Campus" to create one.
           </div>
         ) : (
@@ -344,25 +344,25 @@ const CampusManagement = () => {
             {filteredCampuses.map(campus => (
               <div
                 key={campus.id}
-                className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all"
+                className="bg-white border border-fc-cream2 rounded-2xl p-6 shadow-card hover:shadow-card-hover transition-all"
               >
                 {/* Campus Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-start gap-3">
-                    <div className="p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl">
-                      <BuildingOfficeIcon className="w-6 h-6 text-blue-400" />
+                    <div className="p-3 bg-gradient-to-br from-fc-wash-mint to-fc-wash-mint rounded-xl">
+                      <BuildingOfficeIcon className="w-6 h-6 text-fc-copper" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-white">{campus.display_name}</h3>
-                      <p className="text-sm text-white/60">{campus.region.display_name}</p>
+                      <h3 className="text-xl font-bold text-fc-midnight">{campus.display_name}</h3>
+                      <p className="text-sm text-fc-brown">{campus.region.display_name}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => openEditModal(campus)}
-                      className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
+                      className="p-2 bg-fc-cream2 hover:bg-white/20 rounded-lg transition-all"
                     >
-                      <PencilIcon className="w-4 h-4 text-white/80" />
+                      <PencilIcon className="w-4 h-4 text-fc-midnight/80" />
                     </button>
                     <button
                       onClick={() => handleDelete(campus)}
@@ -376,25 +376,25 @@ const CampusManagement = () => {
                 {/* Campus Details */}
                 <div className="space-y-3">
                   {campus.pastor_name && (
-                    <div className="flex items-center gap-2 text-white/70">
-                      <UserIcon className="w-4 h-4 text-purple-400" />
+                    <div className="flex items-center gap-2 text-fc-brown">
+                      <UserIcon className="w-4 h-4 text-fc-violet" />
                       <span className="text-sm">{campus.pastor_name}</span>
                     </div>
                   )}
                   
                   {campus.address && (
-                    <div className="flex items-center gap-2 text-white/70">
+                    <div className="flex items-center gap-2 text-fc-brown">
                       <MapPinIcon className="w-4 h-4 text-green-400" />
                       <span className="text-sm">{campus.city}, {campus.state}</span>
                     </div>
                   )}
 
                   {campus.service_times.length > 0 && (
-                    <div className="flex items-start gap-2 text-white/70">
+                    <div className="flex items-start gap-2 text-fc-brown">
                       <ClockIcon className="w-4 h-4 text-yellow-400 mt-0.5" />
                       <div className="flex flex-wrap gap-1">
                         {campus.service_times.map((time, idx) => (
-                          <span key={idx} className="text-xs bg-white/10 px-2 py-1 rounded">
+                          <span key={idx} className="text-xs bg-fc-cream2 px-2 py-1 rounded">
                             {time}
                           </span>
                         ))}
@@ -404,11 +404,11 @@ const CampusManagement = () => {
                 </div>
 
                 {/* Status Badge */}
-                <div className="mt-4 pt-4 border-t border-white/10">
+                <div className="mt-4 pt-4 border-t border-fc-cream2">
                   <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
                     campus.active
                       ? 'bg-green-500/20 text-green-400'
-                      : 'bg-gray-500/20 text-gray-400'
+                      : 'bg-gray-500/20 text-fc-brown/70'
                   }`}>
                     {campus.active ? '● Active' : '○ Inactive'}
                   </span>
@@ -422,16 +422,16 @@ const CampusManagement = () => {
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-fc-midnight">
                 {editingCampus ? 'Edit Campus' : 'Add New Campus'}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-all"
+                className="p-2 hover:bg-fc-cream2 rounded-lg transition-all"
               >
-                <XMarkIcon className="w-6 h-6 text-white/60" />
+                <XMarkIcon className="w-6 h-6 text-fc-brown" />
               </button>
             </div>
 
@@ -439,7 +439,7 @@ const CampusManagement = () => {
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                     Campus Name *
                   </label>
                   <input
@@ -448,12 +448,12 @@ const CampusManagement = () => {
                     value={formData.name}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                     placeholder="Adelaide City"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                     Display Name *
                   </label>
                   <input
@@ -462,7 +462,7 @@ const CampusManagement = () => {
                     value={formData.display_name}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                     placeholder="Adelaide City"
                   />
                 </div>
@@ -470,7 +470,7 @@ const CampusManagement = () => {
 
               {/* Region */}
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">
+                <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                   Region *
                 </label>
                 <select
@@ -478,10 +478,10 @@ const CampusManagement = () => {
                   value={formData.region_id}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                 >
                   {regions.map(region => (
-                    <option key={region.id} value={region.id} className="bg-slate-800">
+                    <option key={region.id} value={region.id} className="bg-white">
                       {region.display_name} {region.coming_soon ? '(Coming Soon)' : ''}
                     </option>
                   ))}
@@ -491,7 +491,7 @@ const CampusManagement = () => {
               {/* Pastor Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                     Pastor Name
                   </label>
                   <input
@@ -499,12 +499,12 @@ const CampusManagement = () => {
                     name="pastor_name"
                     value={formData.pastor_name}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                     placeholder="Ps Andrew"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                     Pastor Email
                   </label>
                   <input
@@ -512,7 +512,7 @@ const CampusManagement = () => {
                     name="pastor_email"
                     value={formData.pastor_email}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                     placeholder="andrew@church.com"
                   />
                 </div>
@@ -520,7 +520,7 @@ const CampusManagement = () => {
 
               {/* Address */}
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">
+                <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                   Address
                 </label>
                 <input
@@ -528,14 +528,14 @@ const CampusManagement = () => {
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                   placeholder="123 Main Street"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                     City
                   </label>
                   <input
@@ -543,12 +543,12 @@ const CampusManagement = () => {
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                     placeholder="Adelaide"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                     State
                   </label>
                   <input
@@ -556,12 +556,12 @@ const CampusManagement = () => {
                     name="state"
                     value={formData.state}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                     placeholder="SA"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                     Postal Code
                   </label>
                   <input
@@ -569,39 +569,39 @@ const CampusManagement = () => {
                     name="postal_code"
                     value={formData.postal_code}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                     placeholder="5000"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">
+                <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                   Country
                 </label>
                 <select
                   name="country"
                   value={formData.country}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                 >
-                  <option value="" className="bg-slate-800">Select a country...</option>
-                  <option value="Australia" className="bg-slate-800">Australia</option>
-                  <option value="United States" className="bg-slate-800">United States</option>
-                  <option value="Brazil" className="bg-slate-800">Brazil</option>
-                  <option value="Indonesia" className="bg-slate-800">Indonesia</option>
-                  <option value="Canada" className="bg-slate-800">Canada</option>
-                  <option value="United Kingdom" className="bg-slate-800">United Kingdom</option>
-                  <option value="New Zealand" className="bg-slate-800">New Zealand</option>
-                  <option value="South Africa" className="bg-slate-800">South Africa</option>
-                  <option value="Singapore" className="bg-slate-800">Singapore</option>
-                  <option value="Philippines" className="bg-slate-800">Philippines</option>
+                  <option value="" className="bg-white">Select a country...</option>
+                  <option value="Australia" className="bg-white">Australia</option>
+                  <option value="United States" className="bg-white">United States</option>
+                  <option value="Brazil" className="bg-white">Brazil</option>
+                  <option value="Indonesia" className="bg-white">Indonesia</option>
+                  <option value="Canada" className="bg-white">Canada</option>
+                  <option value="United Kingdom" className="bg-white">United Kingdom</option>
+                  <option value="New Zealand" className="bg-white">New Zealand</option>
+                  <option value="South Africa" className="bg-white">South Africa</option>
+                  <option value="Singapore" className="bg-white">Singapore</option>
+                  <option value="Philippines" className="bg-white">Philippines</option>
                 </select>
               </div>
 
               {/* Service Times */}
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">
+                <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                   Service Times
                 </label>
                 <div className="space-y-2">
@@ -611,7 +611,7 @@ const CampusManagement = () => {
                         type="text"
                         value={time}
                         onChange={(e) => handleServiceTimeChange(index, e.target.value)}
-                        className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                        className="flex-1 px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                         placeholder="9:00 AM"
                       />
                       {formData.service_times.length > 1 && (
@@ -628,7 +628,7 @@ const CampusManagement = () => {
                   <button
                     type="button"
                     onClick={addServiceTime}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-fc-cream2 rounded-lg text-fc-brown transition-all"
                   >
                     <PlusIcon className="w-4 h-4" />
                     Add Service Time
@@ -638,7 +638,7 @@ const CampusManagement = () => {
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">
+                <label className="block text-sm font-medium text-fc-midnight/80 mb-2">
                   Notes
                 </label>
                 <textarea
@@ -646,7 +646,7 @@ const CampusManagement = () => {
                   value={formData.notes}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2 bg-white/5 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:border-fc-olive"
                   placeholder="Additional notes..."
                 />
               </div>
@@ -659,9 +659,9 @@ const CampusManagement = () => {
                   name="active"
                   checked={formData.active}
                   onChange={handleInputChange}
-                  className="w-4 h-4 rounded bg-white/5 border-white/10"
+                  className="w-4 h-4 rounded bg-white/5 border-fc-cream2"
                 />
-                <label htmlFor="active" className="text-sm font-medium text-white/80">
+                <label htmlFor="active" className="text-sm font-medium text-fc-midnight/80">
                   Campus is active
                 </label>
               </div>
@@ -671,13 +671,13 @@ const CampusManagement = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-6 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-white transition-all"
+                  className="px-6 py-2 bg-white/5 hover:bg-fc-cream2 rounded-lg text-fc-midnight transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:shadow-lg hover:shadow-purple-500/50 rounded-lg text-white font-semibold transition-all"
+                  className="px-6 py-2 bg-gradient-to-r from-fc-copper to-fc-copper hover:shadow-lg hover:shadow-card rounded-lg text-fc-midnight font-semibold transition-all"
                 >
                   {editingCampus ? 'Update Campus' : 'Create Campus'}
                 </button>

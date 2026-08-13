@@ -330,10 +330,10 @@ const RoleManager = () => {
   // Show loading while checking authorization
   if (session.loading || !authorized) {
     return (
-      <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-fc-cream p-6 flex items-center justify-center">
         <div className="text-center">
-          <ShieldCheckIcon className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-pulse" />
-          <div className="text-white text-xl">Checking authorization...</div>
+          <ShieldCheckIcon className="w-16 h-16 text-fc-copper mx-auto mb-4 animate-pulse" />
+          <div className="text-fc-midnight text-xl">Checking authorization...</div>
         </div>
       </div>
     );
@@ -341,24 +341,24 @@ const RoleManager = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
-        <div className="text-white text-xl">Loading users and permissions...</div>
+      <div className="min-h-screen bg-fc-cream p-6 flex items-center justify-center">
+        <div className="text-fc-midnight text-xl">Loading users and permissions...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-4 sm:p-6">
+    <div className="min-h-screen bg-fc-cream p-4 sm:p-6">
       <div className="max-w-[95vw] sm:max-w-[98vw] mx-auto overflow-x-hidden">
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 flex items-center">
-                <ShieldCheckIcon className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 mr-2 sm:mr-3 text-blue-500" />
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-fc-midnight mb-2 flex items-center">
+                <ShieldCheckIcon className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 mr-2 sm:mr-3 text-fc-copper" />
                 Role Manager
               </h1>
-              <p className="text-slate-400 text-sm sm:text-base">
+              <p className="text-fc-brown/70 text-sm sm:text-base">
                 Grant or revoke features per user. Every toggle saves an explicit override on top of the user's role defaults.
               </p>
             </div>
@@ -366,7 +366,7 @@ const RoleManager = () => {
               {hasChanges && (
                 <button
                   onClick={resetChanges}
-                  className="flex items-center px-3 sm:px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors text-sm sm:text-base"
+                  className="flex items-center px-3 sm:px-4 py-2 bg-fc-cream2 hover:bg-fc-cream2 text-fc-midnight rounded-lg transition-colors text-sm sm:text-base"
                 >
                   <ArrowPathIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                   Reset
@@ -377,8 +377,8 @@ const RoleManager = () => {
                 disabled={!hasChanges || saving}
                 className={`flex items-center px-4 sm:px-6 py-2 rounded-lg transition-colors text-sm sm:text-base ${
                   hasChanges && !saving
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                    ? 'bg-fc-copper hover:brightness-95 text-fc-midnight'
+                    : 'bg-fc-cream2 text-fc-brown/70 cursor-not-allowed'
                 }`}
               >
                 {saving ? 'Saving...' : 'Save Changes'}
@@ -387,9 +387,9 @@ const RoleManager = () => {
           </div>
 
           {/* Bulk Operations */}
-          <div className="mb-4 p-4 bg-slate-800/50 border border-slate-700/50 rounded-lg">
+          <div className="mb-4 p-4 bg-white border border-fc-cream2 rounded-lg">
             <div className="flex items-center gap-4 flex-wrap">
-              <span className="text-slate-300 text-sm font-medium">Bulk Operations:</span>
+              <span className="text-fc-brown text-sm font-medium">Bulk Operations:</span>
               <select
                 onChange={(e) => {
                   const role = e.target.value;
@@ -403,7 +403,7 @@ const RoleManager = () => {
                   }
                   e.target.value = '';
                 }}
-                className="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                className="px-3 py-1.5 bg-fc-cream2 border border-fc-cream2 rounded text-fc-midnight text-sm"
               >
                 <option value="">Grant all features for role...</option>
                 {[...new Set(users.map(u => u.role))].map(role => (
@@ -423,7 +423,7 @@ const RoleManager = () => {
                   }
                   e.target.value = '';
                 }}
-                className="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                className="px-3 py-1.5 bg-fc-cream2 border border-fc-cream2 rounded text-fc-midnight text-sm"
               >
                 <option value="">Revoke all features for role...</option>
                 {[...new Set(users.map(u => u.role))].map(role => (
@@ -435,13 +435,13 @@ const RoleManager = () => {
 
           {/* Search */}
           <div className="relative max-w-md">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-fc-brown/70" />
             <input
               type="text"
               placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-fc-cream2 rounded-lg text-fc-midnight placeholder-fc-brown/50 focus:outline-none focus:border-fc-copper"
             />
           </div>
         </div>
@@ -459,16 +459,16 @@ const RoleManager = () => {
         )}
 
         {/* Important Info Box */}
-        <div className="mb-6 p-5 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl">
+        <div className="mb-6 p-5 bg-fc-wash-butter border border-fc-olive/30 rounded-xl">
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <ShieldCheckIcon className="w-7 h-7 text-blue-400" />
+              <div className="w-12 h-12 rounded-xl bg-fc-olive/15 flex items-center justify-center">
+                <ShieldCheckIcon className="w-7 h-7 text-fc-copper" />
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-white mb-2">How the Role Manager Works</h3>
-              <div className="space-y-2 text-sm text-slate-300">
+              <h3 className="text-lg font-semibold text-fc-midnight mb-2">How the Role Manager Works</h3>
+              <div className="space-y-2 text-sm text-fc-brown">
                 <p>• <strong>Em-dash (—)</strong>: no override — the user gets their role's default for that feature</p>
                 <p>• <strong>Click a cell</strong> to set an explicit grant (✓), click again for an explicit deny (✗)</p>
                 <p>• <strong>Blue dot</strong> marks an explicit override. Overrides always win over role defaults</p>
@@ -480,25 +480,25 @@ const RoleManager = () => {
         </div>
 
         {/* Mobile Scroll Hint */}
-        <div className="lg:hidden mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-center">
-          <p className="text-sm text-blue-300">
+        <div className="lg:hidden mb-4 p-3 bg-fc-copper/10 border border-fc-olive/30 rounded-lg text-center">
+          <p className="text-sm text-fc-copper">
             👆 <strong>Swipe left/right</strong> to see all permission columns
           </p>
         </div>
 
         {/* Permission Matrix */}
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+        <div className="bg-white border border-fc-cream2 rounded-xl overflow-hidden shadow-card">
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-fc-thistle scrollbar-track-fc-cream2">
             <table className="w-full">
-              <thead className="bg-slate-700/50 sticky top-0 z-10">
+              <thead className="bg-fc-cream2 sticky top-0 z-10">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 sticky left-0 bg-slate-700/50 z-20 min-w-[200px]">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-fc-brown/70 sticky left-0 bg-fc-cream2 z-20 min-w-[200px]">
                     Name / Username / Role
                   </th>
                   {FEATURES.map(feature => (
                     <th
                       key={feature.key}
-                      className="px-2 py-3 text-center text-xs font-semibold text-slate-400 min-w-[100px]"
+                      className="px-2 py-3 text-center text-xs font-semibold text-fc-brown/70 min-w-[100px]"
                       title={feature.description}
                     >
                       <div className="flex flex-col items-center gap-1">
@@ -507,33 +507,33 @@ const RoleManager = () => {
                       </div>
                     </th>
                   ))}
-                  <th className="px-2 py-3 text-center text-xs font-semibold text-slate-400 min-w-[100px]">
+                  <th className="px-2 py-3 text-center text-xs font-semibold text-fc-brown/70 min-w-[100px]">
                     Reset
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700/50">
+              <tbody className="divide-y divide-fc-cream2">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={FEATURES.length + 2} className="px-6 py-12 text-center text-slate-400">
+                    <td colSpan={FEATURES.length + 2} className="px-6 py-12 text-center text-fc-brown/70">
                       {searchTerm ? 'No users found matching your search' : 'No users found'}
                     </td>
                   </tr>
                 ) : (
                   filteredUsers.map((user) => (
                     <React.Fragment key={user.id}>
-                      <tr className="hover:bg-slate-700/30 transition-colors">
-                        <td className="px-4 py-4 sticky left-0 bg-slate-800/95 z-10 min-w-[200px]">
+                      <tr className="hover:bg-fc-cream2/30 transition-colors">
+                        <td className="px-4 py-4 sticky left-0 bg-white/95 z-10 min-w-[200px]">
                           <div className="flex flex-col">
-                            <div className="text-white font-medium">{user.full_name || user.username}</div>
-                            <div className="text-slate-400 text-sm">{user.username}</div>
-                          <div className="text-slate-500 text-xs mt-1 flex items-center gap-2 flex-wrap">
-                            <span className="inline-flex px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                            <div className="text-fc-midnight font-medium">{user.full_name || user.username}</div>
+                            <div className="text-fc-brown/70 text-sm">{user.username}</div>
+                          <div className="text-fc-brown/60 text-xs mt-1 flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex px-2 py-0.5 rounded text-xs bg-fc-olive/15 text-fc-copper border border-fc-olive/30">
                               {user.role}
                             </span>
                             <button
                               onClick={() => toggleCampusSelection(user.id)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-purple-500/20 text-purple-300 border border-purple-500/50 hover:bg-purple-500/30 hover:border-purple-400/70 transition-colors shadow-sm"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-fc-violet/15 text-fc-violet border border-fc-olive/50 hover:bg-fc-violet/25 hover:border-fc-violet/50 transition-colors shadow-sm"
                               title="Manage campus access - Click to select which campuses this user can view"
                             >
                               <MapPinIcon className="w-3.5 h-3.5" />
@@ -560,7 +560,7 @@ const RoleManager = () => {
                                       ? 'bg-green-500/20 text-green-400 border-2 border-green-500/50 hover:bg-green-500/30'
                                       : override === false
                                         ? 'bg-red-500/10 text-red-400 border-2 border-red-500/40 hover:bg-red-500/20'
-                                        : 'bg-slate-700/50 text-slate-500 border-2 border-slate-600 hover:bg-slate-700/70'
+                                        : 'bg-fc-cream2 text-fc-brown/60 border-2 border-fc-cream2 hover:bg-fc-cream2'
                                   }`}
                                   title={
                                     isCustom
@@ -576,11 +576,11 @@ const RoleManager = () => {
                                     <span className="text-lg leading-none">—</span>
                                   )}
                                   {isCustom && (
-                                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-slate-800" title="Explicit override"></span>
+                                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-fc-copper rounded-full border-2 border-white" title="Explicit override"></span>
                                   )}
                                 </button>
                                 {!isCustom && (
-                                  <span className="text-[8px] text-slate-500" title="No override — backend applies this user's role default">
+                                  <span className="text-[8px] text-fc-brown/60" title="No override — backend applies this user's role default">
                                     role default
                                   </span>
                                 )}
@@ -594,8 +594,8 @@ const RoleManager = () => {
                             disabled={!hasFeatureOverrides(user.id)}
                             className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
                               hasFeatureOverrides(user.id)
-                                ? 'bg-slate-700 text-slate-200 border-slate-500 hover:bg-slate-600'
-                                : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed'
+                                ? 'bg-fc-cream2 text-fc-brown border-fc-cream2 hover:bg-fc-cream2'
+                                : 'bg-white text-fc-brown border-fc-cream2 cursor-not-allowed'
                             }`}
                             title="Remove every feature override so this user gets pure role defaults. Campus access restrictions are preserved. Remember to Save."
                           >
@@ -605,16 +605,16 @@ const RoleManager = () => {
                       </tr>
                       {/* Campus and Region Selection Row */}
                       {expandedUsers[user.id] && (
-                        <tr key={`${user.id}-campuses`} className="bg-slate-750/30">
+                        <tr key={`${user.id}-campuses`} className="bg-fc-cream">
                           <td colSpan={FEATURES.length + 2} className="px-3 sm:px-4 py-4">
                             <div className="space-y-4 sm:space-y-5">
                               {/* Region Selection - responsive card */}
-                              <div className="bg-slate-800/80 border border-slate-700/50 rounded-xl p-4 sm:p-5">
+                              <div className="bg-white/80 border border-fc-cream2 rounded-xl p-4 sm:p-5">
                                 <div className="flex items-center gap-2 mb-2 sm:mb-3">
                                   <span className="text-xl" aria-hidden>🌍</span>
-                                  <h3 className="text-white font-medium text-base sm:text-lg">Region for {user.full_name || user.username}</h3>
+                                  <h3 className="text-fc-midnight font-medium text-base sm:text-lg">Region for {user.full_name || user.username}</h3>
                                 </div>
-                                <p className="text-slate-400 text-xs sm:text-sm mb-3 sm:mb-4">
+                                <p className="text-fc-brown/70 text-xs sm:text-sm mb-3 sm:mb-4">
                                   Select which region this user belongs to. This determines which regional data and campuses they can access.
                                 </p>
                                 {regions.length === 0 ? (
@@ -659,8 +659,8 @@ const RoleManager = () => {
                                           }}
                                           className={`min-h-[44px] sm:min-h-0 px-4 py-3 sm:py-2 rounded-xl border-2 transition-all cursor-pointer touch-manipulation ${
                                             isSelected
-                                              ? 'bg-blue-500/20 text-blue-400 border-blue-500/50 ring-2 ring-blue-400/30'
-                                              : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-slate-700/70 hover:border-blue-400/30 active:scale-[0.98]'
+                                              ? 'bg-fc-olive/15 text-fc-copper border-fc-copper/50 ring-2 ring-blue-400/30'
+                                              : 'bg-fc-cream2 text-fc-brown/70 border-fc-cream2 hover:bg-fc-cream2 hover:border-blue-400/30 active:scale-[0.98]'
                                           }`}
                                           title={isSelected ? `Current region: ${region.name}` : `Click to change to ${region.name}`}
                                         >
@@ -673,18 +673,18 @@ const RoleManager = () => {
                                     })}
                                   </div>
                                 )}
-                                <p className="mt-3 text-xs text-slate-400">
-                                  <span className="text-blue-400">💡</span> Tap a region to assign the user. Affects regional data and campus list below.
+                                <p className="mt-3 text-xs text-fc-brown/70">
+                                  <span className="text-fc-copper">💡</span> Tap a region to assign the user. Affects regional data and campus list below.
                                 </p>
                               </div>
 
                               {/* Campus Selection - responsive, filter by user region on small screens */}
-                              <div className="bg-slate-800/80 border border-slate-700/50 rounded-xl p-4 sm:p-5">
+                              <div className="bg-white/80 border border-fc-cream2 rounded-xl p-4 sm:p-5">
                                 <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                                  <MapPinIcon className="w-5 h-5 text-purple-400 flex-shrink-0" />
-                                  <h3 className="text-white font-medium text-base sm:text-lg">Campus Access for {user.full_name || user.username}</h3>
+                                  <MapPinIcon className="w-5 h-5 text-fc-violet flex-shrink-0" />
+                                  <h3 className="text-fc-midnight font-medium text-base sm:text-lg">Campus Access for {user.full_name || user.username}</h3>
                                 </div>
-                                <p className="text-slate-400 text-xs sm:text-sm mb-3 sm:mb-4">
+                                <p className="text-fc-brown/70 text-xs sm:text-sm mb-3 sm:mb-4">
                                   Select which campuses this user can view and edit. Leave all unchecked to allow all campuses.
                                 </p>
                                 {campuses.length === 0 ? (
@@ -715,7 +715,7 @@ const RoleManager = () => {
                                                 className={`min-h-[44px] sm:min-h-0 px-4 py-3 sm:py-2 rounded-xl border-2 transition-all touch-manipulation ${
                                                   isAllowed
                                                     ? 'bg-green-500/20 text-green-400 border-green-500/50 hover:bg-green-500/30 active:scale-[0.98]'
-                                                    : 'bg-slate-700/50 text-slate-400 border-slate-600 hover:bg-slate-700/70 active:scale-[0.98]'
+                                                    : 'bg-fc-cream2 text-fc-brown/70 border-fc-cream2 hover:bg-fc-cream2 active:scale-[0.98]'
                                                 }`}
                                               >
                                                 <div className="flex items-center justify-center gap-2">
@@ -726,7 +726,7 @@ const RoleManager = () => {
                                             );
                                           })}
                                           {hasFilter && (
-                                            <p className="w-full text-xs text-slate-500 mt-1">
+                                            <p className="w-full text-xs text-fc-brown/60 mt-1">
                                               Showing campuses for {user.region_code || 'selected region'} only.
                                             </p>
                                           )}
@@ -741,7 +741,7 @@ const RoleManager = () => {
                                                   return newPerms;
                                                 });
                                               }}
-                                              className="min-h-[44px] sm:min-h-0 px-4 py-3 sm:py-2 rounded-xl border-2 border-blue-500/50 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all touch-manipulation"
+                                              className="min-h-[44px] sm:min-h-0 px-4 py-3 sm:py-2 rounded-xl border-2 border-fc-copper/50 bg-fc-olive/15 text-fc-copper hover:bg-fc-copper/30 transition-all touch-manipulation"
                                             >
                                               Clear restrictions (allow all)
                                             </button>
@@ -752,8 +752,8 @@ const RoleManager = () => {
                                   </>
                                 )}
                                 {getAllowedCampuses(user.id) !== null && (
-                                  <p className="mt-3 text-xs text-slate-400">
-                                    <span className="text-purple-400">⚠️</span> Campus restriction active: user can only view/edit selected campuses.
+                                  <p className="mt-3 text-xs text-fc-brown/70">
+                                    <span className="text-fc-violet">⚠️</span> Campus restriction active: user can only view/edit selected campuses.
                                   </p>
                                 )}
                               </div>
@@ -770,27 +770,27 @@ const RoleManager = () => {
         </div>
 
         {/* Legend */}
-        <div className="mt-6 p-4 bg-slate-800/50 border border-slate-700/50 rounded-lg">
+        <div className="mt-6 p-4 bg-white border border-fc-cream2 rounded-lg">
           <div className="flex items-center gap-6 text-sm flex-wrap">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-green-500/20 border-2 border-green-500/50 flex items-center justify-center">
                 <CheckIcon className="w-5 h-5 text-green-400" />
               </div>
-              <span className="text-slate-300">Explicit grant</span>
+              <span className="text-fc-brown">Explicit grant</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-red-500/10 border-2 border-red-500/40 flex items-center justify-center">
                 <XMarkIcon className="w-5 h-5 text-red-400" />
               </div>
-              <span className="text-slate-300">Explicit deny</span>
+              <span className="text-fc-brown">Explicit deny</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-slate-700/50 border-2 border-slate-600 flex items-center justify-center">
-                <span className="text-slate-500">—</span>
+              <div className="w-8 h-8 rounded-lg bg-fc-cream2 border-2 border-fc-cream2 flex items-center justify-center">
+                <span className="text-fc-brown/60">—</span>
               </div>
-              <span className="text-slate-300">Role default (no override)</span>
+              <span className="text-fc-brown">Role default (no override)</span>
             </div>
-            <div className="text-slate-400 text-xs ml-auto">
+            <div className="text-fc-brown/70 text-xs ml-auto">
               💡 Overrides are always saved explicitly. Use "Clear overrides" to return a user to role defaults.
             </div>
           </div>

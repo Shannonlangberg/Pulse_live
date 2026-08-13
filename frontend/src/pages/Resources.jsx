@@ -1,7 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-
-const gradientBackground = 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900';
+import {
+  FolderIcon,
+  DocumentTextIcon,
+  DocumentIcon,
+  TableCellsIcon,
+  ChevronRightIcon,
+  ArrowUpRightIcon,
+  ArrowPathIcon,
+  CheckCircleIcon,
+  LinkIcon,
+} from '@heroicons/react/24/outline';
 
 const loadingStates = {
   categories: 'Loading resource categories...',
@@ -10,22 +19,20 @@ const loadingStates = {
 
 const formatModifiedTime = (value) => {
   if (!value) {
-    return 'Last updated: Unknown';
+    return 'Unknown';
   }
   try {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
-      return 'Last updated: Unknown';
+      return 'Unknown';
     }
-    return `Last updated: ${new Intl.DateTimeFormat('en-AU', {
+    return new Intl.DateTimeFormat('en-AU', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date)}`;
+    }).format(date);
   } catch (error) {
-    return 'Last updated: Unknown';
+    return 'Unknown';
   }
 };
 
@@ -70,6 +77,19 @@ const normalizeLinks = (value) => {
     });
 };
 
+// Pick a document icon based on mime type / name — nearest heroicons match.
+const getDocIcon = (file) => {
+  const mime = (file.mimeType || '').toLowerCase();
+  const name = (file.displayName || file.name || '').toLowerCase();
+  if (mime.includes('spreadsheet') || name.endsWith('.csv') || name.endsWith('.xlsx')) {
+    return TableCellsIcon;
+  }
+  if (mime.includes('document') || mime.includes('pdf') || name.endsWith('.pdf') || name.endsWith('.doc') || name.endsWith('.docx')) {
+    return DocumentTextIcon;
+  }
+  return DocumentIcon;
+};
+
 const Resources = () => {
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -82,7 +102,7 @@ const Resources = () => {
   const [filesError, setFilesError] = useState('');
   const [authRequired, setAuthRequired] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
-  
+
   // Folder navigation state
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [folderBreadcrumb, setFolderBreadcrumb] = useState([]);
@@ -155,16 +175,16 @@ const Resources = () => {
       }
 
       try {
-        const url = folderId 
+        const url = folderId
           ? `/api/resources/${encodeURIComponent(categoryId)}/folder/${encodeURIComponent(folderId)}`
           : `/api/resources/${encodeURIComponent(categoryId)}`;
-        
+
         const response = await fetch(url, {
           credentials: 'include',
         });
 
         const payload = await response.json().catch(() => ({}));
-        
+
         // Debug logging
         console.log('Resources API Response:', {
           status: response.status,
@@ -176,7 +196,7 @@ const Resources = () => {
           driveError: payload.drive_error,
           hasFolderId: payload.has_folder_id,
           hasAccessToken: payload.has_access_token,
-          folderId: payload.folder_id,
+          responseFolderId: payload.folder_id,
           files: payload.files,
           links: payload.links
         });
@@ -187,13 +207,13 @@ const Resources = () => {
           setFilesError('Please sign in to view resources.');
           return;
         }
-        
+
         // Check if we need Google Drive authentication
         if (payload.drive_auth_needed) {
           console.warn('Google Drive authentication needed:', payload.drive_error);
           setAuthRequired(true);
         }
-        
+
         // Show drive error in UI if present
         if (payload.drive_error && !payload.drive_auth_needed) {
           console.error('Drive error:', payload.drive_error);
@@ -209,12 +229,12 @@ const Resources = () => {
         items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         console.log('Setting files:', items.length, 'files');
         setFiles(items);
-        
+
         // Only update links when at root level
         if (!folderId) {
           setLinks(normalizeLinks(payload.links));
         }
-        
+
         // Only clear auth required if we got files or if no folder is configured
         if (!payload.drive_auth_needed) {
           setAuthRequired(false);
@@ -304,12 +324,12 @@ const Resources = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const oauthSuccess = urlParams.get('oauth_success');
     const oauthSuccessStorage = sessionStorage.getItem('google_oauth_success');
-    
+
     if (oauthSuccess || oauthSuccessStorage) {
       // Clean up
       sessionStorage.removeItem('google_oauth_success');
       window.history.replaceState({}, '', '/resources');
-      
+
       setAuthRequired(false);
       if (selectedCategoryId) {
         fetchFiles(selectedCategoryId);
@@ -317,33 +337,25 @@ const Resources = () => {
     }
   }, [selectedCategoryId, fetchFiles]);
 
-  const renderCategoryCards = () => {
+  const renderCategoryPills = () => {
     if (categoriesLoading) {
-      return (
-        <div className="text-white/60 text-lg">
-          {loadingStates.categories}
-        </div>
-      );
+      return <div className="text-fc-brown text-sm">{loadingStates.categories}</div>;
     }
 
     if (categoriesError) {
       return (
-        <div className="text-red-300 bg-red-900/20 border border-red-500/40 rounded-2xl px-6 py-4">
+        <div className="text-fc-copper bg-fc-wash-peach border border-fc-wash-peach-border rounded-xl px-4 py-3 text-sm">
           {categoriesError}
         </div>
       );
     }
 
     if (categories.length === 0) {
-      return (
-        <div className="text-white/60 text-lg">
-          No resource categories configured yet.
-        </div>
-      );
+      return <div className="text-fc-brown text-sm">No resource categories configured yet.</div>;
     }
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="flex flex-wrap gap-2 mb-6">
         {categories.map((category) => {
           const isActive = category.id === selectedCategoryId;
           return (
@@ -351,38 +363,13 @@ const Resources = () => {
               key={category.id}
               type="button"
               onClick={() => setSelectedCategoryId(category.id)}
-              className={`
-                group relative text-left bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10
-                backdrop-blur-sm rounded-2xl p-6 border transition-all duration-300
-                ${isActive ? 'border-blue-400/60 shadow-2xl shadow-blue-500/20 scale-[1.02]' : 'border-white/5 hover:border-blue-400/30 hover:scale-105'}
-              `}
+              className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                isActive
+                  ? 'bg-fc-olive/10 border-fc-olive/40 text-fc-midnight'
+                  : 'bg-white border-fc-cream2 text-fc-brown hover:border-fc-olive/30'
+              }`}
             >
-              <div className="absolute inset-0 rounded-2xl bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className={`
-                    w-12 h-12 rounded-xl flex items-center justify-center
-                    ${isActive ? 'bg-blue-500/30 text-white' : 'bg-white/10 text-white/80'}
-                  `}>
-                    <span className="text-2xl">📁</span>
-                  </div>
-                  {isActive && (
-                    <span className="text-blue-300 text-sm font-semibold">
-                      Selected
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-white text-lg font-semibold tracking-tight">
-                    {category.displayName || category.name}
-                  </h3>
-                  {category.description && (
-                    <p className="text-white/60 text-sm mt-2 leading-relaxed">
-                      {category.description}
-                    </p>
-                  )}
-                </div>
-              </div>
+              {category.displayName || category.name}
             </button>
           );
         })}
@@ -390,10 +377,59 @@ const Resources = () => {
     );
   };
 
-  const renderFilesPanel = () => {
+  const renderQuickLinks = () => (
+    <div className="bg-fc-wash-sky border border-fc-wash-sky-border rounded-xl p-5">
+      <div className="fc-label mb-3">Quick links</div>
+      <div className="flex flex-col">
+        {links.map((link) => (
+          <a
+            key={link.id}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between gap-3 py-2.5 border-b border-fc-brown/10 last:border-b-0 text-sm text-fc-midnight hover:text-fc-copper transition-colors"
+          >
+            <span className="min-w-0 truncate">{link.label}</span>
+            <ArrowUpRightIcon className="w-3.5 h-3.5 flex-shrink-0" />
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderBreadcrumb = () => {
+    if (folderBreadcrumb.length === 0) return null;
+    return (
+      <div className="flex items-center flex-wrap gap-2 text-sm px-6 py-3 border-b border-fc-cream2 bg-fc-cream">
+        <button
+          onClick={() => handleBreadcrumbClick(-1)}
+          className="text-fc-copper hover:underline font-medium"
+        >
+          {selectedCategory.displayName || selectedCategory.name}
+        </button>
+        {folderBreadcrumb.map((crumb, index) => (
+          <div key={crumb.id} className="flex items-center gap-2">
+            <span className="text-fc-thistle">/</span>
+            {index === folderBreadcrumb.length - 1 ? (
+              <span className="text-fc-midnight font-medium">{crumb.name}</span>
+            ) : (
+              <button
+                onClick={() => handleBreadcrumbClick(index)}
+                className="text-fc-copper hover:underline font-medium"
+              >
+                {crumb.name}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderMainContent = () => {
     if (!selectedCategory) {
       return (
-        <div className="bg-white/10 border border-white/10 rounded-3xl p-8 text-white/60">
+        <div className="fc-card p-8 text-fc-brown text-sm">
           Choose a category to view available resources.
         </div>
       );
@@ -401,9 +437,9 @@ const Resources = () => {
 
     if (filesLoading) {
       return (
-        <div className="bg-white/10 border border-white/10 rounded-3xl p-10 flex flex-col items-center justify-center gap-4 text-white/70">
-          <div className="w-16 h-16 border-4 border-white/10 border-t-blue-400 rounded-full animate-spin" />
-          <div className="text-lg">{loadingStates.files}</div>
+        <div className="fc-card p-10 flex flex-col items-center justify-center gap-4 text-fc-brown">
+          <div className="w-10 h-10 border-2 border-fc-cream2 border-t-fc-olive rounded-full animate-spin" />
+          <div className="text-sm">{loadingStates.files}</div>
         </div>
       );
     }
@@ -411,153 +447,17 @@ const Resources = () => {
     const hasQuickLinks = links.length > 0;
     const hasDriveFiles = files.length > 0;
 
-    const renderQuickLinks = () => (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-            <span className="text-2xl">🔗</span>
-          </div>
-          <div>
-            <h4 className="text-white text-lg font-semibold">Quick Links</h4>
-            <p className="text-white/40 text-xs">Helpful shortcuts and forms</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {links.map((link) => (
-            <a
-              key={link.id}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-purple-500/10 border border-purple-500/20 hover:border-purple-400/50 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-500/10"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-400/0 via-purple-400/0 to-purple-400/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative flex flex-col gap-3">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center text-2xl shadow-lg">
-                    🔗
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-purple-50 font-semibold leading-tight group-hover:text-purple-100 transition-colors duration-300">
-                      {link.label}
-                    </h4>
-                    {link.description && (
-                      <p className="text-purple-200/40 text-xs mt-2 leading-snug line-clamp-2">
-                        {link.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </a>
-          ))}
-        </div>
-      </div>
-    );
-
-    const renderDriveFiles = () => {
-      // Separate folders and files
-      const folders = files.filter(f => f.mimeType && f.mimeType.includes('folder'));
-      const documents = files.filter(f => !f.mimeType || !f.mimeType.includes('folder'));
-      
-      return (
-        <div className="space-y-8">
-          {folders.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-                  <span className="text-2xl">📁</span>
-                </div>
-                <div>
-                  <h4 className="text-white text-lg font-semibold">Folders</h4>
-                  <p className="text-white/40 text-xs">{folders.length} folder{folders.length !== 1 ? 's' : ''}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {folders.map((file) => (
-                  <button
-                    key={file.id}
-                    onClick={() => handleFolderClick(file)}
-                    className="group relative bg-gradient-to-br from-yellow-500/10 via-orange-500/5 to-yellow-500/10 border border-yellow-500/20 hover:border-yellow-400/50 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-yellow-500/10 text-left w-full"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/0 via-yellow-400/0 to-yellow-400/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <div className="relative flex flex-col gap-3">
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500/30 to-orange-500/30 flex items-center justify-center text-2xl shadow-lg">
-                          📁
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-yellow-50 font-semibold leading-tight group-hover:text-yellow-100 transition-colors duration-300">
-                            {file.displayName || file.name}
-                          </h4>
-                        </div>
-                      </div>
-                      <div className="text-white/30 text-xs border-t border-yellow-500/10 pt-2">
-                        {formatModifiedTime(file.modifiedTime)}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {documents.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                  <span className="text-2xl">📄</span>
-                </div>
-                <div>
-                  <h4 className="text-white text-lg font-semibold">Documents</h4>
-                  <p className="text-white/40 text-xs">{documents.length} document{documents.length !== 1 ? 's' : ''}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {documents.map((file) => (
-                  <a
-                    key={file.id}
-                    href={file.webViewLink || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group relative bg-gradient-to-br from-slate-800/90 via-slate-800/70 to-slate-900/90 border border-white/5 hover:border-blue-400/50 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/10"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-400/0 via-blue-400/0 to-blue-400/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <div className="relative flex flex-col gap-3">
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center text-2xl shadow-lg">
-                          📄
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-white font-semibold leading-tight group-hover:text-blue-200 transition-colors duration-300">
-                            {file.displayName || file.name}
-                          </h4>
-                        </div>
-                      </div>
-                      <div className="text-white/30 text-xs border-t border-white/5 pt-2">
-                        {formatModifiedTime(file.modifiedTime)}
-                      </div>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    };
-
     // Show Google Drive auth prompt if needed and no files available
     if (authRequired && files.length === 0) {
       return (
-        <div className="bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 border border-blue-400/30 rounded-3xl p-10 space-y-6">
-          <div className="text-center space-y-6">
-            <div className="mx-auto w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center text-3xl">
-              🔐
+        <div className="space-y-6">
+          <div className="fc-card p-8 text-center space-y-5">
+            <div className="mx-auto w-12 h-12 rounded-full bg-fc-wash-sky flex items-center justify-center">
+              <LinkIcon className="w-5 h-5 text-fc-teal" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-white text-2xl font-semibold">Connect Google Drive</h3>
-              <p className="text-white/70 max-w-xl mx-auto">
+              <h3 className="fc-display fc-display-sm">Connect Google Drive</h3>
+              <p className="text-fc-brown text-sm max-w-md mx-auto leading-relaxed">
                 Authorise Futures PULSE to access your Google Drive resources so we can display the files shared with your team.
                 We only request read-only access to the folders configured for these categories.
               </p>
@@ -566,33 +466,26 @@ const Resources = () => {
               type="button"
               onClick={handleAuthorize}
               disabled={isLinking}
-              className={`
-                inline-flex items-center gap-3 px-6 py-3 rounded-2xl font-semibold transition-all duration-300
-                ${isLinking ? 'bg-blue-500/40 text-white/70 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-500/90 hover:to-purple-500/90 hover:scale-105'}
-              `}
+              className="fc-btn-primary"
             >
-              <span className="text-xl">🔗</span>
+              <LinkIcon className="w-4 h-4" />
               {isLinking ? 'Opening Google...' : 'Connect with Google'}
             </button>
             {filesError && (
-              <div className="text-red-300 bg-red-900/30 border border-red-500/40 rounded-2xl px-4 py-2">
+              <div className="text-fc-copper bg-fc-wash-peach border border-fc-wash-peach-border rounded-xl px-4 py-2 text-sm inline-block">
                 {filesError}
               </div>
             )}
           </div>
 
-          {hasQuickLinks && (
-            <div className="border-t border-white/10 pt-6">
-              {renderQuickLinks()}
-            </div>
-          )}
+          {hasQuickLinks && renderQuickLinks()}
         </div>
       );
     }
 
     if (filesError) {
       return (
-        <div className="bg-red-900/20 border border-red-500/40 rounded-3xl p-8 text-red-200">
+        <div className="fc-card p-8 text-fc-copper bg-fc-wash-peach border border-fc-wash-peach-border text-sm">
           {filesError}
         </div>
       );
@@ -600,155 +493,154 @@ const Resources = () => {
 
     if (!hasQuickLinks && !hasDriveFiles) {
       return (
-        <div className="bg-white/10 border border-white/10 rounded-3xl p-8 text-white/60">
+        <div className="fc-card p-8 text-fc-brown text-sm">
           No files found in this folder yet. Once files are added to the mapped Google Drive folder they will appear here automatically.
         </div>
       );
     }
 
+    const folders = files.filter(f => f.mimeType && f.mimeType.includes('folder'));
+    const documents = files.filter(f => !f.mimeType || !f.mimeType.includes('folder'));
+
     return (
-      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-6 md:p-8 space-y-8 shadow-2xl">
-        <div className="flex flex-col gap-4 pb-6 border-b border-white/10">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              {folderBreadcrumb.length > 0 && (
-                <button
-                  onClick={() => handleBreadcrumbClick(folderBreadcrumb.length - 2)}
-                  className="p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-blue-200 transition-all duration-300 shadow-lg hover:shadow-xl group"
-                  title="Go back"
-                >
-                  <svg className="w-6 h-6 transform group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-              )}
+      <div className="flex flex-col gap-5">
+        {folders.length > 0 && (
+          <div className="fc-card overflow-hidden">
+            <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-4">
               <div>
-                <h3 className="text-white text-2xl font-bold">
-                  {selectedCategory.displayName || selectedCategory.name} Resources
-                </h3>
-                <p className="text-white/50 text-sm mt-1">
-                  Files and folders from Google Drive
-                </p>
+                <div className="fc-label mb-1.5">Folders</div>
+                <h2 className="fc-display fc-display-sm">
+                  {selectedCategory.displayName || selectedCategory.name}
+                </h2>
               </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => fetchFiles(selectedCategory.id, currentFolderId)}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 rounded-xl transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
-            >
-              <span className="text-lg">⟳</span>
-              Refresh
-            </button>
-          </div>
-          
-          {folderBreadcrumb.length > 0 && (
-            <div className="flex items-center gap-2 text-sm bg-white/5 rounded-xl px-4 py-2.5 border border-white/10">
-              <span className="text-white/40">📍</span>
               <button
-                onClick={() => handleBreadcrumbClick(-1)}
-                className="text-blue-300 hover:text-blue-200 transition-colors font-medium hover:underline"
+                type="button"
+                onClick={() => fetchFiles(selectedCategory.id, currentFolderId)}
+                className="inline-flex items-center gap-1.5 text-fc-copper text-sm hover:underline flex-shrink-0"
               >
-                {selectedCategory.displayName || selectedCategory.name}
+                <ArrowPathIcon className="w-3.5 h-3.5" />
+                Refresh
               </button>
-              {folderBreadcrumb.map((crumb, index) => (
-                <div key={crumb.id} className="flex items-center gap-2">
-                  <span className="text-white/30">/</span>
-                  {index === folderBreadcrumb.length - 1 ? (
-                    <span className="text-white font-medium">{crumb.name}</span>
-                  ) : (
-                    <button
-                      onClick={() => handleBreadcrumbClick(index)}
-                      className="text-blue-300 hover:text-blue-200 transition-colors font-medium hover:underline"
-                    >
-                      {crumb.name}
-                    </button>
-                  )}
-                </div>
+            </div>
+            {renderBreadcrumb()}
+            <div className="px-6 pb-3">
+              {folders.map((file) => (
+                <button
+                  key={file.id}
+                  onClick={() => handleFolderClick(file)}
+                  className="w-full flex items-center gap-3 py-3 border-b border-fc-cream2 last:border-b-0 text-left"
+                >
+                  <FolderIcon className="w-4 h-4 text-fc-gold flex-shrink-0" />
+                  <span className="flex-1 min-w-0 truncate text-sm text-fc-midnight">
+                    {file.displayName || file.name}
+                  </span>
+                  <span className="text-xs text-fc-brown flex-shrink-0">
+                    {formatModifiedTime(file.modifiedTime)}
+                  </span>
+                  <ChevronRightIcon className="w-3.5 h-3.5 text-fc-thistle flex-shrink-0" />
+                </button>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {hasQuickLinks && currentFolderId === null && renderQuickLinks()}
-        {hasDriveFiles && renderDriveFiles()}
+        {documents.length > 0 && (
+          <div className="fc-card overflow-hidden">
+            <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-4">
+              <div className="fc-label">Documents</div>
+              {folders.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => fetchFiles(selectedCategory.id, currentFolderId)}
+                  className="inline-flex items-center gap-1.5 text-fc-copper text-sm hover:underline flex-shrink-0"
+                >
+                  <ArrowPathIcon className="w-3.5 h-3.5" />
+                  Refresh
+                </button>
+              )}
+            </div>
+            {folders.length === 0 && renderBreadcrumb()}
+            <div className="px-6 pb-3">
+              {documents.map((file) => {
+                const DocIcon = getDocIcon(file);
+                return (
+                  <a
+                    key={file.id}
+                    href={file.webViewLink || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 py-3 border-b border-fc-cream2 last:border-b-0"
+                  >
+                    <DocIcon className="w-4 h-4 text-fc-teal flex-shrink-0" />
+                    <span className="flex-1 min-w-0 truncate text-sm text-fc-midnight">
+                      {file.displayName || file.name}
+                    </span>
+                    <span className="text-xs text-fc-brown flex-shrink-0">
+                      {formatModifiedTime(file.modifiedTime)}
+                    </span>
+                    <ArrowUpRightIcon className="w-3.5 h-3.5 text-fc-thistle flex-shrink-0" />
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {hasQuickLinks && currentFolderId === null && (
+          <div className="lg:hidden">
+            {renderQuickLinks()}
+          </div>
+        )}
       </div>
     );
   };
 
   return (
-    <div className={`min-h-screen ${gradientBackground}`}>
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-pink-500/5 rounded-full blur-3xl animate-pulse delay-500" />
-      </div>
+    <div className="min-h-screen bg-fc-cream">
+      <div className="max-w-6xl mx-auto px-6 py-10">
+        <div className="mb-7">
+          <div className="fc-label mb-2.5">Shared library</div>
+          <Link to="/resources" className="block hover:opacity-80 transition-opacity">
+            <h1 className="fc-display fc-display-md mb-2">Resources</h1>
+          </Link>
+          <p className="text-sm text-fc-brown max-w-xl">
+            Everything the campus teams share, pulled straight from the Futures Drive.
+          </p>
+        </div>
 
-      <div className="relative">
-        <header className="bg-gradient-to-r from-blue-600/90 via-purple-600/90 to-pink-600/90 border-b border-white/10">
-          <div className="max-w-7xl mx-auto px-6 py-10">
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-              <div>
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-3xl">
-                    📚
-                  </div>
-                  <div>
-                    <Link to="/resources" className="block hover:opacity-80 transition-opacity">
-                      <h1 className="text-white text-3xl sm:text-4xl font-bold tracking-tight">
-                        Team Resources
-                      </h1>
-                    </Link>
-                    <p className="text-white/80 text-base sm:text-lg mt-2 max-w-2xl">
-                      A single home for Futures Church documents, templates, and media. Select a category to explore the files your team needs.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="text-white/70 text-sm">
-                {selectedCategory
-                  ? `Viewing ${selectedCategory.displayName || selectedCategory.name}`
-                  : 'Choose a category'}
+        {renderCategoryPills()}
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
+          <div className="min-w-0">
+            {renderMainContent()}
+          </div>
+
+          <div className="hidden lg:flex flex-col gap-5">
+            {links.length > 0 && currentFolderId === null && renderQuickLinks()}
+            <div className="fc-card p-5">
+              <div className="fc-label mb-2.5">Drive</div>
+              <p className="text-sm text-fc-brown leading-relaxed mb-3.5">
+                New files show up here on their own once they land in the mapped Drive folder.
+              </p>
+              <div className="flex items-center gap-2 text-sm text-fc-midnight">
+                {authRequired ? (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-fc-copper flex-shrink-0" />
+                    Not connected
+                  </>
+                ) : (
+                  <>
+                    <CheckCircleIcon className="w-4 h-4 text-fc-olive flex-shrink-0" />
+                    Connected
+                  </>
+                )}
               </div>
             </div>
           </div>
-        </header>
-
-        <main className="max-w-7xl mx-auto px-6 py-10 space-y-10">
-          <section className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-1 h-10 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full" />
-              <div>
-                <h2 className="text-white text-2xl font-semibold">
-                  Resource Categories
-                </h2>
-                <p className="text-white/60 text-sm">
-                  Curated folders organised by ministry area.
-                </p>
-              </div>
-            </div>
-            {renderCategoryCards()}
-          </section>
-
-          <section className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-1 h-10 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full" />
-              <div>
-                <h2 className="text-white text-2xl font-semibold">
-                  Files &amp; Documents
-                </h2>
-                <p className="text-white/60 text-sm">
-                  Direct links to the files stored in Google Drive.
-                </p>
-              </div>
-            </div>
-            {renderFilesPanel()}
-          </section>
-        </main>
+        </div>
       </div>
     </div>
   );
 };
 
 export default Resources;
-
-

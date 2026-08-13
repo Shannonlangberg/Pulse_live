@@ -73,19 +73,19 @@ const getLinkTypeIcon = (type) => {
 const getLinkTypeBadge = (type) => {
   switch (type) {
     case 'drive_folder':
-      return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
+      return 'bg-fc-wash-butter text-fc-brown border-fc-wash-butter-border';
     case 'drive_file':
-      return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+      return 'bg-fc-wash-sky text-fc-midnight border-fc-wash-sky-border';
     case 'google_form':
-      return 'bg-green-500/20 text-green-300 border-green-500/30';
+      return 'bg-fc-wash-mint text-fc-brown border-fc-wash-mint-border';
     case 'google_doc':
-      return 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+      return 'bg-fc-wash-violet text-fc-midnight border-fc-thistle';
     case 'pdf':
-      return 'bg-red-500/20 text-red-300 border-red-500/30';
+      return 'bg-fc-wash-peach text-fc-copper border-fc-wash-peach-border';
     case 'dropbox':
-      return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
+      return 'bg-fc-wash-sky text-fc-midnight border-fc-wash-sky-border';
     default:
-      return 'bg-slate-500/20 text-slate-300 border-slate-500/30';
+      return 'bg-fc-cream2 text-fc-brown border-fc-cream2';
   }
 };
 
@@ -496,23 +496,23 @@ const ResourceManager = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
-        <div className="text-white text-xl">Loading resource categories...</div>
+      <div className="min-h-screen bg-fc-cream p-6 flex items-center justify-center">
+        <div className="text-fc-brown text-lg">Loading resource categories...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-6">
+    <div className="min-h-screen bg-fc-cream p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center">
-              <BookOpenIcon className="w-8 h-8 text-blue-300" />
+            <div className="w-14 h-14 rounded-2xl bg-fc-wash-sky flex items-center justify-center">
+              <BookOpenIcon className="w-8 h-8 text-fc-teal" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">Resource Manager</h1>
-              <p className="text-white/60 text-sm">
+              <h1 className="fc-display fc-display-md">Resource Manager</h1>
+              <p className="text-fc-brown text-sm">
                 Configure resource categories, linked Google Drive folders, and quick links.
               </p>
             </div>
@@ -520,7 +520,7 @@ const ResourceManager = () => {
           <button
             type="button"
             onClick={() => handleOpenModal()}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-blue-600 text-white font-semibold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors"
+            className="fc-btn-primary"
           >
             <PlusIcon className="w-5 h-5" />
             Add Category
@@ -528,15 +528,15 @@ const ResourceManager = () => {
         </div>
 
         {error && (
-          <div className="bg-red-900/30 border border-red-500/50 text-red-200 rounded-xl px-4 py-3">
+          <div className="bg-fc-wash-peach border border-fc-wash-peach-border text-fc-copper rounded-xl px-4 py-3">
             {error}
           </div>
         )}
 
-        <div className="bg-slate-800/40 border border-slate-700/60 rounded-2xl overflow-hidden">
+        <div className="fc-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-800/70 text-slate-300 text-sm">
+              <thead className="bg-fc-cream2 text-fc-brown text-sm">
                 <tr>
                   <th className="px-6 py-4 text-left font-semibold">Name</th>
                   <th className="px-6 py-4 text-left font-semibold">Identifier</th>
@@ -547,47 +547,47 @@ const ResourceManager = () => {
                   <th className="px-6 py-4 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700/60 text-sm">
+              <tbody className="divide-y divide-fc-cream2 text-sm">
                 {sortedCategories.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-white/60">
+                    <td colSpan={7} className="px-6 py-12 text-center text-fc-brown">
                       No categories configured yet. Start by adding one.
                     </td>
                   </tr>
                 ) : (
                   sortedCategories.map((category) => (
                     <tr key={category.slug}>
-                      <td className="px-6 py-4 text-white font-medium">
+                      <td className="px-6 py-4 text-fc-midnight font-medium">
                         <div className="flex flex-col">
                           <span>{category.displayName}</span>
                           {category.description && (
-                            <span className="text-xs text-white/50 mt-1 line-clamp-2">
+                            <span className="text-xs text-fc-brown mt-1 line-clamp-2">
                               {category.description}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-white/70">
+                      <td className="px-6 py-4 text-fc-brown">
                         {category.slug}
                       </td>
-                      <td className="px-6 py-4 text-white/60">
+                      <td className="px-6 py-4 text-fc-brown">
                         {category.folderId ? (
-                          <code className="bg-slate-900/60 px-2 py-1 rounded text-xs">
+                          <code className="bg-fc-cream2 px-2 py-1 rounded text-xs">
                             {category.folderId}
                           </code>
                         ) : (
-                          <span className="text-white/40 italic">Not linked</span>
+                          <span className="text-fc-brown/50 italic">Not linked</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-200 text-xs font-medium">
+                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-fc-wash-sky-border bg-fc-wash-sky text-fc-midnight text-xs font-medium">
                           {category.links?.length || 0} link{(category.links?.length || 0) === 1 ? '' : 's'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-white/70">
+                      <td className="px-6 py-4 text-fc-brown">
                         {category.sortOrder ?? 0}
                       </td>
-                      <td className="px-6 py-4 text-white/60">
+                      <td className="px-6 py-4 text-fc-brown">
                         {category.updatedAt
                           ? new Date(category.updatedAt).toLocaleString()
                           : '—'}
@@ -597,7 +597,7 @@ const ResourceManager = () => {
                           <button
                             type="button"
                             onClick={() => handleOpenModal(category)}
-                            className="p-2 rounded-lg text-blue-300 hover:text-blue-200 hover:bg-blue-500/10 transition-colors"
+                            className="p-2 rounded-lg text-fc-teal hover:bg-fc-wash-sky transition-colors"
                             title="Edit Category"
                           >
                             <PencilIcon className="w-5 h-5" />
@@ -605,7 +605,7 @@ const ResourceManager = () => {
                           <button
                             type="button"
                             onClick={() => handleManageDisplayNames(category)}
-                            className="p-2 rounded-lg text-purple-300 hover:text-purple-200 hover:bg-purple-500/10 transition-colors"
+                            className="p-2 rounded-lg text-fc-violet hover:bg-fc-wash-violet transition-colors"
                             title="Manage Display Names"
                           >
                             <DocumentTextIcon className="w-5 h-5" />
@@ -613,7 +613,7 @@ const ResourceManager = () => {
                           <button
                             type="button"
                             onClick={() => handleDelete(category)}
-                            className="p-2 rounded-lg text-red-300 hover:text-red-200 hover:bg-red-500/10 transition-colors"
+                            className="p-2 rounded-lg text-fc-copper hover:bg-fc-wash-peach transition-colors"
                             title="Delete Category"
                           >
                             <TrashIcon className="w-5 h-5" />
@@ -630,21 +630,21 @@ const ResourceManager = () => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-fc-midnight/50 p-4">
+          <div className="bg-white border border-fc-cream2 rounded-2xl shadow-pop max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-fc-cream2">
               <div>
-                <h2 className="text-2xl font-semibold text-white">
+                <h2 className="fc-display fc-display-sm">
                   {editingCategory ? 'Edit Resource Category' : 'Add Resource Category'}
                 </h2>
-                <p className="text-white/50 text-sm">
+                <p className="text-fc-brown text-sm">
                   Configure the category name, Drive folder, and any quick links.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleCloseModal}
-                className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-slate-700/50 transition-colors"
+                className="p-2 rounded-xl text-fc-brown hover:text-fc-midnight hover:bg-fc-cream2 transition-colors"
               >
                 <XMarkIcon className="w-6 h-6" />
               </button>
@@ -653,74 +653,74 @@ const ResourceManager = () => {
             <form onSubmit={handleSubmit} className="px-6 py-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm text-white/70 font-medium">
-                    Category Name <span className="text-red-400">*</span>
+                  <label className="text-sm text-fc-brown font-medium">
+                    Category Name <span className="text-fc-copper">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     value={formData.displayName}
                     onChange={(e) => handleFieldChange('displayName', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder:text-white/40 focus:outline-none focus:border-blue-500"
+                    className="fc-input"
                     placeholder="HR"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm text-white/70 font-medium">
+                  <label className="text-sm text-fc-brown font-medium">
                     Identifier (optional)
                   </label>
                   <input
                     type="text"
                     value={formData.slug}
                     onChange={(e) => handleFieldChange('slug', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder:text-white/40 focus:outline-none focus:border-blue-500"
+                    className="fc-input"
                     placeholder="hr"
                   />
-                  <p className="text-xs text-white/40">
+                  <p className="text-xs text-fc-brown/70">
                     Used in URLs. Leave blank to generate automatically from the name.
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm text-white/70 font-medium">
+                  <label className="text-sm text-fc-brown font-medium">
                     Google Drive Folder ID
                   </label>
                   <input
                     type="text"
                     value={formData.folderId}
                     onChange={(e) => handleFieldChange('folderId', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder:text-white/40 focus:outline-none focus:border-blue-500"
+                    className="fc-input"
                     placeholder="1H2I3J4K5LMN"
                   />
-                  <p className="text-xs text-white/40">
+                  <p className="text-xs text-fc-brown/70">
                     Paste the ID from the Drive folder URL. Leave blank if not linked.
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm text-white/70 font-medium">
+                  <label className="text-sm text-fc-brown font-medium">
                     Sort Order
                   </label>
                   <input
                     type="number"
                     value={formData.sortOrder}
                     onChange={(e) => handleFieldChange('sortOrder', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder:text-white/40 focus:outline-none focus:border-blue-500"
+                    className="fc-input"
                     placeholder="0"
                   />
-                  <p className="text-xs text-white/40">
+                  <p className="text-xs text-fc-brown/70">
                     Lower numbers appear first in the Resources tab.
                   </p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm text-white/70 font-medium">
+                <label className="text-sm text-fc-brown font-medium">
                   Description
                 </label>
                 <textarea
                   rows={3}
                   value={formData.description}
                   onChange={(e) => handleFieldChange('description', e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder:text-white/40 focus:outline-none focus:border-blue-500"
+                  className="fc-input"
                   placeholder="Human resources policies, onboarding documents, and leave request forms."
                 />
               </div>
@@ -728,15 +728,15 @@ const ResourceManager = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">Quick Links</h3>
-                    <p className="text-xs text-white/50">
+                    <h3 className="text-lg font-semibold text-fc-midnight">Quick Links</h3>
+                    <p className="text-xs text-fc-brown">
                       Add external URLs like leave forms or policy pages. They appear above Drive files.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={handleAddLink}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 transition-colors"
+                    className="fc-btn-secondary text-sm py-2 px-4"
                   >
                     <PlusIcon className="w-4 h-4" />
                     Add Link
@@ -744,7 +744,7 @@ const ResourceManager = () => {
                 </div>
 
                 {formData.links.length === 0 ? (
-                  <div className="border border-dashed border-white/20 rounded-xl p-6 text-center text-white/50">
+                  <div className="border border-dashed border-fc-cream2 rounded-xl p-6 text-center text-fc-brown">
                     No quick links yet. Click &quot;Add Link&quot; to include shortcuts.
                   </div>
                 ) : (
@@ -752,10 +752,10 @@ const ResourceManager = () => {
                     {formData.links.map((link, index) => (
                       <div
                         key={link.id ?? link._key ?? index}
-                        className="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 space-y-4"
+                        className="bg-fc-cream border border-fc-cream2 rounded-xl p-4 space-y-4"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-white/70 text-sm font-medium">
+                          <span className="text-fc-brown text-sm font-medium">
                             Link {index + 1}
                           </span>
                           <div className="flex items-center gap-2">
@@ -765,8 +765,8 @@ const ResourceManager = () => {
                               disabled={index === 0}
                               className={`p-2 rounded-lg transition-colors ${
                                 index === 0
-                                  ? 'text-white/30 cursor-not-allowed'
-                                  : 'text-white/70 hover:text-white hover:bg-slate-700/60'
+                                  ? 'text-fc-brown/30 cursor-not-allowed'
+                                  : 'text-fc-brown hover:text-fc-midnight hover:bg-fc-cream2'
                               }`}
                             >
                               <ArrowUpIcon className="w-4 h-4" />
@@ -777,8 +777,8 @@ const ResourceManager = () => {
                               disabled={index === formData.links.length - 1}
                               className={`p-2 rounded-lg transition-colors ${
                                 index === formData.links.length - 1
-                                  ? 'text-white/30 cursor-not-allowed'
-                                  : 'text-white/70 hover:text-white hover:bg-slate-700/60'
+                                  ? 'text-fc-brown/30 cursor-not-allowed'
+                                  : 'text-fc-brown hover:text-fc-midnight hover:bg-fc-cream2'
                               }`}
                             >
                               <ArrowDownIcon className="w-4 h-4" />
@@ -786,7 +786,7 @@ const ResourceManager = () => {
                             <button
                               type="button"
                               onClick={() => handleRemoveLink(index)}
-                              className="p-2 rounded-lg text-red-300 hover:text-red-200 hover:bg-red-500/10 transition-colors"
+                              className="p-2 rounded-lg text-fc-copper hover:bg-fc-wash-peach transition-colors"
                             >
                               <TrashIcon className="w-4 h-4" />
                             </button>
@@ -795,40 +795,40 @@ const ResourceManager = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <label className="text-xs font-medium text-white/60">
+                            <label className="text-xs font-medium text-fc-brown">
                               Link Label
                             </label>
                             <input
                               type="text"
                               value={link.label}
                               onChange={(e) => handleLinkChange(index, 'label', e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder:text-white/40 focus:outline-none focus:border-purple-500"
+                              className="fc-input"
                               placeholder="Leave Request Form"
                             />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-xs font-medium text-white/60">
+                            <label className="text-xs font-medium text-fc-brown">
                               URL
                             </label>
                             <input
                               type="url"
                               value={link.url}
                               onChange={(e) => handleLinkChange(index, 'url', e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder:text-white/40 focus:outline-none focus:border-purple-500"
+                              className="fc-input"
                               placeholder="https://forms.gle/..."
                             />
                           </div>
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-xs font-medium text-white/60">
+                          <label className="text-xs font-medium text-fc-brown">
                             Description (optional)
                           </label>
                           <textarea
                             rows={2}
                             value={link.description}
                             onChange={(e) => handleLinkChange(index, 'description', e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder:text-white/40 focus:outline-none focus:border-purple-500"
+                            className="fc-input"
                             placeholder="Use this form to submit annual leave requests."
                           />
                         </div>
@@ -838,11 +838,11 @@ const ResourceManager = () => {
                 )}
               </div>
 
-              <div className="flex flex-col md:flex-row md:justify-end gap-3 border-t border-slate-800 pt-6">
+              <div className="flex flex-col md:flex-row md:justify-end gap-3 border-t border-fc-cream2 pt-6">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 text-white/80 hover:text-white hover:bg-slate-700 transition-colors"
+                  className="fc-btn-secondary"
                   disabled={isSubmitting}
                 >
                   Cancel
@@ -850,10 +850,7 @@ const ResourceManager = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`
-                    px-5 py-2.5 rounded-xl text-white font-semibold transition-colors
-                    ${isSubmitting ? 'bg-blue-500/40 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}
-                  `}
+                  className="fc-btn-primary"
                 >
                   {isSubmitting ? 'Saving...' : editingCategory ? 'Update Category' : 'Create Category'}
                 </button>
@@ -864,21 +861,21 @@ const ResourceManager = () => {
       )}
 
       {showDisplayNamesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-fc-midnight/50 p-4">
+          <div className="bg-white border border-fc-cream2 rounded-2xl shadow-pop max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-fc-cream2">
               <div>
-                <h2 className="text-2xl font-semibold text-white">
+                <h2 className="fc-display fc-display-sm">
                   Manage Display Names
                 </h2>
-                <p className="text-white/50 text-sm">
+                <p className="text-fc-brown text-sm">
                   {managingCategory?.displayName} - Set custom names for Drive items
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleCloseDisplayNamesModal}
-                className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-slate-700/50 transition-colors"
+                className="p-2 rounded-xl text-fc-brown hover:text-fc-midnight hover:bg-fc-cream2 transition-colors"
               >
                 <XMarkIcon className="w-6 h-6" />
               </button>
@@ -886,11 +883,11 @@ const ResourceManager = () => {
 
             <div className="px-6 py-6">
               {loadingDriveItems ? (
-                <div className="text-center py-12 text-white/60">
+                <div className="text-center py-12 text-fc-brown">
                   Loading Drive items...
                 </div>
               ) : driveItems.length === 0 ? (
-                <div className="text-center py-12 text-white/60">
+                <div className="text-center py-12 text-fc-brown">
                   No Drive items found. Make sure the folder has files/folders and you're authenticated with Google Drive.
                 </div>
               ) : (
@@ -899,31 +896,31 @@ const ResourceManager = () => {
                     const override = driveOverrides[item.id];
                     const isEditing = editingItemId === item.id;
                     const isFolder = item.mimeType && item.mimeType.includes('folder');
-                    
+
                     return (
                       <div
                         key={item.id}
-                        className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-4"
+                        className="bg-fc-cream border border-fc-cream2 rounded-xl p-4"
                       >
                         <div className="flex items-start gap-4">
                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${
-                            isFolder ? 'bg-yellow-500/20' : 'bg-blue-500/20'
+                            isFolder ? 'bg-fc-wash-butter' : 'bg-fc-wash-sky'
                           }`}>
                             {isFolder ? '📁' : '📄'}
                           </div>
-                          
+
                           <div className="flex-1 min-w-0">
-                            <div className="text-white/40 text-xs mb-1">
+                            <div className="text-fc-brown/70 text-xs mb-1">
                               Original: {item.name}
                             </div>
-                            
+
                             {override ? (
                               <div className="space-y-2">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-white font-semibold">
+                                  <span className="text-fc-midnight font-semibold">
                                     {override.customName}
                                   </span>
-                                  <span className="px-2 py-0.5 rounded bg-green-500/20 text-green-300 text-xs">
+                                  <span className="px-2 py-0.5 rounded bg-fc-wash-mint text-fc-brown text-xs">
                                     Custom
                                   </span>
                                 </div>
@@ -934,14 +931,14 @@ const ResourceManager = () => {
                                       setEditingItemId(item.id);
                                       setCustomNameInput(override.customName);
                                     }}
-                                    className="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                                    className="text-xs px-3 py-1 rounded-lg bg-fc-teal text-white hover:brightness-95 transition-all"
                                   >
                                     Edit
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteOverride(override.id, item.id)}
-                                    className="text-xs px-3 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                                    className="text-xs px-3 py-1 rounded-lg bg-fc-copper text-white hover:brightness-95 transition-all"
                                   >
                                     Remove
                                   </button>
@@ -954,14 +951,14 @@ const ResourceManager = () => {
                                   value={customNameInput}
                                   onChange={(e) => setCustomNameInput(e.target.value)}
                                   placeholder="Enter custom display name"
-                                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder:text-white/40 focus:outline-none focus:border-purple-500"
+                                  className="fc-input"
                                   autoFocus
                                 />
                                 <div className="flex gap-2">
                                   <button
                                     type="button"
                                     onClick={() => handleSaveCustomName(item.id)}
-                                    className="text-xs px-3 py-1 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                                    className="text-xs px-3 py-1 rounded-lg bg-fc-olive text-white hover:brightness-95 transition-all"
                                   >
                                     Save
                                   </button>
@@ -971,7 +968,7 @@ const ResourceManager = () => {
                                       setEditingItemId(null);
                                       setCustomNameInput('');
                                     }}
-                                    className="text-xs px-3 py-1 rounded-lg bg-slate-600 text-white hover:bg-slate-700 transition-colors"
+                                    className="text-xs px-3 py-1 rounded-lg bg-fc-cream2 text-fc-brown hover:bg-fc-cream2/70 transition-colors"
                                   >
                                     Cancel
                                   </button>
@@ -984,7 +981,7 @@ const ResourceManager = () => {
                                   setEditingItemId(item.id);
                                   setCustomNameInput('');
                                 }}
-                                className="text-xs px-3 py-1 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+                                className="text-xs px-3 py-1 rounded-lg bg-fc-violet text-white hover:brightness-95 transition-all"
                               >
                                 Set Custom Name
                               </button>

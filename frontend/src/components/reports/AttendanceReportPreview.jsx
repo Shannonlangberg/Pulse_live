@@ -38,10 +38,11 @@ const COLORS = {
   slate: '#64748b',
   green: '#48BB78',
   red: '#E53E3E',
-  text: '#2D3748',
-  muted: '#718096',
+  text: '#1C1C16',
+  muted: '#50482E',
   cardBg: '#ffffff',
-  pageBg: '#edf2f7',
+  pageBg: '#ffffff',
+  accent: '#C45236',
   /** Match PDF YoY weekend bar chart (`_chart_bar_weekend_compare_compact`). */
   yoyPrior: '#ea580c',
   yoyCurr: '#2563eb',
@@ -156,7 +157,7 @@ function DeltaLine({ prev, curr, compareYear, periodLabel, deltaKind = 'avg' }) 
     return (
       <p className="text-sm font-medium mt-1" style={{ color: COLORS.green }}>
         <span className="tabular-nums">(+{Number(c).toLocaleString()})</span>
-        <span className="text-slate-500 font-normal"> vs 0 prior · </span>
+        <span className="text-fc-brown/60 font-normal"> vs 0 prior · </span>
         {periodLabel} {compareYear}
       </p>
     );
@@ -174,13 +175,13 @@ function DeltaLine({ prev, curr, compareYear, periodLabel, deltaKind = 'avg' }) 
 function KpiCard({ icon: Icon, label, value, prev, curr, compareYear, periodLabel, deltaKind = 'avg' }) {
   return (
     <div
-      className="rounded-xl p-5 shadow-sm border border-slate-100/80"
+      className="rounded-xl p-5 shadow-sm border border-fc-cream2"
       style={{ background: COLORS.cardBg }}
     >
       <div className="flex items-start gap-3">
         <div
           className="p-2 rounded-lg"
-          style={{ background: `${COLORS.blue}18`, color: COLORS.blue }}
+          style={{ background: `${COLORS.accent}18`, color: COLORS.accent }}
         >
           <Icon className="w-6 h-6" />
         </div>
@@ -618,7 +619,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
   );
 
   return (
-    <div className="pb-10 last:pb-4 border-b border-slate-300/80 last:border-0">
+    <div className="pb-10 last:pb-4 border-b border-fc-cream2 last:border-0">
       <header className="mb-8">
         <h3 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: COLORS.text }}>
           {simpleReportTitle}
@@ -635,7 +636,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
               : ''}
           </p>
         )}
-        <p className="text-xs mt-3 rounded-lg border border-slate-200 bg-white/90 px-3 py-2" style={{ color: COLORS.muted }}>
+        <p className="text-xs mt-3 rounded-lg border border-fc-cream2 bg-white/90 px-3 py-2" style={{ color: COLORS.muted }}>
           <strong style={{ color: COLORS.text }}>Same data as download:</strong> PDF and CSV use the same filters,
           period rules, and <strong style={{ color: COLORS.text }}>attendance_records</strong> fields as this preview.
         </p>
@@ -694,7 +695,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="rounded-xl p-5 shadow-sm border border-slate-100/80" style={{ background: COLORS.cardBg }}>
+        <div className="rounded-xl p-5 shadow-sm border border-fc-cream2" style={{ background: COLORS.cardBg }}>
           <h4 className="text-base font-semibold mb-1" style={{ color: COLORS.text }}>
             {primaryBarTitle}
           </h4>
@@ -714,7 +715,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
             )}
           </div>
         </div>
-        <div className="rounded-xl p-5 shadow-sm border border-slate-100/80" style={{ background: COLORS.cardBg }}>
+        <div className="rounded-xl p-5 shadow-sm border border-fc-cream2" style={{ background: COLORS.cardBg }}>
           <h4 className="text-base font-semibold mb-1" style={{ color: COLORS.text }}>
             {stackedChartTitle}
           </h4>
@@ -733,7 +734,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
         </div>
       </div>
 
-      <div className="rounded-xl p-5 shadow-sm border border-slate-100/80 mb-8" style={{ background: COLORS.cardBg }}>
+      <div className="rounded-xl p-5 shadow-sm border border-fc-cream2 mb-8" style={{ background: COLORS.cardBg }}>
         <h4 className="text-base font-semibold mb-1" style={{ color: COLORS.text }}>
           Weekly attendance trends
         </h4>
@@ -787,7 +788,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
         )}
       </div>
 
-      <div className="rounded-xl p-5 shadow-sm border border-slate-100/80 mb-2" style={{ background: COLORS.cardBg }}>
+      <div className="rounded-xl p-5 shadow-sm border border-fc-cream2 mb-2" style={{ background: COLORS.cardBg }}>
         <h4 className="text-base font-semibold mb-3" style={{ color: COLORS.text }}>
           Key observations
         </h4>
@@ -796,7 +797,7 @@ function AttendanceReportDashboard({ data, regionTitle, periodLabel, year: yearP
             <li key={i}>{renderInsightText(line)}</li>
           ))}
         </ul>
-        <div className="mt-6 pt-4 border-t border-slate-200 text-xs leading-relaxed" style={{ color: COLORS.muted }}>
+        <div className="mt-6 pt-4 border-t border-fc-cream2 text-xs leading-relaxed" style={{ color: COLORS.muted }}>
           <p className="font-semibold mb-1" style={{ color: COLORS.text }}>
             Definitions
           </p>
@@ -877,10 +878,10 @@ export default function AttendanceReportPreview({
   return (
     <div
       id="attendance-report-print-root"
-      className="mt-10 rounded-2xl overflow-hidden border border-slate-600 print:border-0 print:shadow-none print:mt-0"
+      className="mt-10 rounded-2xl overflow-hidden border border-fc-cream2 print:border-0 print:shadow-none print:mt-0"
       style={{ background: COLORS.pageBg }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-200/80 bg-white/90 no-print">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-fc-cream2 bg-white/90 no-print">
         <h2 className="text-lg font-semibold" style={{ color: COLORS.text }}>
           Report preview
         </h2>
@@ -888,7 +889,7 @@ export default function AttendanceReportPreview({
           <button
             type="button"
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700"
+            className="fc-btn-primary text-sm"
           >
             <PrinterIcon className="w-4 h-4" />
             Print / Save PDF
@@ -898,13 +899,13 @@ export default function AttendanceReportPreview({
 
       <div className="p-6 sm:p-8 print:p-2 print-report-body">
         {!fetchEnabled && (
-          <div className="rounded-lg bg-slate-100 border border-slate-200 text-slate-600 px-4 py-8 text-sm text-center mb-6">
+          <div className="rounded-lg bg-fc-cream2 border border-fc-cream2 text-fc-brown px-4 py-8 text-sm text-center mb-6">
             Choose both start and end dates to load the report preview.
           </div>
         )}
 
         {fetchEnabled && loading && !payload && (
-          <div className="flex items-center gap-2 text-slate-500 py-12 justify-center">
+          <div className="flex items-center gap-2 text-fc-brown/60 py-12 justify-center">
             <ArrowPathIcon className="w-5 h-5 animate-spin" />
             Loading report…
           </div>
@@ -946,7 +947,7 @@ export default function AttendanceReportPreview({
                 {payload.filter_summary ? ` · ${payload.filter_summary}` : ''}
                 {payload.compare ? ` · YoY vs ${payload.prev_year}` : ''}
               </p>
-              <p className="text-xs mt-3 rounded-lg border border-slate-200 bg-white/90 px-3 py-2" style={{ color: COLORS.muted }}>
+              <p className="text-xs mt-3 rounded-lg border border-fc-cream2 bg-white/90 px-3 py-2" style={{ color: COLORS.muted }}>
                 <strong style={{ color: COLORS.text }}>Same data as download</strong> for these filters — each block
                 matches one PDF page when &quot;one page per campus&quot; is enabled.
               </p>

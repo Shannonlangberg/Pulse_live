@@ -1,0 +1,168 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   FUTURES CHURCH — Design Tokens (Pulse)
+   Copied from the Futures Church Design System (claude.ai/design project),
+   font URLs adjusted to Pulse's /fonts/ public path.
+   ────────────────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@font-face {
+  font-family: 'Rhymes Display';
+  src: url('/fonts/Rhymes_Display_Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Rhymes Display';
+  src: url('/fonts/Rhymes_Display_Light_Italic.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gal Gothic';
+  src: url('/fonts/GalGothic-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gal Gothic';
+  src: url('/fonts/GalGothic-LightItalic.otf') format('opentype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gal Gothic';
+  src: url('/fonts/GalGothic-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gal Gothic';
+  src: url('/fonts/GalGothic-Italic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  /* ── CORE BRAND PALETTE ── */
+  --fc-midnight:   #1C1C16;
+  --fc-cream:      #FAF9F4;
+  --fc-cream-2:    #F0EDE4;
+  --fc-copper:     #C45236;
+  --fc-teal:       #4A8FA8;
+  --fc-violet:     #5D1FEC;
+  --fc-gold:       #C4A44A;
+  --fc-olive:      #639922;   /* Pulse accent */
+  --fc-thistle:    #C5C6A4;
+  --fc-brown:      #50482E;
+
+  /* ── SOFT WASHES ── */
+  --fc-wash-mint:      #E4F0DC;
+  --fc-wash-sky:       #DCE9F1;
+  --fc-wash-butter:    #F2EAD0;
+  --fc-wash-peach:     #F2D8CB;
+  --fc-wash-thistle:   #EEEEE4;
+  --fc-wash-violet:    #EFE7FF;
+  --fc-wash-mint-border:    #B8D8A8;
+  --fc-wash-sky-border:     #A8C8DC;
+  --fc-wash-butter-border:  #DCC888;
+  --fc-wash-peach-border:   #DCA890;
+  --fc-wash-thistle-border: #C4C4A8;
+
+  /* ── DARK (sidebar / midnight surfaces) ── */
+  --fc-dark-bg:        #090C06;
+  --fc-dark-bg-elevated:#131507;
+  --fc-dark-bg-2:      #1A1C10;
+  --fc-dark-text:      #F4F1E6;
+  --fc-dark-text-muted:rgba(244,241,230,0.65);
+  --fc-dark-text-subtle:rgba(244,241,230,0.38);
+  --fc-dark-border:    rgba(244,241,230,0.07);
+  --fc-dark-border-strong: rgba(244,241,230,0.18);
+  --fc-dark-green:     #8FBF4D;
+  --fc-dark-gold:      #DABE5D;
+
+  /* ── SEMANTIC ── */
+  --fc-bg:             var(--fc-cream);
+  --fc-bg-elevated:    #FFFFFF;
+  --fc-bg-deep:        var(--fc-midnight);
+  --fc-bg-muted:       var(--fc-cream-2);
+  --fc-fg:             var(--fc-midnight);
+  --fc-fg-body:        var(--fc-brown);
+  --fc-fg-subtle:      var(--fc-thistle);
+  --fc-border:         var(--fc-cream-2);
+  --fc-border-strong:  rgba(80,72,46,0.18);
+  --fc-accent:         var(--fc-copper);
+
+  /* ── TYPOGRAPHY ── */
+  --fc-font-display:   'Rhymes Display', Georgia, 'Times New Roman', serif;
+  --fc-font-sans:      'Gal Gothic', 'DM Sans', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --fc-font-mono:      'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --fc-fs-display-lg:  56px;
+  --fc-fs-display-md:  42px;
+  --fc-fs-display-sm:  28px;
+  --fc-fs-h1:          24px;
+  --fc-fs-h2:          20px;
+  --fc-fs-h3:          17px;
+  --fc-fs-body-lg:     15px;
+  --fc-fs-body:        14px;
+  --fc-fs-body-sm:     13px;
+  --fc-fs-caption:     12px;
+  --fc-fs-micro:       11px;
+  --fc-fs-label:       10px;
+  --fc-tracking-display: -0.5px;
+  --fc-tracking-label:   3px;
+  --fc-tracking-wordmark:1.3px;
+  --fc-lh-display:     1.08;
+  --fc-lh-heading:     1.2;
+  --fc-lh-body:        1.55;
+
+  /* ── RADII ── */
+  --fc-radius-xs:   4px;
+  --fc-radius-sm:   6px;
+  --fc-radius-md:   8px;
+  --fc-radius-lg:   12px;
+  --fc-radius-xl:   20px;
+  --fc-radius-full: 9999px;
+
+  /* ── ELEVATION ── */
+  --fc-shadow-card:   0 1px 5px rgba(0,0,0,0.06);
+  --fc-shadow-card-hover: 0 6px 18px rgba(0,0,0,0.08);
+  --fc-shadow-pop:    0 8px 24px rgba(28,28,22,0.10);
+
+  /* ── MOTION ── */
+  --fc-press:         transform 80ms ease-out;
+  --fc-transition:    all 150ms ease-out;
+  --fc-transition-slow: all 240ms cubic-bezier(.2,.7,.3,1);
+}
+
+/* Editorial display — serif italic light. The brand voice. */
+.fc-display {
+  font-family: var(--fc-font-display);
+  font-weight: 300;
+  font-style: italic;
+  letter-spacing: var(--fc-tracking-display);
+  line-height: var(--fc-lh-display);
+  color: var(--fc-fg);
+}
+
+/* The signature label — wide-tracked, copper, micro caps. */
+.fc-label {
+  font-family: var(--fc-font-sans);
+  font-size: var(--fc-fs-label);
+  font-weight: 700;
+  letter-spacing: var(--fc-tracking-label);
+  text-transform: uppercase;
+  color: var(--fc-copper);
+}
+
+.fc-card {
+  background: var(--fc-bg-elevated);
+  border-radius: var(--fc-radius-lg);
+  box-shadow: var(--fc-shadow-card);
+}

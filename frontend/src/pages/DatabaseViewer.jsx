@@ -398,18 +398,18 @@ const DatabaseViewer = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+    <div className="min-h-screen bg-fc-cream p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => navigate('/portal')}
-            className="text-slate-300 hover:text-white mb-4 flex items-center gap-2"
+            className="text-fc-brown hover:text-fc-midnight mb-4 flex items-center gap-2"
           >
             ← Back to Portal
           </button>
-          <h1 className="text-4xl font-bold text-white mb-2">📊 Database Viewer</h1>
-          <p className="text-slate-300">View and manage records in the database</p>
+          <h1 className="text-4xl font-bold text-fc-midnight mb-2">📊 Database Viewer</h1>
+          <p className="text-fc-brown">View and manage records in the database</p>
         </div>
 
         {/* Tabs */}
@@ -418,8 +418,8 @@ const DatabaseViewer = () => {
             onClick={() => setActiveTab('attendance')}
             className={`px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'attendance'
-                ? 'bg-blue-500 text-white'
-                : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                ? 'bg-fc-copper text-fc-midnight'
+                : 'bg-fc-cream2 text-fc-brown hover:bg-white/20'
             }`}
           >
             👥 Attendance Records
@@ -428,8 +428,8 @@ const DatabaseViewer = () => {
             onClick={() => setActiveTab('finance')}
             className={`px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'finance'
-                ? 'bg-green-500 text-white'
-                : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                ? 'bg-green-500 text-fc-midnight'
+                : 'bg-fc-cream2 text-fc-brown hover:bg-white/20'
             }`}
           >
             💰 Finance Records
@@ -437,15 +437,15 @@ const DatabaseViewer = () => {
         </div>
 
         {/* Filters */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mb-6 border border-white/20">
-          <h3 className="text-white font-semibold mb-4">Filters</h3>
+        <div className="bg-white rounded-xl p-6 mb-6 border border-fc-cream2 shadow-card">
+          <h3 className="text-fc-midnight font-semibold mb-4">Filters</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <div>
-              <label className="text-slate-300 text-sm mb-2 block">Region</label>
+              <label className="text-fc-brown text-sm mb-2 block">Region</label>
               <select
                 value={regionFilter}
                 onChange={(e) => setRegionFilter(e.target.value)}
-                className="w-full bg-slate-800 text-white border border-slate-600 rounded-lg px-4 py-2"
+                className="w-full bg-white text-fc-midnight border border-fc-cream2 rounded-lg px-4 py-2"
               >
                 <option value="">All Regions</option>
                 {regions.map(region => (
@@ -457,12 +457,12 @@ const DatabaseViewer = () => {
             </div>
             
             <div>
-              <label className="text-slate-300 text-sm mb-2 block">Campus</label>
+              <label className="text-fc-brown text-sm mb-2 block">Campus</label>
               <select
                 value={campusFilter}
                 onChange={(e) => setCampusFilter(e.target.value)}
                 disabled={userRole === 'campus_pastor'}
-                className={`w-full bg-slate-800 text-white border border-slate-600 rounded-lg px-4 py-2 ${
+                className={`w-full bg-white text-fc-midnight border border-fc-cream2 rounded-lg px-4 py-2 ${
                   userRole === 'campus_pastor' ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
                 title={userRole === 'campus_pastor' ? 'You can only view your own campus' : ''}
@@ -475,34 +475,34 @@ const DatabaseViewer = () => {
                 ))}
               </select>
               {userRole === 'campus_pastor' && (
-                <p className="text-slate-400 text-xs mt-1">Campus filtered to your campus only</p>
+                <p className="text-fc-brown/70 text-xs mt-1">Campus filtered to your campus only</p>
               )}
             </div>
             
             <div>
-              <label className="text-slate-300 text-sm mb-2 block">Start Date</label>
+              <label className="text-fc-brown text-sm mb-2 block">Start Date</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full bg-slate-800 text-white border border-slate-600 rounded-lg px-4 py-2"
+                className="w-full bg-white text-fc-midnight border border-fc-cream2 rounded-lg px-4 py-2"
               />
             </div>
             
             <div>
-              <label className="text-slate-300 text-sm mb-2 block">End Date</label>
+              <label className="text-fc-brown text-sm mb-2 block">End Date</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full bg-slate-800 text-white border border-slate-600 rounded-lg px-4 py-2"
+                className="w-full bg-white text-fc-midnight border border-fc-cream2 rounded-lg px-4 py-2"
               />
             </div>
             
-            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-white/10 md:col-span-4">
+            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-fc-cream2 md:col-span-4">
               <button
                 onClick={handleRefresh}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold transition-all"
+                className="bg-fc-copper hover:brightness-95 text-fc-midnight px-5 py-2 rounded-lg font-semibold transition-all"
               >
                 Apply Filters
               </button>
@@ -510,7 +510,7 @@ const DatabaseViewer = () => {
                 <>
                   <button
                     onClick={handleExportCSV}
-                    className="bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg font-semibold transition-all flex items-center gap-2"
+                    className="bg-fc-olive hover:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed text-fc-midnight px-5 py-2 rounded-lg font-semibold transition-all flex items-center gap-2"
                     disabled={loading || records.length === 0}
                   >
                     📥 Export CSV
@@ -518,7 +518,7 @@ const DatabaseViewer = () => {
                   <button
                     onClick={handleSyncPending}
                     disabled={syncing}
-                    className="bg-green-500 hover:bg-green-600 disabled:bg-green-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-semibold transition-all flex items-center gap-2"
+                    className="bg-green-500 hover:bg-green-600 disabled:bg-green-700 disabled:opacity-50 text-fc-midnight px-5 py-2 rounded-lg font-semibold transition-all flex items-center gap-2"
                   >
                     {syncing ? (
                       <>
@@ -532,7 +532,7 @@ const DatabaseViewer = () => {
                   <button
                     onClick={handleImportFromSheets}
                     disabled={importing}
-                    className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-semibold transition-all flex items-center gap-2"
+                    className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-700 disabled:opacity-50 text-fc-midnight px-5 py-2 rounded-lg font-semibold transition-all flex items-center gap-2"
                   >
                     {importing ? (
                       <>
@@ -550,36 +550,36 @@ const DatabaseViewer = () => {
         </div>
 
         {/* Records Table */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 overflow-hidden">
+        <div className="bg-white rounded-xl border border-fc-cream2 shadow-card overflow-hidden">
           {loading ? (
             <div className="p-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-              <p className="text-slate-300">Loading {activeTab} records...</p>
+              <p className="text-fc-brown">Loading {activeTab} records...</p>
             </div>
           ) : error ? (
             <div className="p-12 text-center">
               <p className="text-red-400 mb-4">❌ {error}</p>
               <button
                 onClick={handleRefresh}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg"
+                className="bg-fc-copper hover:brightness-95 text-fc-midnight px-6 py-2 rounded-lg"
               >
                 Try Again
               </button>
             </div>
           ) : activeTab === 'attendance' && records.length === 0 ? (
             <div className="p-12 text-center">
-              <p className="text-slate-300 text-lg mb-2">No attendance records found</p>
-              <p className="text-slate-400 text-sm">The database is empty or no records match your filters</p>
+              <p className="text-fc-brown text-lg mb-2">No attendance records found</p>
+              <p className="text-fc-brown/70 text-sm">The database is empty or no records match your filters</p>
             </div>
           ) : activeTab === 'finance' && financeRecords.length === 0 ? (
             <div className="p-12 text-center">
-              <p className="text-slate-300 text-lg mb-2">No finance records found</p>
-              <p className="text-slate-400 text-sm">The database is empty or no records match your filters</p>
+              <p className="text-fc-brown text-lg mb-2">No finance records found</p>
+              <p className="text-fc-brown/70 text-sm">The database is empty or no records match your filters</p>
             </div>
           ) : (
             <>
-              <div className="p-4 bg-white/5 border-b border-white/10">
-                <p className="text-white font-semibold">
+              <div className="p-4 bg-white/5 border-b border-fc-cream2">
+                <p className="text-fc-midnight font-semibold">
                   📊 Showing {activeTab === 'attendance' ? records.length : financeRecords.length} {activeTab} records
                 </p>
               </div>
@@ -587,45 +587,45 @@ const DatabaseViewer = () => {
               <div className="overflow-x-auto">
                 {activeTab === 'attendance' ? (
                   <table className="w-full">
-                    <thead className="bg-white/5 border-b border-white/10">
+                    <thead className="bg-white/5 border-b border-fc-cream2">
                       <tr>
-                        <th className="px-4 py-3 text-left text-slate-300 font-semibold text-sm">Date</th>
-                        <th className="px-4 py-3 text-left text-slate-300 font-semibold text-sm">Campus</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Attendance</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Kids</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Youth</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Saints</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">New People</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Salvations</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Tithe</th>
-                        <th className="px-4 py-3 text-center text-slate-300 font-semibold text-sm">Normal totals</th>
-                        <th className="px-4 py-3 text-left text-slate-300 font-semibold text-sm max-w-[140px]">Service label</th>
-                        <th className="px-4 py-3 text-center text-slate-300 font-semibold text-sm">Synced</th>
-                        <th className="px-4 py-3 text-center text-slate-300 font-semibold text-sm">Actions</th>
+                        <th className="px-4 py-3 text-left text-fc-brown font-semibold text-sm">Date</th>
+                        <th className="px-4 py-3 text-left text-fc-brown font-semibold text-sm">Campus</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">Attendance</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">Kids</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">Youth</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">Saints</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">New People</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">Salvations</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">Tithe</th>
+                        <th className="px-4 py-3 text-center text-fc-brown font-semibold text-sm">Normal totals</th>
+                        <th className="px-4 py-3 text-left text-fc-brown font-semibold text-sm max-w-[140px]">Service label</th>
+                        <th className="px-4 py-3 text-center text-fc-brown font-semibold text-sm">Synced</th>
+                        <th className="px-4 py-3 text-center text-fc-brown font-semibold text-sm">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {records.map((record, index) => (
-                      <tr key={record.id} className={`border-b border-white/5 ${index % 2 === 0 ? 'bg-white/5' : ''} hover:bg-white/10 transition-colors`}>
-                        <td className="px-4 py-3 text-white text-sm">{record.date}</td>
-                        <td className="px-4 py-3 text-slate-300 text-sm">{record.campus}</td>
-                        <td className="px-4 py-3 text-right text-white font-semibold">{record.total_attendance}</td>
-                        <td className="px-4 py-3 text-right text-slate-300">{record.kids_attendance}</td>
-                        <td className="px-4 py-3 text-right text-slate-300">{record.youth_attendance}</td>
-                        <td className="px-4 py-3 text-right text-slate-300">{record.saints || 0}</td>
-                        <td className="px-4 py-3 text-right text-slate-300">
+                      <tr key={record.id} className={`border-b border-white/5 ${index % 2 === 0 ? 'bg-white/5' : ''} hover:bg-fc-cream2 transition-colors`}>
+                        <td className="px-4 py-3 text-fc-midnight text-sm">{record.date}</td>
+                        <td className="px-4 py-3 text-fc-brown text-sm">{record.campus}</td>
+                        <td className="px-4 py-3 text-right text-fc-midnight font-semibold">{record.total_attendance}</td>
+                        <td className="px-4 py-3 text-right text-fc-brown">{record.kids_attendance}</td>
+                        <td className="px-4 py-3 text-right text-fc-brown">{record.youth_attendance}</td>
+                        <td className="px-4 py-3 text-right text-fc-brown">{record.saints || 0}</td>
+                        <td className="px-4 py-3 text-right text-fc-brown">
                           {(record.first_time_visitors || 0) + (record.visitors || 0)}
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-300">
+                        <td className="px-4 py-3 text-right text-fc-brown">
                           {(record.first_time_christians || 0) + (record.rededications || 0)}
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-300">
+                        <td className="px-4 py-3 text-right text-fc-brown">
                           ${(record.tithe || 0).toFixed(2)}
                         </td>
-                        <td className="px-4 py-3 text-center text-slate-300 text-sm">
+                        <td className="px-4 py-3 text-center text-fc-brown text-sm">
                           {record.include_in_rollup_metrics !== false ? 'Yes' : 'No'}
                         </td>
-                        <td className="px-4 py-3 text-slate-400 text-xs max-w-[140px] truncate" title={record.special_service_label || ''}>
+                        <td className="px-4 py-3 text-fc-brown/70 text-xs max-w-[140px] truncate" title={record.special_service_label || ''}>
                           {record.special_service_label || '—'}
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -644,11 +644,11 @@ const DatabaseViewer = () => {
                                 setIsEditing(false);
                                 setShowDetailsModal(true);
                               }}
-                              className="text-blue-400 hover:text-blue-300 text-sm"
+                              className="text-fc-copper hover:text-fc-copper text-sm"
                             >
                               View
                             </button>
-                            <span className="text-slate-600">|</span>
+                            <span className="text-fc-brown">|</span>
                             <button
                               onClick={() => handleDelete(record.id)}
                               className="text-red-400 hover:text-red-300 text-sm"
@@ -663,29 +663,29 @@ const DatabaseViewer = () => {
                   </table>
                 ) : (
                   <table className="w-full">
-                    <thead className="bg-white/5 border-b border-white/10">
+                    <thead className="bg-white/5 border-b border-fc-cream2">
                       <tr>
-                        <th className="px-4 py-3 text-left text-slate-300 font-semibold text-sm">Date</th>
-                        <th className="px-4 py-3 text-left text-slate-300 font-semibold text-sm">Campus</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">General</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Trust</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Online</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Text</th>
-                        <th className="px-4 py-3 text-right text-slate-300 font-semibold text-sm">Total</th>
-                        <th className="px-4 py-3 text-center text-slate-300 font-semibold text-sm">Synced</th>
-                        <th className="px-4 py-3 text-center text-slate-300 font-semibold text-sm">Actions</th>
+                        <th className="px-4 py-3 text-left text-fc-brown font-semibold text-sm">Date</th>
+                        <th className="px-4 py-3 text-left text-fc-brown font-semibold text-sm">Campus</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">General</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">Trust</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">Online</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">Text</th>
+                        <th className="px-4 py-3 text-right text-fc-brown font-semibold text-sm">Total</th>
+                        <th className="px-4 py-3 text-center text-fc-brown font-semibold text-sm">Synced</th>
+                        <th className="px-4 py-3 text-center text-fc-brown font-semibold text-sm">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {financeRecords.map((record, index) => (
-                        <tr key={record.id} className={`border-b border-white/5 ${index % 2 === 0 ? 'bg-white/5' : ''} hover:bg-white/10 transition-colors`}>
-                          <td className="px-4 py-3 text-white text-sm">{record.date}</td>
-                          <td className="px-4 py-3 text-slate-300 text-sm">{record.campus_name}</td>
-                          <td className="px-4 py-3 text-right text-slate-300">${(record.general || 0).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right text-slate-300">${(record.trust || 0).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right text-slate-300">${(record.online || 0).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right text-slate-300">${(record.text || 0).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right text-white font-semibold">${(record.total || 0).toFixed(2)}</td>
+                        <tr key={record.id} className={`border-b border-white/5 ${index % 2 === 0 ? 'bg-white/5' : ''} hover:bg-fc-cream2 transition-colors`}>
+                          <td className="px-4 py-3 text-fc-midnight text-sm">{record.date}</td>
+                          <td className="px-4 py-3 text-fc-brown text-sm">{record.campus_name}</td>
+                          <td className="px-4 py-3 text-right text-fc-brown">${(record.general || 0).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right text-fc-brown">${(record.trust || 0).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right text-fc-brown">${(record.online || 0).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right text-fc-brown">${(record.text || 0).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right text-fc-midnight font-semibold">${(record.total || 0).toFixed(2)}</td>
                           <td className="px-4 py-3 text-center">
                             {record.synced_to_sheets ? (
                               <span className="text-green-400">✓</span>
@@ -697,11 +697,11 @@ const DatabaseViewer = () => {
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => handleEditFinanceRecord(record)}
-                                className="text-blue-400 hover:text-blue-300 text-sm"
+                                className="text-fc-copper hover:text-fc-copper text-sm"
                               >
                                 Edit
                               </button>
-                              <span className="text-slate-600">|</span>
+                              <span className="text-fc-brown">|</span>
                               <button
                                 onClick={() => handleDeleteFinanceRecord(record.id)}
                                 className="text-red-400 hover:text-red-300 text-sm"
@@ -727,7 +727,7 @@ const DatabaseViewer = () => {
               {importResult.success ? '✓' : '✗'} {importResult.message}
             </div>
             {importResult.success && importResult.imported !== undefined && (
-              <p className="text-slate-300 text-sm mt-1">
+              <p className="text-fc-brown text-sm mt-1">
                 {importResult.imported} new, {importResult.updated ?? 0} updated, {importResult.skipped} skipped,{' '}
                 {importResult.errors} errors
                 {importResult.sheet_name && ` (from "${importResult.sheet_name}")`}
@@ -735,7 +735,7 @@ const DatabaseViewer = () => {
             )}
             <button
               onClick={() => setImportResult(null)}
-              className="text-slate-400 hover:text-white text-sm mt-2"
+              className="text-fc-brown/70 hover:text-fc-midnight text-sm mt-2"
             >
               Dismiss
             </button>
@@ -755,13 +755,13 @@ const DatabaseViewer = () => {
               {syncResult.success ? '✓' : '✗'} {syncResult.message}
             </p>
             {syncResult.success && (
-              <p className="text-slate-300 text-sm mt-1">
+              <p className="text-fc-brown text-sm mt-1">
                 {syncResult.synced} synced successfully, {syncResult.failed} failed
               </p>
             )}
             <button
               onClick={() => setSyncResult(null)}
-              className="mt-2 text-slate-400 hover:text-slate-300 text-sm"
+              className="mt-2 text-fc-brown/70 hover:text-fc-brown text-sm"
             >
               Dismiss
             </button>
@@ -771,25 +771,25 @@ const DatabaseViewer = () => {
         {/* Summary Stats */}
         {!loading && !error && records.length > 0 && (
           <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4">
-              <p className="text-slate-300 text-sm mb-1">Total Records</p>
-              <p className="text-white text-2xl font-bold">{records.length}</p>
+            <div className="bg-fc-olive/15 border border-fc-olive/30 rounded-lg p-4">
+              <p className="text-fc-brown text-sm mb-1">Total Records</p>
+              <p className="text-fc-midnight text-2xl font-bold">{records.length}</p>
             </div>
-            <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-4">
-              <p className="text-slate-300 text-sm mb-1">Total Attendance</p>
-              <p className="text-white text-2xl font-bold">
+            <div className="bg-fc-violet/15 border border-fc-olive/30 rounded-lg p-4">
+              <p className="text-fc-brown text-sm mb-1">Total Attendance</p>
+              <p className="text-fc-midnight text-2xl font-bold">
                 {records.reduce((sum, r) => sum + (r.total_attendance || 0), 0)}
               </p>
             </div>
             <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
-              <p className="text-slate-300 text-sm mb-1">Synced to Sheets</p>
-              <p className="text-white text-2xl font-bold">
+              <p className="text-fc-brown text-sm mb-1">Synced to Sheets</p>
+              <p className="text-fc-midnight text-2xl font-bold">
                 {records.filter(r => r.synced_to_sheets).length}
               </p>
             </div>
             <div className="bg-orange-500/20 border border-orange-500/30 rounded-lg p-4">
-              <p className="text-slate-300 text-sm mb-1">Pending Sync</p>
-              <p className="text-white text-2xl font-bold">
+              <p className="text-fc-brown text-sm mb-1">Pending Sync</p>
+              <p className="text-fc-midnight text-2xl font-bold">
                 {records.filter(r => !r.synced_to_sheets).length}
               </p>
             </div>
@@ -800,14 +800,14 @@ const DatabaseViewer = () => {
       {/* Details Modal */}
       {showDetailsModal && selectedRecord && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-white/20 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-fc-cream2 shadow-pop max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex items-center justify-between border-b border-white/20">
+            <div className="sticky top-0 bg-gradient-to-r from-fc-copper to-fc-copper px-6 py-4 flex items-center justify-between border-b border-fc-cream2">
               <div>
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-2xl font-bold text-fc-midnight">
                   {isEditing ? '✏️ Edit Attendance Record' : 'Attendance Record Details'}
                 </h2>
-                <p className="text-blue-100 text-sm mt-1">
+                <p className="text-fc-midnight text-sm mt-1">
                   {selectedRecord.campus} - {selectedRecord.date}
                 </p>
               </div>
@@ -818,7 +818,7 @@ const DatabaseViewer = () => {
                       setEditedRecord({...selectedRecord});
                       setIsEditing(true);
                     }}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all text-sm font-semibold"
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-fc-midnight rounded-lg transition-all text-sm font-semibold"
                   >
                     ✏️ Edit
                   </button>
@@ -830,7 +830,7 @@ const DatabaseViewer = () => {
                     setEditedRecord(null);
                     setIsEditing(false);
                   }}
-                  className="text-white hover:text-red-300 transition-colors text-2xl"
+                  className="text-fc-midnight hover:text-red-300 transition-colors text-2xl"
                 >
                   ✕
                 </button>
@@ -841,30 +841,30 @@ const DatabaseViewer = () => {
             <div className="p-6 space-y-6">
               {/* Basic Info */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                <h3 className="text-lg font-semibold text-fc-midnight mb-3 flex items-center">
                   <span className="mr-2">📋</span> Basic Information
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Record ID</p>
-                    <p className="text-white font-semibold">{selectedRecord.id}</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Record ID</p>
+                    <p className="text-fc-midnight font-semibold">{selectedRecord.id}</p>
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Campus</p>
-                    <p className="text-white font-semibold">{selectedRecord.campus}</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Campus</p>
+                    <p className="text-fc-midnight font-semibold">{selectedRecord.campus}</p>
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Region</p>
-                    <p className="text-white font-semibold">{selectedRecord.region || 'N/A'}</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Region</p>
+                    <p className="text-fc-midnight font-semibold">{selectedRecord.region || 'N/A'}</p>
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Date</p>
-                    <p className="text-white font-semibold">{selectedRecord.date}</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Date</p>
+                    <p className="text-fc-midnight font-semibold">{selectedRecord.date}</p>
                   </div>
                   <div className="bg-white/5 rounded-lg p-3 col-span-2 md:col-span-1">
-                    <p className="text-slate-400 text-xs mb-1">Special event (not in normal totals)</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Special event (not in normal totals)</p>
                     {isEditing ? (
-                      <label className="flex cursor-pointer items-center gap-2 text-white">
+                      <label className="flex cursor-pointer items-center gap-2 text-fc-midnight">
                         <input
                           type="checkbox"
                           checked={editedRecord?.include_in_rollup_metrics === false}
@@ -874,18 +874,18 @@ const DatabaseViewer = () => {
                               include_in_rollup_metrics: !e.target.checked,
                             })
                           }
-                          className="rounded border-white/20 bg-slate-800"
+                          className="rounded border-fc-cream2 bg-white"
                         />
                         <span className="text-sm font-semibold">Yes — exclude from charts &amp; averages</span>
                       </label>
                     ) : (
-                      <p className="text-white font-semibold">
+                      <p className="text-fc-midnight font-semibold">
                         {selectedRecord.include_in_rollup_metrics === false ? 'Yes (special)' : 'No (normal)'}
                       </p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3 col-span-2">
-                    <p className="text-slate-400 text-xs mb-1">Special service name (optional)</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Special service name (optional)</p>
                     {isEditing ? (
                       <input
                         type="text"
@@ -894,16 +894,16 @@ const DatabaseViewer = () => {
                           setEditedRecord({ ...editedRecord, special_service_label: e.target.value })
                         }
                         placeholder="e.g. Good Friday, Christmas Eve"
-                        className="mt-1 w-full rounded border border-white/20 bg-slate-800 px-3 py-2 text-white text-sm"
+                        className="mt-1 w-full rounded border border-fc-cream2 bg-white px-3 py-2 text-fc-midnight text-sm"
                         maxLength={200}
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.special_service_label || '—'}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.special_service_label || '—'}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Synced to Sheets</p>
-                    <p className="text-white font-semibold">
+                    <p className="text-fc-brown/70 text-xs mb-1">Synced to Sheets</p>
+                    <p className="text-fc-midnight font-semibold">
                       {selectedRecord.synced_to_sheets ? '✓ Yes' : '⏳ Pending'}
                     </p>
                   </div>
@@ -912,60 +912,60 @@ const DatabaseViewer = () => {
 
               {/* Attendance Stats */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                <h3 className="text-lg font-semibold text-fc-midnight mb-3 flex items-center">
                   <span className="mr-2">👥</span> Attendance
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
-                    <p className="text-slate-300 text-xs mb-1">Total Attendance</p>
+                  <div className="bg-fc-olive/15 border border-fc-olive/30 rounded-lg p-3">
+                    <p className="text-fc-brown text-xs mb-1">Total Attendance</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.total_attendance || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, total_attendance: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white text-2xl font-bold">{selectedRecord.total_attendance || 0}</p>
+                      <p className="text-fc-midnight text-2xl font-bold">{selectedRecord.total_attendance || 0}</p>
                     )}
                   </div>
-                  <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-3">
-                    <p className="text-slate-300 text-xs mb-1">Total People in Campus</p>
+                  <div className="bg-fc-violet/15 border border-fc-olive/30 rounded-lg p-3">
+                    <p className="text-fc-brown text-xs mb-1">Total People in Campus</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.total_people_in_campus || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, total_people_in_campus: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white text-2xl font-bold">{selectedRecord.total_people_in_campus || 0}</p>
+                      <p className="text-fc-midnight text-2xl font-bold">{selectedRecord.total_people_in_campus || 0}</p>
                     )}
                   </div>
                   <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-3">
-                    <p className="text-slate-300 text-xs mb-1">Kids Attendance</p>
+                    <p className="text-fc-brown text-xs mb-1">Kids Attendance</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.kids_attendance || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, kids_attendance: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white text-2xl font-bold">{selectedRecord.kids_attendance || 0}</p>
+                      <p className="text-fc-midnight text-2xl font-bold">{selectedRecord.kids_attendance || 0}</p>
                     )}
                   </div>
                   <div className="bg-orange-500/20 border border-orange-500/30 rounded-lg p-3">
-                    <p className="text-slate-300 text-xs mb-1">Youth Attendance</p>
+                    <p className="text-fc-brown text-xs mb-1">Youth Attendance</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.youth_attendance || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, youth_attendance: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white text-2xl font-bold">{selectedRecord.youth_attendance || 0}</p>
+                      <p className="text-fc-midnight text-2xl font-bold">{selectedRecord.youth_attendance || 0}</p>
                     )}
                   </div>
                 </div>
@@ -974,18 +974,18 @@ const DatabaseViewer = () => {
               {/* Service Breakdowns */}
               {(selectedRecord.adult_service_breakdown || selectedRecord.kids_service_breakdown) && (
                 <div>
-                  <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                  <h3 className="text-lg font-semibold text-fc-midnight mb-3 flex items-center">
                     <span className="mr-2">⏰</span> Service Breakdowns
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedRecord.adult_service_breakdown && Object.keys(selectedRecord.adult_service_breakdown).length > 0 && (
                       <div className="bg-white/5 rounded-lg p-4">
-                        <p className="text-slate-300 font-semibold mb-2">Adult Services</p>
+                        <p className="text-fc-brown font-semibold mb-2">Adult Services</p>
                         <div className="space-y-2">
                           {Object.entries(selectedRecord.adult_service_breakdown).map(([time, count]) => (
                             <div key={time} className="flex justify-between">
-                              <span className="text-slate-400">{time}</span>
-                              <span className="text-white font-semibold">{count}</span>
+                              <span className="text-fc-brown/70">{time}</span>
+                              <span className="text-fc-midnight font-semibold">{count}</span>
                             </div>
                           ))}
                         </div>
@@ -993,12 +993,12 @@ const DatabaseViewer = () => {
                     )}
                     {selectedRecord.kids_service_breakdown && Object.keys(selectedRecord.kids_service_breakdown).length > 0 && (
                       <div className="bg-white/5 rounded-lg p-4">
-                        <p className="text-slate-300 font-semibold mb-2">Kids Services</p>
+                        <p className="text-fc-brown font-semibold mb-2">Kids Services</p>
                         <div className="space-y-2">
                           {Object.entries(selectedRecord.kids_service_breakdown).map(([time, count]) => (
                             <div key={time} className="flex justify-between">
-                              <span className="text-slate-400">{time}</span>
-                              <span className="text-white font-semibold">{count}</span>
+                              <span className="text-fc-brown/70">{time}</span>
+                              <span className="text-fc-midnight font-semibold">{count}</span>
                             </div>
                           ))}
                         </div>
@@ -1010,60 +1010,60 @@ const DatabaseViewer = () => {
 
               {/* Kids Ministry */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                <h3 className="text-lg font-semibold text-fc-midnight mb-3 flex items-center">
                   <span className="mr-2">🧒</span> Kids Ministry
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Kids Leaders</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Kids Leaders</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.kids_leaders || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, kids_leaders: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.kids_leaders || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.kids_leaders || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">New Kids</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">New Kids</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.new_kids || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, new_kids: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.new_kids || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.new_kids || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Kids Salvations</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Kids Salvations</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.new_kids_salvations || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, new_kids_salvations: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.new_kids_salvations || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.new_kids_salvations || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Packs Out</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Packs Out</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.packs_out || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, packs_out: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.packs_out || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.packs_out || 0}</p>
                     )}
                   </div>
                 </div>
@@ -1071,47 +1071,47 @@ const DatabaseViewer = () => {
 
               {/* Youth Ministry */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                <h3 className="text-lg font-semibold text-fc-midnight mb-3 flex items-center">
                   <span className="mr-2">🎸</span> Youth Ministry
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Youth Leaders</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Youth Leaders</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.youth_leaders || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, youth_leaders: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.youth_leaders || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.youth_leaders || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Youth Salvations</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Youth Salvations</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.youth_salvations || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, youth_salvations: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.youth_salvations || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.youth_salvations || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Youth New People</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Youth New People</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.youth_new_people || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, youth_new_people: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.youth_new_people || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.youth_new_people || 0}</p>
                     )}
                   </div>
                 </div>
@@ -1119,99 +1119,99 @@ const DatabaseViewer = () => {
 
               {/* Visitors & Salvations */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                <h3 className="text-lg font-semibold text-fc-midnight mb-3 flex items-center">
                   <span className="mr-2">🌟</span> Visitors & Salvations
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">First Time Visitors</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">First Time Visitors</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.first_time_visitors || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, first_time_visitors: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.first_time_visitors || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.first_time_visitors || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Visitors</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Visitors</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.visitors || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, visitors: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.visitors || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.visitors || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Hands Up</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Hands Up</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.hands_up || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, hands_up: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.hands_up || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.hands_up || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Cards Returned</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Cards Returned</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.cards_back || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, cards_back: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.cards_back || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.cards_back || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">First Time Christians</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">First Time Christians</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.first_time_christians || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, first_time_christians: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.first_time_christians || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.first_time_christians || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Rededications</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Rededications</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.rededications || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, rededications: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.rededications || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.rededications || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Salvation Cards</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Salvation Cards</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.salvation_cards_returned || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, salvation_cards_returned: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.salvation_cards_returned || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.salvation_cards_returned || 0}</p>
                     )}
                   </div>
                 </div>
@@ -1219,60 +1219,60 @@ const DatabaseViewer = () => {
 
               {/* Church Life */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                <h3 className="text-lg font-semibold text-fc-midnight mb-3 flex items-center">
                   <span className="mr-2">⛪</span> Church Life
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Baptisms</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Baptisms</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.baptisms || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, baptisms: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.baptisms || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.baptisms || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Child Dedications</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Child Dedications</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.child_dedications || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, child_dedications: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.child_dedications || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.child_dedications || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Connect Groups</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Connect Groups</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.connect_groups || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, connect_groups: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.connect_groups || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.connect_groups || 0}</p>
                     )}
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-slate-400 text-xs mb-1">Dream Team</p>
+                    <p className="text-fc-brown/70 text-xs mb-1">Dream Team</p>
                     {isEditing ? (
                       <input
                         type="number"
                         value={editedRecord?.dream_team || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, dream_team: parseInt(e.target.value) || 0})}
-                        className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-fc-cream2 border border-fc-cream2 rounded px-2 py-1 text-fc-midnight font-semibold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     ) : (
-                      <p className="text-white font-semibold">{selectedRecord.dream_team || 0}</p>
+                      <p className="text-fc-midnight font-semibold">{selectedRecord.dream_team || 0}</p>
                     )}
                   </div>
                 </div>
@@ -1280,44 +1280,44 @@ const DatabaseViewer = () => {
 
               {/* Financial */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                <h3 className="text-lg font-semibold text-fc-midnight mb-3 flex items-center">
                   <span className="mr-2">💰</span> Financial
                 </h3>
                 <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
-                  <p className="text-slate-300 text-sm mb-1">Tithe</p>
+                  <p className="text-fc-brown text-sm mb-1">Tithe</p>
                   {isEditing ? (
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white text-2xl">$</span>
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-fc-midnight text-2xl">$</span>
                       <input
                         type="number"
                         step="0.01"
                         value={editedRecord?.tithe || 0}
                         onChange={(e) => setEditedRecord({...editedRecord, tithe: parseFloat(e.target.value) || 0})}
-                        className="w-full pl-8 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-3xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full pl-8 pr-4 py-2 bg-fc-cream2 border border-fc-cream2 rounded-lg text-fc-midnight text-3xl font-bold focus:outline-none focus:ring-2 focus:ring-fc-olive"
                       />
                     </div>
                   ) : (
-                    <p className="text-white text-3xl font-bold">${(selectedRecord.tithe || 0).toFixed(2)}</p>
+                    <p className="text-fc-midnight text-3xl font-bold">${(selectedRecord.tithe || 0).toFixed(2)}</p>
                   )}
                 </div>
               </div>
 
               {/* Timestamps */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                <h3 className="text-lg font-semibold text-fc-midnight mb-3 flex items-center">
                   <span className="mr-2">🕐</span> Timestamps
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {selectedRecord.created_at && (
                     <div className="bg-white/5 rounded-lg p-3">
-                      <p className="text-slate-400 text-xs mb-1">Created At</p>
-                      <p className="text-white text-sm">{new Date(selectedRecord.created_at).toLocaleString()}</p>
+                      <p className="text-fc-brown/70 text-xs mb-1">Created At</p>
+                      <p className="text-fc-midnight text-sm">{new Date(selectedRecord.created_at).toLocaleString()}</p>
                     </div>
                   )}
                   {selectedRecord.updated_at && (
                     <div className="bg-white/5 rounded-lg p-3">
-                      <p className="text-slate-400 text-xs mb-1">Last Updated</p>
-                      <p className="text-white text-sm">{new Date(selectedRecord.updated_at).toLocaleString()}</p>
+                      <p className="text-fc-brown/70 text-xs mb-1">Last Updated</p>
+                      <p className="text-fc-midnight text-sm">{new Date(selectedRecord.updated_at).toLocaleString()}</p>
                     </div>
                   )}
                 </div>
@@ -1325,7 +1325,7 @@ const DatabaseViewer = () => {
             </div>
 
             {/* Footer */}
-            <div className="sticky bottom-0 bg-slate-900 border-t border-white/20 px-6 py-4 flex justify-end gap-3">
+            <div className="sticky bottom-0 bg-fc-cream border-t border-fc-cream2 px-6 py-4 flex justify-end gap-3">
               {isEditing ? (
                 <>
                   <button
@@ -1334,14 +1334,14 @@ const DatabaseViewer = () => {
                       setIsEditing(false);
                     }}
                     disabled={savingRecord}
-                    className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all disabled:opacity-50"
+                    className="px-6 py-2 bg-fc-cream2 hover:bg-fc-cream2 text-fc-midnight rounded-lg transition-all disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveRecord}
                     disabled={savingRecord}
-                    className="px-6 py-2 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                    className="px-6 py-2 bg-gradient-to-r from-green-600 to-fc-copper text-fc-midnight rounded-lg hover:from-green-700 hover:to-fc-brown transition-all disabled:opacity-50 flex items-center gap-2"
                   >
                     {savingRecord ? (
                       <>
@@ -1361,7 +1361,7 @@ const DatabaseViewer = () => {
                     setEditedRecord(null);
                     setIsEditing(false);
                   }}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
+                  className="px-6 py-2 bg-gradient-to-r from-fc-copper to-fc-copper text-fc-midnight rounded-lg hover:brightness-95 transition-all"
                 >
                   Close
                 </button>
@@ -1374,12 +1374,12 @@ const DatabaseViewer = () => {
       {/* Finance Edit Modal */}
       {showFinanceEditModal && editingFinanceRecord && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-white/20 shadow-2xl max-w-2xl w-full">
+          <div className="bg-white rounded-2xl border border-fc-cream2 shadow-pop max-w-2xl w-full">
             {/* Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-green-600 to-blue-600 px-6 py-4 flex items-center justify-between border-b border-white/20">
+            <div className="sticky top-0 bg-gradient-to-r from-green-600 to-fc-copper px-6 py-4 flex items-center justify-between border-b border-fc-cream2">
               <div>
-                <h2 className="text-2xl font-bold text-white">Edit Finance Record</h2>
-                <p className="text-blue-100 text-sm mt-1">
+                <h2 className="text-2xl font-bold text-fc-midnight">Edit Finance Record</h2>
+                <p className="text-fc-midnight text-sm mt-1">
                   {editingFinanceRecord.campus_name} - {editingFinanceRecord.date}
                 </p>
               </div>
@@ -1388,7 +1388,7 @@ const DatabaseViewer = () => {
                   setShowFinanceEditModal(false);
                   setEditingFinanceRecord(null);
                 }}
-                className="text-white hover:text-red-300 transition-colors text-2xl"
+                className="text-fc-midnight hover:text-red-300 transition-colors text-2xl"
               >
                 ✕
               </button>
@@ -1399,11 +1399,11 @@ const DatabaseViewer = () => {
               <div className="grid grid-cols-2 gap-4">
                 {/* General */}
                 <div>
-                  <label className="block text-slate-300 text-sm font-medium mb-2">
+                  <label className="block text-fc-brown text-sm font-medium mb-2">
                     General
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">$</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-fc-brown/70">$</span>
                     <input
                       type="number"
                       step="0.01"
@@ -1413,18 +1413,18 @@ const DatabaseViewer = () => {
                         ...editingFinanceRecord,
                         general: parseFloat(e.target.value) || 0
                       })}
-                      className="w-full pl-8 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-8 pr-4 py-2 bg-fc-cream2 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:ring-2 focus:ring-fc-olive"
                     />
                   </div>
                 </div>
 
                 {/* Trust */}
                 <div>
-                  <label className="block text-slate-300 text-sm font-medium mb-2">
+                  <label className="block text-fc-brown text-sm font-medium mb-2">
                     Trust
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">$</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-fc-brown/70">$</span>
                     <input
                       type="number"
                       step="0.01"
@@ -1434,18 +1434,18 @@ const DatabaseViewer = () => {
                         ...editingFinanceRecord,
                         trust: parseFloat(e.target.value) || 0
                       })}
-                      className="w-full pl-8 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-8 pr-4 py-2 bg-fc-cream2 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:ring-2 focus:ring-fc-olive"
                     />
                   </div>
                 </div>
 
                 {/* Online */}
                 <div>
-                  <label className="block text-slate-300 text-sm font-medium mb-2">
+                  <label className="block text-fc-brown text-sm font-medium mb-2">
                     Online
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">$</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-fc-brown/70">$</span>
                     <input
                       type="number"
                       step="0.01"
@@ -1455,18 +1455,18 @@ const DatabaseViewer = () => {
                         ...editingFinanceRecord,
                         online: parseFloat(e.target.value) || 0
                       })}
-                      className="w-full pl-8 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-8 pr-4 py-2 bg-fc-cream2 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:ring-2 focus:ring-fc-olive"
                     />
                   </div>
                 </div>
 
                 {/* Text */}
                 <div>
-                  <label className="block text-slate-300 text-sm font-medium mb-2">
+                  <label className="block text-fc-brown text-sm font-medium mb-2">
                     Text
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">$</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-fc-brown/70">$</span>
                     <input
                       type="number"
                       step="0.01"
@@ -1476,7 +1476,7 @@ const DatabaseViewer = () => {
                         ...editingFinanceRecord,
                         text: parseFloat(e.target.value) || 0
                       })}
-                      className="w-full pl-8 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-8 pr-4 py-2 bg-fc-cream2 border border-fc-cream2 rounded-lg text-fc-midnight focus:outline-none focus:ring-2 focus:ring-fc-olive"
                     />
                   </div>
                 </div>
@@ -1484,27 +1484,27 @@ const DatabaseViewer = () => {
 
               {/* Total Display */}
               <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
-                <p className="text-slate-300 text-sm mb-1">Total</p>
-                <p className="text-white text-3xl font-bold">
+                <p className="text-fc-brown text-sm mb-1">Total</p>
+                <p className="text-fc-midnight text-3xl font-bold">
                   ${((editingFinanceRecord.general || 0) + (editingFinanceRecord.trust || 0) + (editingFinanceRecord.online || 0) + (editingFinanceRecord.text || 0)).toFixed(2)}
                 </p>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="sticky bottom-0 bg-slate-900 border-t border-white/20 px-6 py-4 flex justify-end gap-3">
+            <div className="sticky bottom-0 bg-fc-cream border-t border-fc-cream2 px-6 py-4 flex justify-end gap-3">
               <button
                 onClick={() => {
                   setShowFinanceEditModal(false);
                   setEditingFinanceRecord(null);
                 }}
-                className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all"
+                className="px-6 py-2 bg-fc-cream2 hover:bg-fc-cream2 text-fc-midnight rounded-lg transition-all"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveFinanceRecord}
-                className="px-6 py-2 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 transition-all"
+                className="px-6 py-2 bg-gradient-to-r from-green-600 to-fc-copper text-fc-midnight rounded-lg hover:from-green-700 hover:to-fc-brown transition-all"
               >
                 Save Changes
               </button>

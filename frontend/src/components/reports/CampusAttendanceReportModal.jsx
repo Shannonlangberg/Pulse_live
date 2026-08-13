@@ -127,19 +127,19 @@ export default function CampusAttendanceReportModal({
       aria-modal="true"
       aria-labelledby="campus-report-modal-title"
     >
-      <div className="relative w-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl border border-white/10 bg-slate-900 shadow-2xl overflow-hidden campus-report-modal-shell">
-        <div className="campus-report-modal-chrome flex flex-shrink-0 flex-col gap-4 border-b border-white/10 bg-gradient-to-r from-slate-800 to-slate-900 px-4 py-4 sm:px-6 sm:flex-row sm:items-start sm:justify-between">
+      <div className="relative w-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl border border-fc-cream2 bg-fc-cream shadow-2xl overflow-hidden campus-report-modal-shell">
+        <div className="campus-report-modal-chrome flex flex-shrink-0 flex-col gap-4 border-b border-fc-cream2 bg-fc-cream px-4 py-4 sm:px-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 pr-10 sm:pr-0">
             <h2
               id="campus-report-modal-title"
-              className="text-lg font-bold text-white sm:text-xl"
+              className="fc-display-md text-fc-midnight"
             >
               Attendance report
             </h2>
-            <p className="mt-1 text-sm text-white/60">
+            <p className="mt-1 text-sm text-fc-brown">
               {campusScopeLabel ? (
                 <>
-                  Scope: <span className="text-white/90">{campusScopeLabel}</span>
+                  Scope: <span className="text-fc-midnight font-medium">{campusScopeLabel}</span>
                   {' · '}Same preview as Reports (Pulse DB)
                 </>
               ) : (
@@ -150,17 +150,17 @@ export default function CampusAttendanceReportModal({
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-3 top-3 rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white sm:static sm:self-start"
+            className="absolute right-3 top-3 rounded-lg p-2 text-fc-brown hover:bg-fc-cream2 hover:text-fc-midnight sm:static sm:self-start"
             aria-label="Close"
           >
             <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
 
-        <div className="campus-report-modal-chrome flex-shrink-0 border-b border-white/10 bg-slate-800/90 px-4 py-4 sm:px-6">
+        <div className="campus-report-modal-chrome flex-shrink-0 border-b border-fc-cream2 bg-fc-cream2/40 px-4 py-4 sm:px-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-white/50">
+              <label className="fc-label mb-1.5 block">
                 Report year
               </label>
               <select
@@ -171,7 +171,7 @@ export default function CampusAttendanceReportModal({
                   setYear(y);
                   if (y <= 2000) setIncludePreviousYear(false);
                 }}
-                className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="fc-input w-full disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {buildYearOptions().map((y) => (
                   <option key={y} value={y}>
@@ -181,7 +181,7 @@ export default function CampusAttendanceReportModal({
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-white/50">
+              <label className="fc-label mb-1.5 block">
                 Period
               </label>
               <select
@@ -195,7 +195,7 @@ export default function CampusAttendanceReportModal({
                     setCustomEndDate((prev) => prev || end);
                   }
                 }}
-                className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="fc-input w-full"
               >
                 {PERIOD_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -207,25 +207,25 @@ export default function CampusAttendanceReportModal({
             {period === 'custom' && (
               <>
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-white/50">
+                  <label className="fc-label mb-1.5 block">
                     Start date
                   </label>
                   <input
                     type="date"
                     value={customStartDate}
                     onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                    className="fc-input w-full"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-white/50">
+                  <label className="fc-label mb-1.5 block">
                     End date
                   </label>
                   <input
                     type="date"
                     value={customEndDate}
                     onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                    className="fc-input w-full"
                   />
                 </div>
               </>
@@ -237,18 +237,18 @@ export default function CampusAttendanceReportModal({
               checked={includePreviousYear}
               onChange={(e) => setIncludePreviousYear(e.target.checked)}
               disabled={year <= 2000}
-              className="mt-1 rounded border-white/20 bg-slate-900 text-violet-500 focus:ring-violet-500 disabled:opacity-40"
+              className="mt-1 rounded border-fc-cream2 bg-fc-cream text-fc-olive focus:ring-fc-olive disabled:opacity-40"
             />
-            <span className="text-sm text-white/90">
+            <span className="text-sm text-fc-midnight">
               <span className="font-medium">Include previous year (YoY)</span>
-              <span className="mt-0.5 block text-xs text-white/50">
+              <span className="mt-0.5 block text-xs text-fc-brown">
                 Same period rules as the main Reports page and PDF/CSV downloads.
               </span>
             </span>
           </label>
         </div>
 
-        <div className="campus-report-modal-body min-h-0 flex-1 overflow-y-auto bg-slate-950/40 p-3 sm:p-4">
+        <div className="campus-report-modal-body min-h-0 flex-1 overflow-y-auto bg-fc-cream2/30 p-3 sm:p-4">
           <AttendanceReportPreview
             queryString={pdfQueryString}
             regionTitle={regionTitle}

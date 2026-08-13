@@ -1,8 +1,61 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PlusIcon, CalendarIcon, XMarkIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, CalendarIcon, XMarkIcon, PencilIcon, SparklesIcon, CloudIcon } from '@heroicons/react/24/outline';
 import DynamicBackground from '../components/DynamicBackground';
 import { useSession } from '../lib/useSession';
+
+// Numeric input row: label left, round +/- steppers either side of a centered
+// monospace input. Steppers read/write the same uncontrolled input + updateStat
+// path the plain onChange already used, so no field keys or submit behavior change.
+const NumberField = ({ statKey, label, formRef, quickInputStats, updateStat }) => {
+  const handleStep = (delta) => {
+    const input = formRef.current?.querySelector(`[data-stat-key="${statKey}"]`);
+    const current = parseInt(input?.value, 10) || 0;
+    const next = Math.max(0, current + delta);
+    if (input) input.value = String(next);
+    updateStat(statKey, String(next));
+  };
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 py-3.5">
+      <label className="text-[15px] sm:text-base text-fc-midnight flex-1 min-w-0">{label}</label>
+      <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
+        <button
+          type="button"
+          onClick={() => handleStep(-1)}
+          aria-label={`Decrease ${label}`}
+          className="w-11 h-11 rounded-full border border-fc-cream2 bg-white text-fc-brown text-xl leading-none flex items-center justify-center active:bg-fc-cream2/60 transition-colors"
+        >
+          &minus;
+        </button>
+        <input
+          type="text"
+          inputMode="numeric"
+          data-stat-key={statKey}
+          defaultValue={quickInputStats[statKey] || ''}
+          onChange={(e) => updateStat(statKey, e.target.value)}
+          placeholder="0"
+          className="w-[70px] sm:w-[82px] h-11 px-2 rounded-[10px] border border-fc-cream2 bg-fc-cream font-mono text-lg text-fc-midnight text-center outline-none focus:ring-2 focus:ring-fc-olive/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        />
+        <button
+          type="button"
+          onClick={() => handleStep(1)}
+          aria-label={`Increase ${label}`}
+          className="w-11 h-11 rounded-full border border-fc-cream2 bg-white text-fc-brown text-xl leading-none flex items-center justify-center active:bg-fc-cream2/60 transition-colors"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Card wrapper for a group of NumberFields, with hairline dividers between rows.
+const SectionCard = ({ title, children }) => (
+  <div className="fc-card p-5 sm:p-6">
+    <div className="fc-label mb-1">{title}</div>
+    <div className="divide-y divide-fc-cream2">{children}</div>
+  </div>
+);
 
 const LogStats = () => {
   const navigate = useNavigate();
@@ -588,125 +641,121 @@ const LogStats = () => {
   };
 
   return (
-    <div className="relative">
+    <div className="relative min-h-screen">
       <DynamicBackground />
-      
-      {/* Header */}
-      <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 animate-pulse">
-            <span className="text-4xl">📊</span>
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-3">Stats Input</h1>
-          <p className="text-slate-400 text-lg">Input church statistics and attendance data</p>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="fc-label mb-2">Weekly entry</div>
+          <h1 className="fc-display fc-display-md mb-2">Stats Input</h1>
+          <p className="text-fc-brown text-[15px]">Input church statistics and attendance data</p>
         </div>
 
         {/* Main Card */}
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-3xl p-8 border border-white/20 shadow-2xl">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 space-y-4 sm:space-y-0">
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-2">Quick Stats Entry</h2>
-                <p className="text-slate-300 text-base">Enter your church statistics quickly and efficiently</p>
+        <div className="fc-card p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-6">
+            <div>
+              <h2 className="fc-display text-2xl mb-1">Quick Stats Entry</h2>
+              <p className="text-fc-brown text-[15px]">Enter your church statistics quickly and efficiently</p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              {/* Region Selector */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <span className="fc-label">Region</span>
+                <select
+                  value={selectedRegion}
+                  onChange={(e) => setSelectedRegion(e.target.value)}
+                  className="fc-input py-2.5 text-sm"
+                >
+                  {regions.length === 0 ? (
+                    <option value="">Loading...</option>
+                  ) : (
+                    regions.map(region => (
+                      <option key={region.code} value={region.code}>
+                        {region.display_name}
+                      </option>
+                    ))
+                  )}
+                </select>
               </div>
-              <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                {/* Region Selector */}
-                <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                  <span className="text-sm text-slate-300 font-medium">Region:</span>
-                  <select
-                    value={selectedRegion}
-                    onChange={(e) => setSelectedRegion(e.target.value)}
-                    className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm"
-                  >
-                    {regions.length === 0 ? (
-                      <option value="">Loading...</option>
-                    ) : (
-                      regions.map(region => (
-                        <option key={region.code} value={region.code} className="bg-slate-800">
-                          {region.display_name}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
 
-                {/* Campus Selector */}
-                <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                  <span className="text-sm text-slate-300 font-medium">Campus:</span>
-                  <select
-                    value={selectedCampus}
-                    onChange={(e) => setSelectedCampus(e.target.value)}
-                    className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                  >
-                    {campuses.length === 0 ? (
-                      <option value="">No campuses in this region</option>
-                    ) : (
-                      campuses.map(campus => (
-                        <option key={campus.id} value={campus.id}>
-                          {campus.name}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
+              {/* Campus Selector */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <span className="fc-label">Campus</span>
+                <select
+                  value={selectedCampus}
+                  onChange={(e) => setSelectedCampus(e.target.value)}
+                  className="fc-input py-2.5 text-sm"
+                >
+                  {campuses.length === 0 ? (
+                    <option value="">No campuses in this region</option>
+                  ) : (
+                    campuses.map(campus => (
+                      <option key={campus.id} value={campus.id}>
+                        {campus.name}
+                      </option>
+                    ))
+                  )}
+                </select>
               </div>
             </div>
-            
-            {/* Quick Input Section */}
-            <div className="text-center">
-              <button
-                onClick={() => {
+          </div>
+
+          {/* Quick Input Section */}
+          <div className="text-center">
+            <button
+              onClick={() => {
                 latestValuesRef.current = { ...quickInputStats };
                 setSpecialEventExcludeFromNormalTotals(false);
                 setSpecialServiceLabel('');
                 setShowQuickInput(true);
               }}
-                className="relative bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-12 py-5 rounded-2xl text-xl font-bold transition-all duration-300 shadow-2xl hover:shadow-purple-500/50 transform hover:scale-105 overflow-hidden group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <span className="relative z-10">Start Input</span>
-              </button>
-            </div>
+              className="fc-btn-primary px-12 py-4 text-lg"
+            >
+              Start Input
+            </button>
           </div>
         </div>
 
         {/* Recent Entries from Last 30 Days */}
-        <div className="max-w-6xl mx-auto mt-8">
-          <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-3xl p-8 border border-white/20 shadow-2xl">
+        <div className="mt-8">
+          <div className="fc-card p-6 sm:p-8">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-white">Recent Entries (Last 30 Days)</h3>
+              <h3 className="fc-display text-2xl">Recent Entries (Last 30 Days)</h3>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => loadRecentEntries(true)}
                   disabled={loadingRecent}
-                  className="text-sm text-blue-400 hover:text-blue-300 disabled:opacity-50"
+                  className="text-sm text-fc-copper hover:opacity-80 disabled:opacity-50"
                 >
                   Refresh
                 </button>
                 {loadingRecent && (
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-fc-copper"></div>
                 )}
               </div>
             </div>
             {recentEntries.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {recentEntries.map((entry, index) => {
                   const totalAtt = (entry.stats['Total Attendance'] || 0);
                   const kidsAtt = (entry.stats['Kids Attendance'] || 0);
                   const newPeople = (entry.stats['New People'] || 0);
                   const newChristians = (entry.stats['New Christians'] || 0);
-                  
+
                   // Format campus name properly
-                  const campusName = entry.campus === 'All Campuses' ? 'All Campuses' : 
+                  const campusName = entry.campus === 'All Campuses' ? 'All Campuses' :
                     entry.campus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                  
+
                   // Create unique key for each entry
                   const uniqueKey = `${entry.date}-${entry.campus}-${index}`;
-                  
+
                   return (
-                    <div 
-                      key={uniqueKey} 
-                      className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-white/20 shadow-lg hover:shadow-xl hover:border-blue-500/50 transition-all duration-300 cursor-pointer group" 
+                    <div
+                      key={uniqueKey}
+                      className="bg-fc-cream rounded-2xl p-4 sm:p-6 border border-fc-cream2 hover:border-fc-copper/40 hover:shadow-md transition-all duration-200 cursor-pointer group"
                       onClick={() => {
                         // Fix: Use index to get the current entry from state to avoid stale closure
                         handleEditFromRecent(recentEntries[index]);
@@ -714,33 +763,33 @@ const LogStats = () => {
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex-1 w-full">
-                          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 mb-4">
-                            <div className="text-base sm:text-lg text-blue-400 font-bold">{entry.date}</div>
-                            <div className="text-sm text-slate-400 bg-white/10 rounded-lg px-3 py-1 w-fit">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4">
+                            <div className="text-base sm:text-lg text-fc-copper font-semibold">{entry.date}</div>
+                            <div className="text-sm text-fc-brown bg-white rounded-lg px-3 py-1 w-fit border border-fc-cream2">
                               {campusName}
                             </div>
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-4">
                             <div className="pb-2">
-                              <div className="text-xs sm:text-sm text-slate-400 mb-2 leading-tight">Total Attendance</div>
-                              <div className="text-white text-lg sm:text-xl font-semibold">{totalAtt.toLocaleString()}</div>
+                              <div className="text-xs sm:text-sm text-fc-brown mb-2 leading-tight">Total Attendance</div>
+                              <div className="text-fc-midnight text-lg sm:text-xl font-mono">{totalAtt.toLocaleString()}</div>
                             </div>
                             <div className="pb-2">
-                              <div className="text-xs sm:text-sm text-slate-400 mb-2 leading-tight">New People</div>
-                              <div className="text-green-400 text-lg sm:text-xl font-semibold">{newPeople.toLocaleString()}</div>
+                              <div className="text-xs sm:text-sm text-fc-brown mb-2 leading-tight">New People</div>
+                              <div className="text-fc-olive text-lg sm:text-xl font-mono">{newPeople.toLocaleString()}</div>
                             </div>
                             <div className="pb-2">
-                              <div className="text-xs sm:text-sm text-slate-400 mb-2 leading-tight">New Christians</div>
-                              <div className="text-yellow-400 text-lg sm:text-xl font-semibold">{newChristians.toLocaleString()}</div>
+                              <div className="text-xs sm:text-sm text-fc-brown mb-2 leading-tight">New Christians</div>
+                              <div className="text-fc-gold text-lg sm:text-xl font-mono">{newChristians.toLocaleString()}</div>
                             </div>
                             <div className="pb-2">
-                              <div className="text-xs sm:text-sm text-slate-400 mb-2 leading-tight">Kids</div>
-                              <div className="text-pink-400 text-lg sm:text-xl font-semibold">{kidsAtt.toLocaleString()}</div>
+                              <div className="text-xs sm:text-sm text-fc-brown mb-2 leading-tight">Kids</div>
+                              <div className="text-fc-teal text-lg sm:text-xl font-mono">{kidsAtt.toLocaleString()}</div>
                             </div>
                           </div>
                         </div>
-                        <div className="bg-blue-500/20 p-3 rounded-xl opacity-0 sm:opacity-100 sm:group-hover:opacity-100 transition-opacity mt-4 sm:mt-0 sm:ml-4 flex-shrink-0 self-end sm:self-auto">
-                          <PencilIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
+                        <div className="bg-white p-3 rounded-xl opacity-0 sm:opacity-100 sm:group-hover:opacity-100 transition-opacity mt-4 sm:mt-0 sm:ml-4 flex-shrink-0 self-end sm:self-auto border border-fc-cream2">
+                          <PencilIcon className="w-5 h-5 sm:w-6 sm:h-6 text-fc-copper" />
                         </div>
                       </div>
                     </div>
@@ -749,24 +798,26 @@ const LogStats = () => {
               </div>
             ) : (
               <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gradient-to-r from-slate-500 to-slate-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-fc-cream2 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl">📝</span>
                 </div>
-                <div className="text-slate-300 text-lg font-semibold mb-2">No recent entries found</div>
-                <p className="text-slate-400 text-sm">Start by using quick input above to log stats</p>
+                <div className="text-fc-midnight text-lg font-semibold mb-2">No recent entries found</div>
+                <p className="text-fc-brown text-sm">Start by using quick input above to log stats</p>
               </div>
             )}
           </div>
         </div>
+      </div>
 
         {/* Quick Input Modal */}
         {showQuickInput && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div ref={quickInputFormRef} key={`stats-form-${selectedCampus}-${formMountKey}-${isEditMode ? (editingEntry?.recordId ?? 'edit') : 'new'}`} className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border border-white/20 rounded-3xl p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-              <div className="flex justify-between items-start mb-8">
+          <div className="fixed inset-0 bg-fc-midnight/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div ref={quickInputFormRef} key={`stats-form-${selectedCampus}-${formMountKey}-${isEditMode ? (editingEntry?.recordId ?? 'edit') : 'new'}`} className="bg-fc-cream border border-fc-cream2 rounded-3xl p-6 sm:p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl pb-28">
+              <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h3 className="text-3xl font-bold text-white mb-2">{isEditMode ? 'Edit Stats Entry' : 'Quick Stats Input'}</h3>
-                  <p className="text-slate-300">{isEditMode ? 'Update your church statistics' : 'Enter your church statistics in organized sections'}</p>
+                  <div className="fc-label mb-2">{isEditMode ? 'Editing entry' : 'Weekly entry'}</div>
+                  <h3 className="fc-display text-2xl sm:text-3xl mb-1">{isEditMode ? 'Edit Stats Entry' : 'Quick Stats Input'}</h3>
+                  <p className="text-fc-brown text-[15px]">{isEditMode ? 'Update your church statistics' : 'Enter your church statistics in organized sections'}</p>
                 </div>
                 <button
                   onClick={() => {
@@ -774,46 +825,42 @@ const LogStats = () => {
                     setIsEditMode(false);
                     setEditingEntry(null);
                   }}
-                  className="text-slate-400 hover:text-white transition-colors duration-200 p-2 hover:bg-white/10 rounded-xl"
+                  className="text-fc-brown hover:text-fc-midnight transition-colors duration-200 p-2 hover:bg-fc-cream2 rounded-xl flex-shrink-0"
                 >
                   <XMarkIcon className="w-6 h-6" />
                 </button>
               </div>
-              
+
               {/* Region, Campus & Date Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-gradient-to-br from-purple-500/20 to-purple-500/5 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30">
-                  <label className="block text-sm font-semibold text-white mb-3">
-                    Region
-                  </label>
+              <div className="flex flex-wrap gap-2 mb-6">
+                <label className="inline-flex items-center gap-2 px-3 py-2.5 bg-white rounded-full shadow-sm border border-fc-cream2 text-sm">
+                  <span className="fc-label !mb-0 !tracking-normal !text-[11px]">Region</span>
                   <select
                     value={selectedRegion}
                     onChange={(e) => setSelectedRegion(e.target.value)}
-                    className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white w-full focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm"
+                    className="bg-transparent text-fc-midnight text-sm outline-none border-none"
                   >
                     {regions.length === 0 ? (
                       <option value="">Loading regions...</option>
                     ) : (
                       regions.map(region => (
-                        <option key={region.code} value={region.code} className="bg-slate-800">
+                        <option key={region.code} value={region.code}>
                           {region.code === 'AU' ? '🇦🇺' : region.code === 'US' ? '🇺🇸' : region.code === 'BR' ? '🇧🇷' : region.code === 'ID' ? '🇮🇩' : '🌏'} {region.display_name}
                         </option>
                       ))
                     )}
                   </select>
-                  {regions.length === 0 && (
-                    <p className="mt-2 text-xs text-red-400">⚠️ Regions not loading. Check console.</p>
-                  )}
-                </div>
+                </label>
+                {regions.length === 0 && (
+                  <p className="text-xs text-fc-copper self-center">Regions not loading. Check console.</p>
+                )}
 
-                <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                  <label className="block text-sm font-semibold text-white mb-3">
-                    Campus
-                  </label>
+                <label className="inline-flex items-center gap-2 px-3 py-2.5 bg-white rounded-full shadow-sm border border-fc-cream2 text-sm">
+                  <span className="fc-label !mb-0 !tracking-normal !text-[11px]">Campus</span>
                   <select
                     value={selectedCampus}
                     onChange={(e) => setSelectedCampus(e.target.value)}
-                    className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
+                    className="bg-transparent text-fc-midnight text-sm outline-none border-none"
                   >
                     {campuses.length === 0 ? (
                       <option value="">No campuses in this region</option>
@@ -825,532 +872,208 @@ const LogStats = () => {
                       ))
                     )}
                   </select>
-                </div>
-                
-                <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                  <label className="block text-sm font-semibold text-white mb-3">
-                    Service Date
-                  </label>
-                  <div className="flex items-center space-x-3">
-                    <CalendarIcon className="w-5 h-5 text-blue-400" />
-                    <input
-                      type="date"
-                      value={quickInputDate}
-                      onChange={(e) => setQuickInputDate(e.target.value)}
-                      className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                    />
-                  </div>
-                </div>
+                </label>
+
+                <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-white rounded-full shadow-sm border border-fc-cream2 text-sm cursor-pointer">
+                  <CalendarIcon className="w-4 h-4 text-fc-copper" />
+                  <input
+                    type="date"
+                    value={quickInputDate}
+                    onChange={(e) => setQuickInputDate(e.target.value)}
+                    className="bg-transparent text-fc-midnight text-sm outline-none border-none"
+                  />
+                </label>
               </div>
 
-              <div className="mb-8 rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-sm">
-                <label className="flex cursor-pointer items-start gap-3 text-white">
-                  <input
-                    type="checkbox"
-                    checked={specialEventExcludeFromNormalTotals}
-                    onChange={(e) => setSpecialEventExcludeFromNormalTotals(e.target.checked)}
-                    className="mt-1 rounded border-white/30 bg-slate-800 text-blue-500 focus:ring-blue-500"
-                  />
-                  <span>
-                    <span className="font-semibold">This is a special service (e.g. Easter, Good Friday, Christmas Eve)</span>
-                    <span className="mt-1 block text-sm text-slate-400">
-                      When checked, this entry is still saved and visible in history, but it is <strong className="text-slate-300">not included</strong> in normal weekly/YTD charts, campus averages, or annual totals when you use filters like “standard services only.”
-                    </span>
-                  </span>
-                </label>
-                <div className="mt-4">
-                  <label className="mb-2 block text-sm font-semibold text-slate-300">Service name (optional)</label>
+              <div className="mb-6 flex gap-2 flex-wrap items-start">
+                <button
+                  type="button"
+                  onClick={() => setSpecialEventExcludeFromNormalTotals(v => !v)}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                    specialEventExcludeFromNormalTotals
+                      ? 'bg-fc-copper text-white'
+                      : 'bg-white text-fc-midnight border border-fc-cream2'
+                  }`}
+                >
+                  <SparklesIcon className="w-3.5 h-3.5" /> Special service
+                </button>
+                {specialEventExcludeFromNormalTotals && (
                   <input
                     type="text"
                     value={specialServiceLabel}
                     onChange={(e) => setSpecialServiceLabel(e.target.value)}
                     placeholder="e.g. Good Friday, Christmas Eve"
                     maxLength={200}
-                    className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    className="fc-input min-w-[220px] py-2.5"
                   />
-                </div>
+                )}
               </div>
-              
+              {specialEventExcludeFromNormalTotals && (
+                <p className="-mt-3 mb-6 text-sm text-fc-brown max-w-xl">
+                  This entry is still saved and visible in history, but it is <strong className="text-fc-midnight">not included</strong> in normal weekly/YTD charts, campus averages, or annual totals when you use filters like "standard services only."
+                </p>
+              )}
+
               {/* Stats Form */}
-              <div className="space-y-8">
+              <div className="space-y-5">
                 {/* Campus Information */}
-                <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                  <div className="flex items-center mb-6">
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mr-4">
-                      <span className="text-xl">🏢</span>
-                    </div>
-                    <h4 className="text-xl font-bold text-white">Campus Information</h4>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="text-white font-semibold min-w-[200px]">
-                        Total People in Campus:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Total People in Campus"
-                        defaultValue={quickInputStats['Total People in Campus']}
-                        onChange={(e) => updateStat('Total People in Campus', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <SectionCard title="Campus Information">
+                  <NumberField statKey="Total People in Campus" label="Total People in Campus" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                </SectionCard>
 
                 {/* Service Attendance Breakdown */}
-                <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                  <div className="flex items-center mb-6">
-                    <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mr-4">
-                      <span className="text-xl">⛪</span>
-                    </div>
-                    <h4 className="text-xl font-bold text-white">Service Attendance (Adults)</h4>
+                <SectionCard title="Service Attendance (Adults)">
+                  {getCampusServiceTimes().map((serviceTime) => (
+                    <NumberField key={serviceTime} statKey={serviceTime} label={serviceTime} formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  ))}
+                  <div className="flex items-center justify-between pt-4">
+                    <span className="fc-label !mb-0">Total Attendance</span>
+                    <span className="font-mono text-2xl text-fc-midnight">{totalAttendance}</span>
                   </div>
-                  <div className="space-y-3 sm:space-y-4">
-                    {getCampusServiceTimes().map((serviceTime) => (
-                      <div key={serviceTime} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                          {serviceTime}:
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          data-stat-key={serviceTime}
-                          defaultValue={quickInputStats[serviceTime] || ''}
-                          onChange={(e) => updateStat(serviceTime, e.target.value)}
-                          placeholder="0"
-                          className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                          style={{ color: '#ffffff' }}
-                        />
-                      </div>
-                    ))}
-
-                    <div className="flex items-center justify-between border-t border-slate-600 pt-3">
-                      <label className="text-white font-semibold min-w-[150px]">
-                        Total Attendance:
-                      </label>
-                      <div className="text-white font-semibold text-right w-32">
-                        {totalAttendance}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                </SectionCard>
 
                 {/* Saints */}
-                <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                  <div className="flex items-center mb-6">
-                    <div className="w-10 h-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center mr-4">
-                      <span className="text-xl">👥</span>
-                    </div>
-                    <h4 className="text-xl font-bold text-white">Saints</h4>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="text-white font-semibold min-w-[150px]">
-                        Saints:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Saints"
-                        defaultValue={quickInputStats['Saints']}
-                        onChange={(e) => updateStat('Saints', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <SectionCard title="Saints">
+                  <NumberField statKey="Saints" label="Saints" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                </SectionCard>
 
                 {/* New People */}
-                <div className="bg-slate-700/30 rounded-lg p-4">
-                  <h4 className="text-white font-semibold mb-3">New People</h4>
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Packs Out:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Packs Out"
-                        defaultValue={quickInputStats['Packs Out']}
-                        onChange={(e) => updateStat('Packs Out', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Cards Returned:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Cards Returned"
-                        defaultValue={quickInputStats['Cards Returned']}
-                        onChange={(e) => updateStat('Cards Returned', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        First Time:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="First Time"
-                        defaultValue={quickInputStats['First Time']}
-                        onChange={(e) => updateStat('First Time', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Visitors:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Visitors"
-                        defaultValue={quickInputStats['Visitors']}
-                        onChange={(e) => updateStat('Visitors', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <SectionCard title="New People">
+                  <NumberField statKey="Packs Out" label="Packs Out" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="Cards Returned" label="Cards Returned" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="First Time" label="First Time" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="Visitors" label="Visitors" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                </SectionCard>
 
                 {/* Salvations */}
-                <div className="bg-slate-700/30 rounded-lg p-4">
-                  <h4 className="text-white font-semibold mb-3">Salvations</h4>
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Hands up:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Hands up"
-                        defaultValue={quickInputStats['Hands up']}
-                        onChange={(e) => updateStat('Hands up', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Salvation Cards Returned:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Salvation Cards Returned"
-                        defaultValue={quickInputStats['Salvation Cards Returned']}
-                        onChange={(e) => updateStat('Salvation Cards Returned', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        First Time Decision:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="First Time Decision"
-                        defaultValue={quickInputStats['First Time Decision']}
-                        onChange={(e) => updateStat('First Time Decision', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Rededication:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Rededication"
-                        defaultValue={quickInputStats['Rededication']}
-                        onChange={(e) => updateStat('Rededication', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <SectionCard title="Salvations">
+                  <NumberField statKey="Hands up" label="Hands up" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="Salvation Cards Returned" label="Salvation Cards Returned" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="First Time Decision" label="First Time Decision" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="Rededication" label="Rededication" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                </SectionCard>
 
                 {/* Kids */}
-                <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                  <div className="flex items-center mb-6">
-                    <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl flex items-center justify-center mr-4">
-                      <span className="text-xl">👶</span>
+                <SectionCard title="Kids">
+                  {getCampusServiceTimes().map((serviceTime) => {
+                    const kidsServiceTime = `Kids ${serviceTime}`;
+                    return (
+                      <NumberField key={kidsServiceTime} statKey={kidsServiceTime} label={kidsServiceTime} formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                    );
+                  })}
+                  <NumberField statKey="Kids Leaders" label="Total Kids Leaders" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="New Kids" label="New Kids" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="Kids Salvations" label="Kids Salvations" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  {totalKidsOverall > 0 && (
+                    <div className="flex items-center justify-between pt-4">
+                      <span className="fc-label !mb-0 text-fc-teal">Total Kids (Kids + Leaders)</span>
+                      <span className="font-mono text-2xl text-fc-teal">{totalKidsOverall}</span>
                     </div>
-                    <h4 className="text-xl font-bold text-white">Kids</h4>
-                  </div>
-                  <div className="space-y-4">
-                    {getCampusServiceTimes().map((serviceTime) => {
-                      const kidsServiceTime = `Kids ${serviceTime}`;
-                      return (
-                        <div key={kidsServiceTime} className="flex items-center justify-between">
-                          <label className="text-white font-semibold min-w-[150px]">
-                            {kidsServiceTime}:
-                          </label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            data-stat-key={kidsServiceTime}
-                            defaultValue={quickInputStats[kidsServiceTime] || ''}
-                            onChange={(e) => updateStat(kidsServiceTime, e.target.value)}
-                            placeholder="0"
-                            className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                            style={{ color: '#ffffff' }}
-                          />
-                        </div>
-                      );
-                    })}
-                    <div className="border-t border-white/20 pt-4 mt-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-white font-semibold min-w-[150px]">
-                          Total Kids Leaders:
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          data-stat-key="Kids Leaders"
-                          defaultValue={quickInputStats['Kids Leaders']}
-                          onChange={(e) => updateStat('Kids Leaders', e.target.value)}
-                          placeholder="0"
-                          className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <label className="text-white font-semibold min-w-[150px]">
-                        New Kids:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="New Kids"
-                        defaultValue={quickInputStats['New Kids']}
-                        onChange={(e) => updateStat('New Kids', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <label className="text-white font-semibold min-w-[150px]">
-                        Kids Salvations:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Kids Salvations"
-                        defaultValue={quickInputStats['Kids Salvations']}
-                        onChange={(e) => updateStat('Kids Salvations', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                      />
-                    </div>
-                    {totalKidsOverall > 0 && (
-                      <div className="flex items-center justify-between border-t border-white/20 pt-4 mt-4">
-                        <span className="text-pink-300 font-bold text-lg">Total Kids (Kids + Leaders):</span>
-                        <span className="text-pink-300 font-bold text-2xl">{totalKidsOverall}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  )}
+                </SectionCard>
 
                 {/* Youth */}
-                <div className="bg-slate-700/30 rounded-lg p-4">
-                  <h4 className="text-white font-semibold mb-3">Youth (Friday)</h4>
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Youth Attendance:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Youth Total"
-                        defaultValue={quickInputStats['Youth Total']}
-                        onChange={(e) => updateStat('Youth Total', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Youth New People:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Youth NP"
-                        defaultValue={quickInputStats['Youth NP']}
-                        onChange={(e) => updateStat('Youth NP', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Youth Salvations:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Youth Salvations"
-                        defaultValue={quickInputStats['Youth Salvations']}
-                        onChange={(e) => updateStat('Youth Salvations', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Youth Leaders:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Youth Leaders"
-                        defaultValue={quickInputStats['Youth Leaders']}
-                        onChange={(e) => updateStat('Youth Leaders', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <SectionCard title="Youth (Friday)">
+                  <NumberField statKey="Youth Total" label="Youth Attendance" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="Youth NP" label="Youth New People" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="Youth Salvations" label="Youth Salvations" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="Youth Leaders" label="Youth Leaders" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                </SectionCard>
 
                 {/* Connect Groups & Ministry */}
-                <div className="bg-slate-700/30 rounded-lg p-4">
-                  <h4 className="text-white font-semibold mb-3">Connect Groups & Ministry</h4>
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Connect Groups:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Connect Groups"
-                        defaultValue={quickInputStats['Connect Groups']}
-                        onChange={(e) => updateStat('Connect Groups', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Dream Team:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Dream Team"
-                        defaultValue={quickInputStats['Dream Team']}
-                        onChange={(e) => updateStat('Dream Team', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Seniors:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Seniors"
-                        defaultValue={quickInputStats['Seniors']}
-                        onChange={(e) => updateStat('Seniors', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <SectionCard title="Connect Groups & Ministry">
+                  <NumberField statKey="Connect Groups" label="Connect Groups" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="Dream Team" label="Dream Team" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="Seniors" label="Seniors" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                </SectionCard>
 
                 {/* Special Events */}
-                <div className="bg-slate-700/30 rounded-lg p-4">
-                  <h4 className="text-white font-semibold mb-3">Special Events</h4>
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Baptisms:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Baptisms"
-                        defaultValue={quickInputStats['Baptisms']}
-                        onChange={(e) => updateStat('Baptisms', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <label className="text-white font-semibold text-sm sm:text-base sm:min-w-[150px]">
-                        Child Dedications:
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        data-stat-key="Child Dedications"
-                        defaultValue={quickInputStats['Child Dedications']}
-                        onChange={(e) => updateStat('Child Dedications', e.target.value)}
-                        placeholder="0"
-                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white text-right w-full sm:w-40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm"
-                        style={{ color: '#ffffff' }}
-                      />
+                <SectionCard title="Special Events">
+                  <NumberField statKey="Baptisms" label="Baptisms" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                  <NumberField statKey="Child Dedications" label="Child Dedications" formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
+                </SectionCard>
+              </div>
+
+              {/* Still to count */}
+              {(() => {
+                const remainingLabels = {
+                  'Total People in Campus': 'Total People in Campus',
+                  'Saints': 'Saints',
+                  'Packs Out': 'Packs Out',
+                  'Cards Returned': 'Cards Returned',
+                  'First Time': 'First Time',
+                  'Visitors': 'Visitors',
+                  'Hands up': 'Hands up',
+                  'Salvation Cards Returned': 'Salvation Cards Returned',
+                  'First Time Decision': 'First Time Decision',
+                  'Rededication': 'Rededication',
+                  'Kids Leaders': 'Total Kids Leaders',
+                  'New Kids': 'New Kids',
+                  'Kids Salvations': 'Kids Salvations',
+                  'Youth Total': 'Youth Attendance',
+                  'Youth NP': 'Youth New People',
+                  'Youth Salvations': 'Youth Salvations',
+                  'Youth Leaders': 'Youth Leaders',
+                  'Connect Groups': 'Connect Groups',
+                  'Dream Team': 'Dream Team',
+                  'Seniors': 'Seniors',
+                  'Baptisms': 'Baptisms',
+                  'Child Dedications': 'Child Dedications',
+                  ...Object.fromEntries(getCampusServiceTimes().map(st => [st, st])),
+                  ...Object.fromEntries(getCampusServiceTimes().map(st => [`Kids ${st}`, `Kids ${st}`])),
+                };
+                const remaining = Object.entries(remainingLabels).filter(
+                  ([key]) => !String(quickInputStats[key] || '').trim()
+                );
+                if (remaining.length === 0) return null;
+                return (
+                  <div className="mt-6 bg-fc-cream2/60 rounded-xl p-4 sm:p-5">
+                    <div className="fc-label mb-2">Still to count</div>
+                    <div className="flex flex-col">
+                      {remaining.slice(0, 8).map(([key, label]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            const input = quickInputFormRef.current?.querySelector(`[data-stat-key="${key}"]`);
+                            input?.focus();
+                            input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }}
+                          className="flex items-center justify-between gap-3 py-2 border-b border-fc-brown/10 last:border-b-0 text-sm text-fc-brown text-left w-full hover:text-fc-midnight transition-colors"
+                        >
+                          <span>{label}</span>
+                          <span className="text-xs text-fc-brown">Empty</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                </div>
-              </div>
-              
+                );
+              })()}
+
               {/* Validation Hint */}
-              <div className="mt-6 p-3 bg-slate-700/30 rounded-lg">
-                <p className="text-sm text-slate-400">
+              <div className="mt-6 p-3 bg-fc-cream2/60 rounded-lg">
+                <p className="text-sm text-fc-brown">
                   Your number should not have commas or currency symbols
                 </p>
               </div>
-              
+
               {/* Submit Button */}
-              <div className="flex justify-end mt-8">
+              <div className="flex justify-end mt-8 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowQuickInput(false);
+                    setIsEditMode(false);
+                    setEditingEntry(null);
+                  }}
+                  className="fc-btn-secondary px-6 py-4"
+                >
+                  Back
+                </button>
                 <button
                   onClick={handleQuickInputSubmit}
                   disabled={isSubmittingQuickInput}
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed text-white px-8 py-4 rounded-2xl flex items-center space-x-3 transition-all duration-300 shadow-lg hover:shadow-xl text-lg font-semibold transform hover:scale-105 disabled:transform-none"
+                  className="fc-btn-primary px-8 py-4 flex items-center gap-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmittingQuickInput ? (
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -1363,9 +1086,22 @@ const LogStats = () => {
                 </button>
               </div>
             </div>
+
+            {/* Sticky bottom bar: running attendance total */}
+            <div className="fixed left-0 right-0 bottom-0 z-[60] bg-fc-cream/95 backdrop-blur-sm border-t border-fc-cream2">
+              <div className="max-w-5xl mx-auto px-6 sm:px-8 py-3 flex items-center justify-between gap-5">
+                <div>
+                  <div className="fc-label !mb-1">Attendance</div>
+                  <div className="font-mono text-2xl text-fc-midnight leading-none">{totalAttendance}</div>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-fc-brown">
+                  <CloudIcon className="w-4 h-4" /> Saved
+                </div>
+              </div>
+            </div>
           </div>
         )}
-    </div>
+      </div>
   );
 };
 

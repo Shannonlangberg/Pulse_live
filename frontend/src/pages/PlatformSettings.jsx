@@ -107,51 +107,52 @@ const PlatformSettings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen bg-fc-cream">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => navigate('/users')}
-            className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-4"
+            className="inline-flex items-center gap-2 text-fc-brown hover:text-fc-midnight transition-colors mb-4"
           >
             <ArrowLeftIcon className="h-5 w-5" />
             Back to Admin Dashboard
           </button>
-          <h1 className="text-3xl font-bold text-white mb-2">Platform Settings</h1>
-          <p className="text-white/60">Manage training videos and platform resources</p>
+          <p className="fc-label mb-2">Platform</p>
+          <h1 className="fc-display fc-display-md text-fc-midnight">Platform Settings</h1>
+          <p className="text-fc-brown mt-1">Manage training videos and platform resources</p>
         </div>
 
         {/* Training Video Section */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
+        <div className="fc-card p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-              <VideoCameraIcon className="h-6 w-6 text-emerald-400" />
+            <div className="w-12 h-12 rounded-xl bg-fc-wash-mint flex items-center justify-center">
+              <VideoCameraIcon className="h-6 w-6 text-fc-olive" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-white">Training Video</h2>
-              <p className="text-sm text-white/60">Upload a video to help users learn how to use Pulse</p>
+              <h2 className="text-xl font-semibold text-fc-midnight">Training Video</h2>
+              <p className="text-sm text-fc-brown">Upload a video to help users learn how to use Pulse</p>
             </div>
           </div>
 
           {/* Current Video Status */}
           {currentVideo && (
-            <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+            <div className="mb-6 p-4 bg-fc-wash-mint border border-fc-wash-mint-border rounded-lg">
               <div className="flex items-start gap-3">
-                <CheckCircleIcon className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <CheckCircleIcon className="h-5 w-5 text-fc-olive flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-emerald-400 mb-1">Training video is active</p>
-                  <p className="text-xs text-white/60">
+                  <p className="text-sm font-medium text-fc-midnight mb-1">Training video is active</p>
+                  <p className="text-xs text-fc-brown">
                     Uploaded: {new Date(currentVideo.uploaded_at).toLocaleDateString()}
                   </p>
-                  <p className="text-xs text-white/60">
+                  <p className="text-xs text-fc-brown">
                     Size: {formatFileSize(currentVideo.file_size)}
                   </p>
                   <a
                     href="/videos/pulse-training.mp4"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block mt-2 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                    className="inline-block mt-2 text-xs text-fc-olive hover:underline transition-colors"
                   >
                     View current video →
                   </a>
@@ -162,22 +163,22 @@ const PlatformSettings = () => {
 
           {/* Upload Status Messages */}
           {uploadStatus === 'success' && (
-            <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+            <div className="mb-6 p-4 bg-fc-wash-mint border border-fc-wash-mint-border rounded-lg">
               <div className="flex items-start gap-3">
-                <CheckCircleIcon className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <CheckCircleIcon className="h-5 w-5 text-fc-olive flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-emerald-400">{uploadMessage}</p>
+                  <p className="text-sm font-medium text-fc-midnight">{uploadMessage}</p>
                 </div>
               </div>
             </div>
           )}
 
           {uploadStatus === 'error' && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <div className="mb-6 p-4 bg-fc-wash-peach border border-fc-wash-peach-border rounded-lg">
               <div className="flex items-start gap-3">
-                <ExclamationCircleIcon className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <ExclamationCircleIcon className="h-5 w-5 text-fc-copper flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-red-400">{uploadMessage}</p>
+                  <p className="text-sm font-medium text-fc-copper">{uploadMessage}</p>
                 </div>
               </div>
             </div>
@@ -186,7 +187,7 @@ const PlatformSettings = () => {
           {/* File Upload */}
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-fc-midnight mb-2">
                 {currentVideo ? 'Replace Training Video' : 'Upload Training Video'}
               </label>
               <input
@@ -195,21 +196,21 @@ const PlatformSettings = () => {
                 accept="video/mp4,video/quicktime,video/webm"
                 onChange={handleFileSelect}
                 disabled={uploading}
-                className="block w-full text-sm text-white/60
+                className="block w-full text-sm text-fc-brown
                   file:mr-4 file:py-2 file:px-4
                   file:rounded-lg file:border-0
                   file:text-sm file:font-semibold
-                  file:bg-emerald-500/20 file:text-emerald-400
-                  hover:file:bg-emerald-500/30
+                  file:bg-fc-wash-mint file:text-fc-olive
+                  hover:file:bg-fc-wash-mint
                   file:transition-colors
                   file:cursor-pointer
                   disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <p className="mt-2 text-xs text-white/40">
+              <p className="mt-2 text-xs text-fc-brown/70">
                 Accepted formats: MP4, MOV, WebM • Maximum size: 500MB
               </p>
               {videoFile && (
-                <p className="mt-2 text-sm text-white/80">
+                <p className="mt-2 text-sm text-fc-midnight">
                   Selected: <span className="font-medium">{videoFile.name}</span> ({formatFileSize(videoFile.size)})
                 </p>
               )}
@@ -218,10 +219,7 @@ const PlatformSettings = () => {
             <button
               onClick={handleUpload}
               disabled={!videoFile || uploading}
-              className="w-full px-6 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-white/10 
-                text-white font-semibold rounded-lg transition-all duration-200 
-                disabled:cursor-not-allowed disabled:text-white/40
-                flex items-center justify-center gap-2"
+              className="fc-btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploading ? (
                 <>
@@ -241,9 +239,9 @@ const PlatformSettings = () => {
           </div>
 
           {/* Tips */}
-          <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-            <h3 className="text-sm font-semibold text-blue-400 mb-2">💡 Tips for Best Results</h3>
-            <ul className="text-xs text-white/60 space-y-1">
+          <div className="mt-6 p-4 bg-fc-wash-sky border border-fc-wash-sky-border rounded-lg">
+            <h3 className="text-sm font-semibold text-fc-teal mb-2">💡 Tips for Best Results</h3>
+            <ul className="text-xs text-fc-brown space-y-1">
               <li>• Keep your video under 100MB for faster loading</li>
               <li>• Use MP4 format with H.264 codec for maximum compatibility</li>
               <li>• Recommended resolution: 1920x1080 (1080p) or 1280x720 (720p)</li>
@@ -258,4 +256,3 @@ const PlatformSettings = () => {
 };
 
 export default PlatformSettings;
-

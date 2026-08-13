@@ -78,6 +78,24 @@ function formatCell(mid, v, catalogById, displayMode = 'campus') {
   return n.toLocaleString(undefined, { maximumFractionDigits: 1 });
 }
 
+/** Pill chip for campus/period toggles — olive-tinted when selected, white/cream when not. */
+function ToggleChip({ selected, onClick, children, type = 'button' }) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      className={
+        'text-sm px-4 py-1.5 rounded-full border transition-colors ' +
+        (selected
+          ? 'bg-fc-wash-mint border-fc-olive text-fc-midnight font-medium'
+          : 'bg-white border-fc-cream2 text-fc-brown hover:border-fc-olive/50')
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
 const MinistryStatsExplorer = () => {
   const [regions, setRegions] = useState([]);
   const [campuses, setCampuses] = useState([]);
@@ -305,50 +323,51 @@ const MinistryStatsExplorer = () => {
   const resultServiceTime = (result?.service_time || '').trim();
 
   return (
-    <div className="min-h-screen bg-slate-900 p-6">
+    <div className="min-h-screen bg-fc-cream p-6">
       <div className="max-w-[100rem] mx-auto">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-6"
+          className="inline-flex items-center gap-2 text-fc-brown hover:text-fc-midnight text-sm mb-6"
         >
           <ArrowLeftIcon className="w-4 h-4" />
           Back to home
         </Link>
 
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-            <ChartBarIcon className="w-10 h-10 text-emerald-400" />
+          <div className="fc-label mb-2">Reporting</div>
+          <h1 className="fc-display fc-display-md mb-2 flex items-center gap-3">
+            <ChartBarIcon className="w-9 h-9 text-fc-olive" />
             Ministry stats
           </h1>
-          <p className="text-slate-400 max-w-3xl">
+          <p className="text-fc-brown max-w-3xl text-sm leading-relaxed">
             Pick any combination of Pulse stats, campuses, and dates. Most columns are{' '}
-            <strong className="text-slate-300">sums</strong> over every matching attendance row.{' '}
-            <strong className="text-slate-300">Sunday</strong> and <strong className="text-slate-300">weekend</strong> match
-            the dashboard; <strong className="text-slate-300">Kids in room</strong> and{' '}
-            <strong className="text-slate-300">Kids leaders</strong> are separate columns (room headcount vs total leaders
+            <strong className="text-fc-midnight">sums</strong> over every matching attendance row.{' '}
+            <strong className="text-fc-midnight">Sunday</strong> and <strong className="text-fc-midnight">weekend</strong> match
+            the dashboard; <strong className="text-fc-midnight">Kids in room</strong> and{' '}
+            <strong className="text-fc-midnight">Kids leaders</strong> are separate columns (room headcount vs total leaders
             for the week). Sunday / weekend / kids-in-room are
-            shown as <strong className="text-slate-300">averages per service row</strong> in your date range (not a
-            running total). Columns marked <strong className="text-slate-300">avg / service</strong> in results use that
-            rule. Optionally restrict slot-based columns to a <strong className="text-slate-300">service time</strong>{' '}
-            (e.g. 5:30 PM) using stored per-slot breakdowns. Use <strong className="text-slate-300">week-to-week</strong>{' '}
+            shown as <strong className="text-fc-midnight">averages per service row</strong> in your date range (not a
+            running total). Columns marked <strong className="text-fc-midnight">avg / service</strong> in results use that
+            rule. Optionally restrict slot-based columns to a <strong className="text-fc-midnight">service time</strong>{' '}
+            (e.g. 5:30 PM) using stored per-slot breakdowns. Use <strong className="text-fc-midnight">week-to-week</strong>{' '}
             layout for one table row per logged service date (per campus).
           </p>
-          <p className="text-slate-500 text-sm mt-2">
-            Tip: leave all campuses unchecked to include <strong className="text-slate-400">every campus</strong> in
+          <p className="text-fc-brown/70 text-sm mt-2">
+            Tip: leave all campuses unchecked to include <strong className="text-fc-brown">every campus</strong> in
             your access (or all in the region you select).
           </p>
         </div>
 
         {(loadError || catalogLoading) && (
-          <div className="mb-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 px-4 py-3 text-sm">
+          <div className="mb-4 rounded-lg bg-fc-wash-butter border border-fc-wash-butter-border text-fc-brown px-4 py-3 text-sm">
             {catalogLoading ? 'Loading metric list…' : loadError}
           </div>
         )}
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-4 space-y-6">
-            <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 shadow-xl">
-              <h2 className="text-lg font-semibold text-white mb-4">1. Date range</h2>
+            <div className="fc-card p-6">
+              <div className="fc-label mb-4">One · Date range</div>
               <div className="flex flex-wrap gap-2 mb-4">
                 {[
                   { k: '30', label: 'Last 30 days' },
@@ -364,7 +383,7 @@ const MinistryStatsExplorer = () => {
                       setStartDate(r.start);
                       setEndDate(r.end);
                     }}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600 border border-slate-600"
+                    className="text-sm px-4 py-1.5 rounded-full border bg-white border-fc-cream2 text-fc-brown hover:border-fc-olive/50 transition-colors"
                   >
                     {p.label}
                   </button>
@@ -372,41 +391,35 @@ const MinistryStatsExplorer = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                    Start
-                  </label>
+                  <label className="fc-label text-[11px] block mb-2">Start</label>
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white"
+                    className="fc-input"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                    End
-                  </label>
+                  <label className="fc-label text-[11px] block mb-2">End</label>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white"
+                    className="fc-input"
                   />
                 </div>
               </div>
-              <p className="text-slate-500 text-xs mt-3">End date cannot be in the future. Max range ~3 years.</p>
+              <p className="text-fc-brown/70 text-xs mt-3">End date cannot be in the future. Max range ~3 years.</p>
             </div>
 
-            <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 shadow-xl">
-              <h2 className="text-lg font-semibold text-white mb-4">2. Scope</h2>
+            <div className="fc-card p-6">
+              <div className="fc-label mb-4">Two · Scope</div>
               <div className="mb-4">
-                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                  Region
-                </label>
+                <label className="fc-label text-[11px] block mb-2">Region</label>
                 <select
                   value={regionCode}
                   onChange={(e) => onRegionChange(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white"
+                  className="fc-input"
                 >
                   <option value="">All regions (within your access)</option>
                   {regions.map((r) => (
@@ -417,53 +430,47 @@ const MinistryStatsExplorer = () => {
                 </select>
               </div>
               <div className="mb-4">
-                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                  Which rows count (same as dashboard)
-                </label>
+                <label className="fc-label text-[11px] block mb-2">Which rows count (same as dashboard)</label>
                 <select
                   value={metricsScope}
                   onChange={(e) => setMetricsScope(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white"
+                  className="fc-input"
                 >
                   <option value="default">All entries (standard Sundays + special events)</option>
                   <option value="sundays_rollup_only">Sundays only (standard services)</option>
                   <option value="special_events_only">Special events only</option>
                 </select>
-                <p className="text-slate-500 text-xs mt-2">
-                  This chooses which <strong className="text-slate-400">weekly stats rows</strong> are included (e.g.
-                  omit special events). It does <strong className="text-slate-400">not</strong> add up 9:00 + 11:00 +
-                  5:30 — use <strong className="text-slate-400">Service time</strong> below only if you want one clock
+                <p className="text-fc-brown/70 text-xs mt-2">
+                  This chooses which <strong className="text-fc-brown">weekly stats rows</strong> are included (e.g.
+                  omit special events). It does <strong className="text-fc-brown">not</strong> add up 9:00 + 11:00 +
+                  5:30 — use <strong className="text-fc-brown">Service time</strong> below only if you want one clock
                   time; leave it blank for combined campus totals.
                 </p>
               </div>
               <div className="mb-4">
-                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                  Report layout
-                </label>
+                <label className="fc-label text-[11px] block mb-2">Report layout</label>
                 <select
                   value={reportGranularity}
                   onChange={(e) => setReportGranularity(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white"
+                  className="fc-input"
                 >
                   <option value="campus">Summary — one row per campus</option>
                   <option value="entry">Week to week — one row per service date (per campus)</option>
                 </select>
-                <p className="text-slate-500 text-xs mt-2">
+                <p className="text-fc-brown/70 text-xs mt-2">
                   Week-to-week shows each stats entry in date order (same metrics as above). Large ranges may hit a row
                   limit; use CSV or narrow dates if needed.
                 </p>
               </div>
               <div className="mb-4">
-                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                  Service time (optional)
-                </label>
+                <label className="fc-label text-[11px] block mb-2">Service time (optional)</label>
                 <input
                   type="text"
                   list="ministry-stats-service-time-suggestions"
                   value={serviceTime}
                   onChange={(e) => setServiceTime(e.target.value)}
                   placeholder="All slots — e.g. 5:30 PM"
-                  className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder:text-slate-600"
+                  className="fc-input"
                   autoComplete="off"
                 />
                 <datalist id="ministry-stats-service-time-suggestions">
@@ -471,17 +478,17 @@ const MinistryStatsExplorer = () => {
                     <option key={t} value={t} />
                   ))}
                 </datalist>
-                <p className="text-slate-500 text-xs mt-2">
-                  When set, Sunday / weekend / kids-in-room / total use <strong className="text-slate-400">only that slot</strong>{' '}
-                  from stored breakdowns (labels must match, e.g. <span className="text-slate-400">5:30 PM</span> and{' '}
-                  <span className="text-slate-400">Kids 5:30 PM</span>).{' '}
-                  <strong className="text-slate-400">Kids leaders</strong> stays the{' '}
-                  <strong className="text-slate-400">full weekend total</strong> for that entry — not split or estimated
-                  per slot. <strong className="text-slate-400">Clear this field</strong> for combined campus totals.
+                <p className="text-fc-brown/70 text-xs mt-2">
+                  When set, Sunday / weekend / kids-in-room / total use <strong className="text-fc-brown">only that slot</strong>{' '}
+                  from stored breakdowns (labels must match, e.g. <span className="text-fc-brown">5:30 PM</span> and{' '}
+                  <span className="text-fc-brown">Kids 5:30 PM</span>).{' '}
+                  <strong className="text-fc-brown">Kids leaders</strong> stays the{' '}
+                  <strong className="text-fc-brown">full weekend total</strong> for that entry — not split or estimated
+                  per slot. <strong className="text-fc-brown">Clear this field</strong> for combined campus totals.
                   Baptisms, salvations, giving, etc. still use the whole weekly entry.
                 </p>
                 {serviceTime.trim() ? (
-                  <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                  <div className="mt-3 rounded-lg border border-fc-wash-butter-border bg-fc-wash-butter px-3 py-2 text-xs text-fc-brown">
                     Service time is set — slot-based columns use <strong>only {serviceTime.trim()}</strong> from the
                     breakdown. <strong>Kids leaders</strong> is still the full weekend total for that week (not split).
                   </div>
@@ -492,81 +499,78 @@ const MinistryStatsExplorer = () => {
                   type="checkbox"
                   checked={excludeYouth}
                   onChange={(e) => setExcludeYouth(e.target.checked)}
-                  className="mt-1 rounded border-slate-500 text-emerald-600 focus:ring-emerald-500"
+                  className="mt-1 rounded border-fc-cream2 text-fc-olive focus:ring-fc-olive"
                 />
-                <span className="text-sm text-slate-300">
-                  Exclude youth from <strong className="text-white">new people</strong> and{' '}
-                  <strong className="text-white">salvations</strong> totals
+                <span className="text-sm text-fc-brown">
+                  Exclude youth from <strong className="text-fc-midnight">new people</strong> and{' '}
+                  <strong className="text-fc-midnight">salvations</strong> totals
                 </span>
               </label>
             </div>
 
-            <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 shadow-xl">
+            <div className="fc-card p-6">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <h2 className="text-lg font-semibold text-white">Campuses</h2>
-                <div className="flex gap-2 text-xs">
-                  <button type="button" onClick={selectAllVisible} className="text-emerald-400 hover:text-emerald-300">
+                <div className="fc-label">Three · Campuses</div>
+                <div className="flex gap-3 text-xs">
+                  <button type="button" onClick={selectAllVisible} className="text-fc-copper hover:brightness-90">
                     All listed
                   </button>
-                  <span className="text-slate-600">|</span>
-                  <button type="button" onClick={clearCampusSelection} className="text-slate-400 hover:text-slate-300">
+                  <span className="text-fc-cream2">|</span>
+                  <button type="button" onClick={clearCampusSelection} className="text-fc-copper hover:brightness-90">
                     Clear
                   </button>
                 </div>
               </div>
-              <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-600 bg-slate-900/80 p-2 space-y-1">
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-fc-cream2 bg-fc-cream p-2">
                 {filteredCampuses.length === 0 ? (
-                  <p className="text-slate-500 text-sm">No campuses match.</p>
+                  <p className="text-fc-brown/70 text-sm">No campuses match.</p>
                 ) : (
-                  filteredCampuses.map((c) => (
-                    <label
-                      key={c.campus_id}
-                      className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer hover:text-white"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedCampusSlugs.has(c.campus_id)}
-                        onChange={() => toggleCampus(c.campus_id)}
-                        className="rounded border-slate-500 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span className="truncate">{c.display_name}</span>
-                    </label>
-                  ))
+                  <div className="flex flex-wrap gap-2 p-1">
+                    {filteredCampuses.map((c) => (
+                      <ToggleChip
+                        key={c.campus_id}
+                        selected={selectedCampusSlugs.has(c.campus_id)}
+                        onClick={() => toggleCampus(c.campus_id)}
+                      >
+                        {c.display_name}
+                      </ToggleChip>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
           </div>
 
           <div className="xl:col-span-8 space-y-6">
-            <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 shadow-xl">
+            <div className="fc-card p-6">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <h2 className="text-lg font-semibold text-white">3. Metrics</h2>
-                <div className="flex flex-wrap gap-2 text-xs">
+                <div className="fc-label">Four · Metrics</div>
+                <div className="flex flex-wrap gap-4 text-sm">
                   <button
                     type="button"
                     onClick={() => selectPresetMetrics(defaultMetricIds)}
-                    className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600"
+                    className="text-fc-copper hover:brightness-90"
                   >
                     Recommended set
                   </button>
                   <button
                     type="button"
                     onClick={() => selectPresetMetrics(['baptisms'])}
-                    className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600"
+                    className="text-fc-copper hover:brightness-90"
                   >
                     Baptisms only
                   </button>
                   <button
                     type="button"
                     onClick={() => selectPresetMetrics(catalog.map((x) => x.id))}
-                    className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600"
+                    className="text-fc-copper hover:brightness-90"
                   >
                     Select all
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedMetricIds(new Set())}
-                    className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600"
+                    className="text-fc-copper hover:brightness-90"
                   >
                     Clear all
                   </button>
@@ -577,96 +581,106 @@ const MinistryStatsExplorer = () => {
                   .sort()
                   .map((group) => (
                     <div key={group}>
-                      <div className="text-xs font-semibold text-emerald-400/90 uppercase tracking-wide mb-2">
-                        {group}
-                      </div>
-                      <div className="space-y-2">
-                        {metricsByGroup[group].map((m) => (
-                          <label
-                            key={m.id}
-                            className="flex items-start gap-3 rounded-lg border border-slate-700/80 bg-slate-900/50 p-3 cursor-pointer hover:border-slate-600"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedMetricIds.has(m.id)}
-                              onChange={() => toggleMetric(m.id)}
-                              className="mt-1 rounded border-slate-500 text-emerald-600 focus:ring-emerald-500"
-                            />
-                            <span className="text-white font-medium">{m.label}</span>
-                          </label>
-                        ))}
+                      <div className="fc-label text-[11px] mb-2">{group}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {metricsByGroup[group].map((m) => {
+                          const checked = selectedMetricIds.has(m.id);
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => toggleMetric(m.id)}
+                              className={
+                                'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm text-left transition-colors ' +
+                                (checked
+                                  ? 'bg-fc-wash-mint border-fc-wash-mint-border text-fc-midnight font-medium'
+                                  : 'bg-fc-cream border-fc-cream2 text-fc-brown hover:border-fc-olive/40')
+                              }
+                            >
+                              <span
+                                className={
+                                  'inline-block w-2 h-2 rounded-full flex-shrink-0 ' +
+                                  (checked ? 'bg-fc-olive' : 'bg-fc-thistle')
+                                }
+                              />
+                              <span className="truncate">{m.label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex flex-wrap gap-3 items-center">
               <button
                 type="button"
                 disabled={loading || selectedMetricIds.size === 0 || !startDate || !endDate}
                 onClick={runQuery}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium"
+                className="fc-btn-primary"
               >
-                <PlayIcon className="w-5 h-5" />
+                <PlayIcon className="w-4 h-4" />
                 {loading ? 'Running…' : 'Run report'}
               </button>
               <button
                 type="button"
                 disabled={!result || loading}
                 onClick={downloadCsv}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 border border-slate-600 disabled:opacity-50 text-white font-medium"
+                className="fc-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ArrowDownTrayIcon className="w-5 h-5" />
+                <ArrowDownTrayIcon className="w-4 h-4" />
                 Download CSV
               </button>
             </div>
 
             {error && (
-              <div className="rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 px-4 py-3 text-sm">
+              <div className="rounded-lg bg-fc-wash-peach border border-fc-wash-peach-border text-fc-copper px-4 py-3 text-sm">
                 {error}
               </div>
             )}
 
             {result && (
-              <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 shadow-xl overflow-hidden">
-                <h2 className="text-lg font-semibold text-white mb-2">Results</h2>
-                <p className="text-slate-400 text-sm mb-4 border-l-2 border-emerald-500/50 pl-3">
-                  {result.filter_summary}
-                </p>
-                <div className="overflow-x-auto rounded-lg border border-slate-700">
+              <div className="fc-card overflow-hidden">
+                <div className="p-6 pb-4">
+                  <h2 className="fc-display fc-display-sm mb-2">Results</h2>
+                  <p className="text-fc-brown text-sm border-l-2 border-fc-olive pl-3">
+                    {result.filter_summary}
+                  </p>
+                </div>
+                <div className="overflow-x-auto border-t border-fc-cream2">
                   <table className="min-w-full text-sm text-left">
                     <thead>
-                      <tr className="bg-slate-900/90 text-slate-400 text-xs uppercase tracking-wide">
+                      <tr className="bg-fc-cream">
                         {isEntryLayout ? (
                           <>
-                            <th className="px-3 py-3 font-semibold sticky left-0 bg-slate-900 z-10 min-w-[7.5rem]">
+                            <th className="px-4 py-3 fc-label text-[10px] sticky left-0 bg-fc-cream z-10 min-w-[7.5rem]">
                               Service date
                             </th>
-                            <th className="px-3 py-3 font-semibold sticky left-[7.5rem] bg-slate-900 z-10">Region</th>
-                            <th className="px-3 py-3 font-semibold sticky left-[11.5rem] bg-slate-900 z-10 min-w-[10rem]">
+                            <th className="px-4 py-3 fc-label text-[10px] sticky left-[7.5rem] bg-fc-cream z-10">Region</th>
+                            <th className="px-4 py-3 fc-label text-[10px] sticky left-[11.5rem] bg-fc-cream z-10 min-w-[10rem]">
                               Campus
                             </th>
                           </>
                         ) : (
                           <>
-                            <th className="px-3 py-3 font-semibold sticky left-0 bg-slate-900 z-10">Region</th>
-                            <th className="px-3 py-3 font-semibold sticky left-14 bg-slate-900 z-10 min-w-[10rem]">
+                            <th className="px-4 py-3 fc-label text-[10px] sticky left-0 bg-fc-cream z-10">Region</th>
+                            <th className="px-4 py-3 fc-label text-[10px] sticky left-14 bg-fc-cream z-10 min-w-[10rem]">
                               Campus
                             </th>
-                            <th className="px-3 py-3 font-semibold text-right whitespace-nowrap">
+                            <th className="px-4 py-3 fc-label text-[10px] text-right whitespace-nowrap">
                               <span className="block">Stats rows</span>
-                              <span className="block text-[10px] font-normal text-slate-500 normal-case tracking-normal mt-0.5">
+                              <span className="block text-[9px] font-normal normal-case tracking-normal text-fc-brown/60 mt-0.5">
                                 weekly entries
                               </span>
                             </th>
                           </>
                         )}
                         {metricIdsInResult.map((mid) => (
-                          <th key={mid} className="px-3 py-3 font-semibold text-right whitespace-nowrap">
+                          <th key={mid} className="px-4 py-3 fc-label text-[10px] text-right whitespace-nowrap">
                             <span className="block">{tableCatalogById[mid]?.label || mid}</span>
                             {tableCatalogById[mid]?.avg_per_service_row && !isEntryLayout ? (
-                              <span className="block text-[10px] font-normal text-slate-500 normal-case tracking-normal mt-0.5">
+                              <span className="block text-[9px] font-normal normal-case tracking-normal text-fc-brown/60 mt-0.5">
                                 avg / service
                               </span>
                             ) : null}
@@ -674,40 +688,40 @@ const MinistryStatsExplorer = () => {
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-700">
+                    <tbody className="divide-y divide-fc-cream2">
                       {isEntryLayout
                         ? resultBodyRows.map((row) => (
                             <tr
                               key={`${row.campus_id}-${row.service_date}`}
-                              className="hover:bg-slate-800/50 text-slate-200"
+                              className="hover:bg-fc-cream/60 text-fc-midnight"
                             >
-                              <td className="px-3 py-2 sticky left-0 bg-slate-900/95 z-10 text-slate-300 tabular-nums">
+                              <td className="px-4 py-2.5 sticky left-0 bg-white z-10 font-mono text-fc-brown">
                                 {row.service_date || '—'}
                               </td>
-                              <td className="px-3 py-2 sticky left-[7.5rem] bg-slate-900/95 z-10 text-slate-400">
+                              <td className="px-4 py-2.5 sticky left-[7.5rem] bg-white z-10 text-fc-brown">
                                 {row.region_code || '—'}
                               </td>
-                              <td className="px-3 py-2 sticky left-[11.5rem] bg-slate-900/95 z-10 font-medium text-white">
+                              <td className="px-4 py-2.5 sticky left-[11.5rem] bg-white z-10 font-medium text-fc-midnight">
                                 {row.campus_name}
                               </td>
                               {metricIdsInResult.map((mid) => (
-                                <td key={mid} className="px-3 py-2 text-right tabular-nums">
+                                <td key={mid} className="px-4 py-2.5 text-right font-mono">
                                   {formatCell(mid, row[mid], tableCatalogById, 'entry_row')}
                                 </td>
                               ))}
                             </tr>
                           ))
                         : resultBodyRows.map((row) => (
-                            <tr key={row.campus_id} className="hover:bg-slate-800/50 text-slate-200">
-                              <td className="px-3 py-2 sticky left-0 bg-slate-900/95 z-10 text-slate-400">
+                            <tr key={row.campus_id} className="hover:bg-fc-cream/60 text-fc-midnight">
+                              <td className="px-4 py-2.5 sticky left-0 bg-white z-10 text-fc-brown">
                                 {row.region_code || '—'}
                               </td>
-                              <td className="px-3 py-2 sticky left-14 bg-slate-900/95 z-10 font-medium text-white">
+                              <td className="px-4 py-2.5 sticky left-14 bg-white z-10 font-medium text-fc-midnight">
                                 {row.campus_name}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums">{row.service_rows}</td>
+                              <td className="px-4 py-2.5 text-right font-mono">{row.service_rows}</td>
                               {metricIdsInResult.map((mid) => (
-                                <td key={mid} className="px-3 py-2 text-right tabular-nums">
+                                <td key={mid} className="px-4 py-2.5 text-right font-mono">
                                   {formatCell(mid, row[mid], tableCatalogById, 'campus')}
                                 </td>
                               ))}
@@ -715,23 +729,23 @@ const MinistryStatsExplorer = () => {
                           ))}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-emerald-950/40 text-white font-semibold border-t-2 border-emerald-600/40">
+                      <tr className="bg-fc-wash-mint text-fc-midnight font-semibold border-t-2 border-fc-olive/40">
                         {isEntryLayout ? (
-                          <td className="px-3 py-3 sticky left-0 bg-emerald-950/80 z-10" colSpan={3}>
+                          <td className="px-4 py-3 sticky left-0 bg-fc-wash-mint z-10" colSpan={3}>
                             All rows ({result.meta?.total_service_rows ?? '—'})
                           </td>
                         ) : (
                           <>
-                            <td className="px-3 py-3 sticky left-0 bg-emerald-950/80 z-10" colSpan={2}>
+                            <td className="px-4 py-3 sticky left-0 bg-fc-wash-mint z-10" colSpan={2}>
                               All campuses
                             </td>
-                            <td className="px-3 py-3 text-right tabular-nums">
+                            <td className="px-4 py-3 text-right font-mono">
                               {result.meta?.total_service_rows ?? '—'}
                             </td>
                           </>
                         )}
                         {metricIdsInResult.map((mid) => (
-                          <td key={mid} className="px-3 py-3 text-right tabular-nums">
+                          <td key={mid} className="px-4 py-3 text-right font-mono">
                             {formatCell(
                               mid,
                               result.totals?.[mid],
@@ -745,35 +759,35 @@ const MinistryStatsExplorer = () => {
                   </table>
                 </div>
                 {resultBodyRows.length === 0 && (
-                  <p className="text-slate-500 text-sm mt-4">No attendance rows in this range for your filters.</p>
+                  <p className="text-fc-brown/70 text-sm p-6 pt-4">No attendance rows in this range for your filters.</p>
                 )}
                 {metricIdsInResult.some((mid) => tableCatalogById[mid]?.avg_per_service_row) && !isEntryLayout && (
-                  <p className="text-slate-500 text-xs mt-3">
-                    Columns marked <span className="text-slate-400">avg / service</span> are means per weekly stats row
+                  <p className="text-fc-brown/70 text-xs px-6 pb-5 pt-3">
+                    Columns marked <span className="text-fc-brown">avg / service</span> are means per weekly stats row
                     in your date range (not “number of Sunday services run”). The{' '}
-                    <strong className="text-slate-400">All campuses</strong> row uses the same rule across every row in
+                    <strong className="text-fc-brown">All campuses</strong> row uses the same rule across every row in
                     your filter.
                     {resultServiceTime ? (
                       <>
                         {' '}
-                        With a service time filter, those columns are the average for <strong className="text-slate-400">that slot only</strong>.
+                        With a service time filter, those columns are the average for <strong className="text-fc-brown">that slot only</strong>.
                       </>
                     ) : null}
                   </p>
                 )}
                 {isEntryLayout && metricIdsInResult.some((mid) => tableCatalogById[mid]?.avg_per_service_row) && (
-                  <p className="text-slate-500 text-xs mt-3">
+                  <p className="text-fc-brown/70 text-xs px-6 pb-5 pt-3">
                     Each row is that week&apos;s values (whole numbers for attendance metrics). Sunday / weekend /
-                    kids-in-room footers are averages across listed weeks; <strong className="text-slate-400">Kids leaders</strong>{' '}
+                    kids-in-room footers are averages across listed weeks; <strong className="text-fc-brown">Kids leaders</strong>{' '}
                     is the full weekly total each row (not split by service time).
                   </p>
                 )}
               </div>
             )}
 
-            <p className="text-slate-500 text-sm">
+            <p className="text-fc-brown/70 text-sm">
               For PDF charts and year-over-year tables, use{' '}
-              <Link to="/reports" className="text-emerald-400 hover:text-emerald-300 underline">
+              <Link to="/reports" className="text-fc-copper hover:brightness-90 underline">
                 Reports
               </Link>
               . Ministry stats is for flexible sums, averages, and CSV export.

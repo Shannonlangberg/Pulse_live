@@ -4,7 +4,6 @@ import {
   ArrowTopRightOnSquareIcon,
   LifebuoyIcon,
   MegaphoneIcon,
-  SparklesIcon,
   ShieldCheckIcon,
   ClipboardIcon,
   UserGroupIcon,
@@ -18,8 +17,6 @@ import {
   AcademicCapIcon,
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
-
-const gradientBackground = 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950';
 
 const getTimeOfDayGreeting = () => {
   const hour = new Date().getHours();
@@ -194,333 +191,302 @@ const Landing = () => {
   const firstName = getFirstName(session?.full_name) || session?.username || 'team';
 
   const colorClasses = {
-    blue: { bg: 'from-blue-500/20 to-blue-600/20', border: 'border-blue-400/30', icon: 'text-blue-300', iconBg: 'bg-blue-500/30' },
-    purple: { bg: 'from-purple-500/20 to-purple-600/20', border: 'border-purple-400/30', icon: 'text-purple-300', iconBg: 'bg-purple-500/30' },
-    green: { bg: 'from-green-500/20 to-green-600/20', border: 'border-green-400/30', icon: 'text-green-300', iconBg: 'bg-green-500/30' },
-    red: { bg: 'from-red-500/20 to-red-600/20', border: 'border-red-400/30', icon: 'text-red-300', iconBg: 'bg-red-500/30' },
-    cyan: { bg: 'from-cyan-500/20 to-cyan-600/20', border: 'border-cyan-400/30', icon: 'text-cyan-300', iconBg: 'bg-cyan-500/30' },
-    teal: { bg: 'from-teal-500/20 to-teal-600/20', border: 'border-teal-400/30', icon: 'text-teal-300', iconBg: 'bg-teal-500/30' },
-    orange: { bg: 'from-orange-500/20 to-orange-600/20', border: 'border-orange-400/30', icon: 'text-orange-300', iconBg: 'bg-orange-500/30' },
-    emerald: { bg: 'from-emerald-500/20 to-emerald-600/20', border: 'border-emerald-400/30', icon: 'text-emerald-300', iconBg: 'bg-emerald-500/30' },
+    blue: { bg: 'bg-fc-wash-thistle', border: 'border-fc-wash-thistle-border', icon: 'text-fc-brown', iconBg: 'bg-white' },
+    purple: { bg: 'bg-fc-wash-mint', border: 'border-fc-wash-mint-border', icon: 'text-fc-olive', iconBg: 'bg-white' },
+    green: { bg: 'bg-fc-wash-mint', border: 'border-fc-wash-mint-border', icon: 'text-fc-olive', iconBg: 'bg-white' },
+    red: { bg: 'bg-fc-wash-peach', border: 'border-fc-wash-peach-border', icon: 'text-fc-copper', iconBg: 'bg-white' },
+    cyan: { bg: 'bg-fc-wash-sky', border: 'border-fc-wash-sky-border', icon: 'text-fc-teal', iconBg: 'bg-white' },
+    teal: { bg: 'bg-fc-wash-peach', border: 'border-fc-wash-peach-border', icon: 'text-fc-copper', iconBg: 'bg-white' },
+    orange: { bg: 'bg-fc-wash-butter', border: 'border-fc-wash-butter-border', icon: 'text-fc-gold', iconBg: 'bg-white' },
+    emerald: { bg: 'bg-fc-wash-butter', border: 'border-fc-wash-butter-border', icon: 'text-fc-gold', iconBg: 'bg-white' },
   };
 
   return (
-    <div className={`min-h-screen ${gradientBackground} text-white`}>
-      <div className="relative">
-        {/* Animated background gradients */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-40 -left-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-0 right-0 w-[28rem] h-[28rem] bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-700" />
-          <div className="absolute top-1/3 left-1/3 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl animate-pulse delay-[1200ms]" />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10 space-y-6 sm:space-y-8 md:space-y-10">
-          {/* Header Section */}
-          <header className="bg-gradient-to-br from-white/5 via-white/5 to-white/5 border border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 lg:p-10 backdrop-blur-md shadow-xl shadow-blue-500/10 relative overflow-hidden">
-            {isAdmin && (
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-full blur-3xl -mr-32 -mt-32 animate-pulse" />
-            )}
-            <div className="absolute top-0 left-0 w-32 h-1 bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-tl-3xl" />
-            
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5 sm:gap-6 lg:gap-8 relative z-10">
-              <div className="space-y-3 sm:space-y-4 flex-1">
-                <div className="inline-flex items-center gap-2 text-blue-300 text-xs sm:text-sm font-medium bg-blue-500/10 border border-blue-400/40 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5">
-                  <SparklesIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span className="truncate">{sessionLoading ? 'Loading...' : (isAdmin ? 'Admin Dashboard' : 'Welcome to Futures PULSE')}</span>
-                </div>
-                <div className="space-y-2 sm:space-y-3">
-                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent leading-tight">
-                    {sessionLoading ? 'Loading...' : `${greeting}, ${firstName}!`}
-                  </h1>
-                  <p className="text-lg sm:text-xl md:text-2xl font-medium text-blue-200/90">
-                    Welcome to Futures Pulse
-                  </p>
-                  <p className="text-white/70 text-sm sm:text-base md:text-lg max-w-2xl leading-relaxed">
-                    {isAdmin 
-                      ? 'Your command center for managing Futures PULSE—oversee users, campuses, resources, and data across the entire platform.'
-                      : 'Your launchpad for the week ahead—track key metrics, share weekend stories, and access the resources your teams rely on.'
-                    }
-                  </p>
-                  {isAdmin && (
-                    <div className="flex items-center gap-2 pt-2">
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-400/40 rounded-lg">
-                        <ShieldCheckIcon className="h-4 w-4 text-purple-300" />
-                        <span className="text-xs font-medium text-purple-200">Administrator Access</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </header>
-
-          {/* Homepage Messages Section */}
-          {!messagesLoading && homepageMessages.length > 0 && (
-            <section className="space-y-3 sm:space-y-4">
-              {homepageMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className="bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-pink-600/20 border border-white/20 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 backdrop-blur-sm shadow-xl"
-                >
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500/30 to-purple-500/30 flex items-center justify-center flex-shrink-0">
-                      <MegaphoneIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-200" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base sm:text-lg md:text-xl font-bold text-white mb-1.5 sm:mb-2">{msg.heading}</h3>
-                      <p className="text-sm sm:text-base text-white/80 leading-relaxed whitespace-pre-wrap">{msg.message}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </section>
-          )}
-
-          {/* Training & Help Section */}
-          <section className="space-y-3 sm:space-y-4">
-            <div>
-              <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-1">
-                <AcademicCapIcon className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-400" />
-                Training & Help
-              </h2>
-              <p className="text-white/60 text-xs sm:text-sm md:text-base">
-                Learn how to use Pulse with our training resources
-              </p>
-            </div>
-            
-            <a
-              href="/videos/pulse-training.mp4"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block bg-gradient-to-br from-emerald-600/20 via-teal-600/20 to-cyan-600/20 border border-emerald-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 backdrop-blur-sm shadow-xl transition-all duration-300 active:scale-[0.98] lg:hover:scale-[1.02] lg:hover:border-emerald-400/50 lg:hover:shadow-2xl touch-manipulation"
-            >
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-emerald-500/30 to-teal-500/30 flex items-center justify-center flex-shrink-0 group-active:scale-95 lg:group-hover:scale-110 transition-transform duration-300">
-                  <PlayCircleIcon className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-200" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                    <h3 className="text-base sm:text-lg md:text-xl font-bold text-white">
-                      Pulse Training Video
-                    </h3>
-                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-200/70 lg:group-hover:text-emerald-200 lg:group-hover:translate-x-1 lg:group-hover:-translate-y-1 transition-all duration-300" />
-                  </div>
-                  <p className="text-sm sm:text-base text-white/80 leading-relaxed">
-                    Watch this comprehensive tutorial to learn how to navigate Pulse, input your weekly stats, and make the most of all the features available to you.
-                  </p>
-                  <div className="mt-3 sm:mt-4 inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-emerald-300">
-                    <PlayCircleIcon className="h-4 w-4" />
-                    <span>Click to watch video</span>
-                  </div>
-                </div>
-              </div>
-            </a>
-          </section>
-
-          {/* Quick Actions Section */}
-          {quickActions.length > 0 && (
-            <section className="space-y-4 sm:space-y-5">
-              <div>
-                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-1">
-                  <BoltIcon className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400" />
-                  Quick Actions
-                </h2>
-                <p className="text-white/60 text-xs sm:text-sm md:text-base">
-                  Jump to your most-used features
-                </p>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                {quickActions.map((action) => {
-                  const Icon = action.icon;
-                  const colors = colorClasses[action.color] || colorClasses.blue;
-                  return (
-                    <button
-                      key={action.name}
-                      onClick={() => navigate(action.href)}
-                      className={`
-                        group relative bg-gradient-to-br ${colors.bg} ${colors.border}
-                        rounded-xl sm:rounded-2xl p-4 sm:p-5 transition-all duration-300
-                        active:scale-95 lg:hover:scale-105 lg:hover:shadow-xl
-                        border backdrop-blur-sm
-                        flex flex-col items-center justify-center gap-2 sm:gap-3
-                        min-h-[100px] sm:min-h-[120px]
-                        touch-manipulation
-                      `}
-                    >
-                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl ${colors.iconBg} flex items-center justify-center group-active:scale-95 lg:group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${colors.icon}`} />
-                      </div>
-                      <span className="text-xs sm:text-sm font-semibold text-white text-center leading-tight">
-                        {action.name}
-                      </span>
-                      <ArrowTopRightOnSquareIcon className={`absolute top-1.5 right-1.5 sm:top-2 sm:right-2 h-3.5 w-3.5 sm:h-4 sm:w-4 ${colors.icon} opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300`} />
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* Resource Spotlight - Only for non-admin */}
-          {!isAdmin && (
-            <section className="space-y-4 sm:space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-                <div>
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-1">Resource Spotlight</h2>
-                  <p className="text-white/60 text-xs sm:text-sm md:text-base">
-                    Recently added folders from the Futures resource library
-                  </p>
-                </div>
-                <a
-                  href="/resources"
-                  className="inline-flex items-center gap-2 text-xs sm:text-sm text-blue-200 hover:text-blue-100 active:text-blue-300 transition-colors duration-200 touch-manipulation"
-                >
-                  Browse full library
-                  <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                </a>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-                {categoriesLoading && (
-                  <div className="col-span-full bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-white/60 text-center text-sm sm:text-base">
-                    Loading featured folders...
-                  </div>
-                )}
-                {!categoriesLoading && featuredCategories.length === 0 && (
-                  <div className="col-span-full bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-white/60 text-center text-xs sm:text-sm md:text-base">
-                    No shared folders yet—check back soon or reach out to the Ops team.
-                  </div>
-                )}
-                {featuredCategories.map((category) => (
-                  <a
-                    key={category.id}
-                    href="/resources"
-                    className="group bg-gradient-to-br from-slate-900/60 to-slate-900/30 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 transition-all duration-200 active:scale-95 lg:hover:border-blue-400/40 lg:hover:-translate-y-1 touch-manipulation"
-                  >
-                    <div className="flex items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-blue-500/15 flex items-center justify-center text-xl sm:text-2xl">
-                        📁
-                      </div>
-                      <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white/30 group-hover:text-blue-200 transition-colors" />
-                    </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-white group-hover:text-blue-200 transition-colors duration-200 mb-1.5 sm:mb-2">
-                      {category.displayName || category.name}
-                    </h3>
-                    {category.description && (
-                      <p className="text-xs sm:text-sm text-white/60 leading-relaxed line-clamp-3">
-                        {category.description}
-                      </p>
-                    )}
-                  </a>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Admin Quick Access */}
+    <div className="min-h-screen bg-fc-cream">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10 space-y-8 sm:space-y-9 md:space-y-10">
+        {/* Header Section */}
+        <header>
+          <div className="fc-label mb-2.5">
+            {sessionLoading ? 'Loading…' : (isAdmin ? 'Admin Dashboard' : 'Futures Pulse')}
+          </div>
+          <h1 className="fc-display fc-display-md mb-2.5">
+            {sessionLoading ? 'Loading…' : `${greeting}, ${firstName}.`}
+          </h1>
+          <p className="m-0 text-sm sm:text-base text-fc-brown max-w-2xl leading-relaxed">
+            {isAdmin
+              ? 'Your command center for managing Futures PULSE—oversee users, campuses, resources, and data across the entire platform.'
+              : 'Your launchpad for the week ahead—track key metrics, share weekend stories, and access the resources your teams rely on.'
+            }
+          </p>
           {isAdmin && (
-            <section className="space-y-4 sm:space-y-5">
-              <div>
-                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-1">
-                  <ShieldCheckIcon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400" />
-                  Admin Quick Access
-                </h2>
-                <p className="text-white/60 text-xs sm:text-sm md:text-base">
-                  Key management tools and system overview
-                </p>
+            <div className="flex items-center gap-2 pt-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-fc-cream2 rounded-lg shadow-card">
+                <ShieldCheckIcon className="h-4 w-4 text-fc-copper" />
+                <span className="text-xs font-medium text-fc-midnight">Administrator Access</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
-                <button
-                  onClick={() => navigate('/users')}
-                  className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
-                >
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <UserGroupIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-blue-300 group-active:scale-95 lg:group-hover:scale-110 transition-transform" />
-                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-300/50 lg:group-hover:text-blue-300 lg:group-hover:translate-x-1 transition-all" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-white mb-1">User Management</h3>
-                  <p className="text-xs sm:text-sm text-white/60">Manage all users and permissions</p>
-                </button>
-                <button
-                  onClick={() => navigate('/campuses')}
-                  className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
-                >
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <BuildingOfficeIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-purple-300 group-active:scale-95 lg:group-hover:scale-110 transition-transform" />
-                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-300/50 lg:group-hover:text-purple-300 lg:group-hover:translate-x-1 transition-all" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-white mb-1">Campus Management</h3>
-                  <p className="text-xs sm:text-sm text-white/60">Configure campus settings</p>
-                </button>
-                <button
-                  onClick={() => navigate('/resources/manage')}
-                  className="bg-gradient-to-br from-teal-500/10 to-cyan-500/10 border border-teal-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
-                >
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <BookOpenIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-teal-300 group-active:scale-95 lg:group-hover:scale-110 transition-transform" />
-                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-teal-300/50 lg:group-hover:text-teal-300 lg:group-hover:translate-x-1 transition-all" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-white mb-1">Resource Manager</h3>
-                  <p className="text-xs sm:text-sm text-white/60">Organize and manage resources</p>
-                </button>
-                <button
-                  onClick={() => navigate('/ministry-stats')}
-                  className="bg-gradient-to-br from-emerald-500/10 to-green-600/10 border border-emerald-400/40 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
-                >
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <PresentationChartLineIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-emerald-300 group-active:scale-95 lg:group-hover:scale-110 transition-transform" />
-                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300/50 lg:group-hover:text-emerald-300 lg:group-hover:translate-x-1 transition-all" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-white mb-1">Ministry stats</h3>
-                  <p className="text-xs sm:text-sm text-white/60">Baptisms &amp; totals by campus and date</p>
-                </button>
-                <button
-                  onClick={() => navigate('/platform-settings')}
-                  className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-400/30 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 active:scale-95 lg:hover:scale-105 transition-all duration-300 text-left group touch-manipulation"
-                >
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <Cog6ToothIcon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-emerald-300 group-active:scale-95 lg:group-hover:scale-110 transition-transform" />
-                    <ArrowTopRightOnSquareIcon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300/50 lg:group-hover:text-emerald-300 lg:group-hover:translate-x-1 transition-all" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-white mb-1">Platform Settings</h3>
-                  <p className="text-xs sm:text-sm text-white/60">Upload training videos</p>
-                </button>
-              </div>
-            </section>
+            </div>
           )}
+        </header>
 
-          {/* Support & Feedback */}
+        {/* Homepage Messages Section */}
+        {!messagesLoading && homepageMessages.length > 0 && (
+          <section className="space-y-3 sm:space-y-4">
+            {homepageMessages.map((msg) => (
+              <div
+                key={msg.id}
+                className="bg-fc-wash-butter border border-fc-wash-butter-border rounded-xl p-4 sm:p-5 flex items-start gap-3 sm:gap-4"
+              >
+                <MegaphoneIcon className="h-[18px] w-[18px] text-fc-copper flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-semibold text-fc-midnight mb-1.5">{msg.heading}</h3>
+                  <p className="text-sm text-fc-brown leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {/* Training & Help Section */}
+        <section className="space-y-3 sm:space-y-4">
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold text-fc-midnight flex items-center gap-2 mb-1">
+              <AcademicCapIcon className="h-5 w-5 text-fc-olive" />
+              Training & Help
+            </h2>
+            <p className="text-fc-brown text-xs sm:text-sm">
+              Learn how to use Pulse with our training resources
+            </p>
+          </div>
+
+          <a
+            href="/videos/pulse-training.mp4"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group block bg-fc-wash-mint border border-fc-wash-mint-border rounded-xl p-4 sm:p-5 md:p-6 transition-all duration-200 active:scale-[0.98] touch-manipulation"
+          >
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center flex-shrink-0">
+                <PlayCircleIcon className="h-6 w-6 text-fc-olive" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <h3 className="text-base sm:text-lg font-semibold text-fc-midnight">
+                    Pulse Training Video
+                  </h3>
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4 text-fc-olive/70 group-hover:text-fc-olive transition-colors" />
+                </div>
+                <p className="text-sm text-fc-brown leading-relaxed">
+                  Watch this comprehensive tutorial to learn how to navigate Pulse, input your weekly stats, and make the most of all the features available to you.
+                </p>
+                <div className="mt-3 inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-fc-olive">
+                  <PlayCircleIcon className="h-4 w-4" />
+                  <span>Click to watch video</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        </section>
+
+        {/* Quick Actions Section */}
+        {quickActions.length > 0 && (
           <section className="space-y-4 sm:space-y-5">
             <div>
-              <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-1">Support & Feedback</h2>
-              <p className="text-white/60 text-xs sm:text-sm md:text-base">
-                We're here to help keep things moving smoothly for your campus
+              <h2 className="text-lg sm:text-xl font-semibold text-fc-midnight flex items-center gap-2 mb-1">
+                <BoltIcon className="h-5 w-5 text-fc-gold" />
+                Quick Actions
+              </h2>
+              <p className="text-fc-brown text-xs sm:text-sm">
+                Jump to your most-used features
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-              {supportItems.map((item) => (
-                <div
-                  key={item.title}
-                  className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 space-y-2 sm:space-y-3"
-                >
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <LifebuoyIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-300 flex-shrink-0" />
-                    <h3 className="text-base sm:text-lg font-semibold">{item.title}</h3>
-                  </div>
-                  <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
-                    {item.description}
-                  </p>
-                  <a
-                    href={`mailto:${item.action}`}
-                    className="inline-flex items-center gap-2 text-xs sm:text-sm text-blue-200 hover:text-blue-100 active:text-blue-300 transition-colors duration-200 touch-manipulation break-all"
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                const colors = colorClasses[action.color] || colorClasses.blue;
+                return (
+                  <button
+                    key={action.name}
+                    onClick={() => navigate(action.href)}
+                    className={`
+                      group relative ${colors.bg} ${colors.border}
+                      rounded-xl p-4 sm:p-[18px] transition-all duration-200
+                      active:scale-95 border
+                      flex flex-col items-start justify-start gap-1.5
+                      min-h-[100px] sm:min-h-[110px]
+                      touch-manipulation text-left
+                    `}
                   >
-                    {item.action}
-                    <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-                  </a>
+                    <Icon className={`h-5 w-5 mb-1 ${colors.icon}`} />
+                    <span className="text-sm font-medium text-fc-midnight">
+                      {action.name}
+                    </span>
+                    <ArrowTopRightOnSquareIcon className={`absolute top-3 right-3 h-3.5 w-3.5 ${colors.icon} opacity-0 group-hover:opacity-100 transition-opacity duration-200`} />
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Resource Spotlight - Only for non-admin */}
+        {!isAdmin && (
+          <section className="space-y-4 sm:space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold text-fc-midnight mb-1">Resource Spotlight</h2>
+                <p className="text-fc-brown text-xs sm:text-sm">
+                  Recently added folders from the Futures resource library
+                </p>
+              </div>
+              <a
+                href="/resources"
+                className="inline-flex items-center gap-2 text-xs sm:text-sm text-fc-copper hover:text-fc-brown transition-colors duration-200 touch-manipulation"
+              >
+                Browse full library
+                <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+              </a>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+              {categoriesLoading && (
+                <div className="col-span-full fc-card p-4 sm:p-6 text-fc-brown text-center text-sm">
+                  Loading featured folders...
                 </div>
+              )}
+              {!categoriesLoading && featuredCategories.length === 0 && (
+                <div className="col-span-full fc-card p-4 sm:p-6 text-fc-brown text-center text-xs sm:text-sm">
+                  No shared folders yet—check back soon or reach out to the Ops team.
+                </div>
+              )}
+              {featuredCategories.map((category) => (
+                <a
+                  key={category.id}
+                  href="/resources"
+                  className="group fc-card p-4 sm:p-5 transition-all duration-200 active:scale-95 hover:shadow-card-hover touch-manipulation"
+                >
+                  <div className="flex items-center justify-between gap-3 mb-3 sm:mb-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-fc-wash-sky flex items-center justify-center text-xl sm:text-2xl">
+                      📁
+                    </div>
+                    <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-fc-thistle group-hover:text-fc-copper transition-colors" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-semibold text-fc-midnight group-hover:text-fc-copper transition-colors duration-200 mb-1.5">
+                    {category.displayName || category.name}
+                  </h3>
+                  {category.description && (
+                    <p className="text-xs sm:text-sm text-fc-brown leading-relaxed line-clamp-3">
+                      {category.description}
+                    </p>
+                  )}
+                </a>
               ))}
             </div>
           </section>
-        </div>
+        )}
+
+        {/* Admin Quick Access */}
+        {isAdmin && (
+          <section className="space-y-4 sm:space-y-5">
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold text-fc-midnight flex items-center gap-2 mb-1">
+                <ShieldCheckIcon className="h-5 w-5 text-fc-copper" />
+                Admin Quick Access
+              </h2>
+              <p className="text-fc-brown text-xs sm:text-sm">
+                Key management tools and system overview
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+              <button
+                onClick={() => navigate('/users')}
+                className="fc-card p-4 sm:p-5 active:scale-95 hover:shadow-card-hover transition-all duration-200 text-left group touch-manipulation"
+              >
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <UserGroupIcon className="h-6 w-6 sm:h-7 sm:w-7 text-fc-teal" />
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4 text-fc-thistle group-hover:text-fc-teal transition-colors" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-fc-midnight mb-1">User Management</h3>
+                <p className="text-xs sm:text-sm text-fc-brown">Manage all users and permissions</p>
+              </button>
+              <button
+                onClick={() => navigate('/campuses')}
+                className="fc-card p-4 sm:p-5 active:scale-95 hover:shadow-card-hover transition-all duration-200 text-left group touch-manipulation"
+              >
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <BuildingOfficeIcon className="h-6 w-6 sm:h-7 sm:w-7 text-fc-copper" />
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4 text-fc-thistle group-hover:text-fc-copper transition-colors" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-fc-midnight mb-1">Campus Management</h3>
+                <p className="text-xs sm:text-sm text-fc-brown">Configure campus settings</p>
+              </button>
+              <button
+                onClick={() => navigate('/resources/manage')}
+                className="fc-card p-4 sm:p-5 active:scale-95 hover:shadow-card-hover transition-all duration-200 text-left group touch-manipulation"
+              >
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <BookOpenIcon className="h-6 w-6 sm:h-7 sm:w-7 text-fc-olive" />
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4 text-fc-thistle group-hover:text-fc-olive transition-colors" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-fc-midnight mb-1">Resource Manager</h3>
+                <p className="text-xs sm:text-sm text-fc-brown">Organize and manage resources</p>
+              </button>
+              <button
+                onClick={() => navigate('/ministry-stats')}
+                className="fc-card p-4 sm:p-5 active:scale-95 hover:shadow-card-hover transition-all duration-200 text-left group touch-manipulation"
+              >
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <PresentationChartLineIcon className="h-6 w-6 sm:h-7 sm:w-7 text-fc-gold" />
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4 text-fc-thistle group-hover:text-fc-gold transition-colors" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-fc-midnight mb-1">Ministry stats</h3>
+                <p className="text-xs sm:text-sm text-fc-brown">Baptisms &amp; totals by campus and date</p>
+              </button>
+              <button
+                onClick={() => navigate('/platform-settings')}
+                className="fc-card p-4 sm:p-5 active:scale-95 hover:shadow-card-hover transition-all duration-200 text-left group touch-manipulation"
+              >
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <Cog6ToothIcon className="h-6 w-6 sm:h-7 sm:w-7 text-fc-brown" />
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4 text-fc-thistle group-hover:text-fc-brown transition-colors" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-fc-midnight mb-1">Platform Settings</h3>
+                <p className="text-xs sm:text-sm text-fc-brown">Upload training videos</p>
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Support & Feedback */}
+        <section className="space-y-4 sm:space-y-5">
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold text-fc-midnight mb-1">Support & Feedback</h2>
+            <p className="text-fc-brown text-xs sm:text-sm">
+              We're here to help keep things moving smoothly for your campus
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            {supportItems.map((item) => (
+              <div
+                key={item.title}
+                className="fc-card p-4 sm:p-5 space-y-2 sm:space-y-3"
+              >
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <LifebuoyIcon className="h-5 w-5 text-fc-copper flex-shrink-0" />
+                  <h3 className="text-base sm:text-lg font-semibold text-fc-midnight">{item.title}</h3>
+                </div>
+                <p className="text-xs sm:text-sm text-fc-brown leading-relaxed">
+                  {item.description}
+                </p>
+                <a
+                  href={`mailto:${item.action}`}
+                  className="inline-flex items-center gap-2 text-xs sm:text-sm text-fc-copper hover:text-fc-brown transition-colors duration-200 touch-manipulation break-all"
+                >
+                  {item.action}
+                  <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                </a>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );
