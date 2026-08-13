@@ -173,22 +173,6 @@ def scope_groups_query(query, user_role: str = None, user_campus: str = None):
     """Apply campus scoping to groups queries"""
     return apply_campus_filter(query, 'groups', user_role, user_campus)
 
-def scope_devotions_query(query, user_role: str = None, user_campus: str = None):
-    """Apply campus scoping to devotions queries"""
-    return apply_campus_filter(query, 'devotions_admin', user_role, user_campus)
-
-def scope_serving_query(query, user_role: str = None, user_campus: str = None):
-    """Apply campus scoping to serving queries"""
-    return apply_campus_filter(query, 'serving', user_role, user_campus)
-
-def scope_events_query(query, user_role: str = None, user_campus: str = None):
-    """Apply campus scoping to events queries"""
-    return apply_campus_filter(query, 'events', user_role, user_campus)
-
-def scope_prayer_requests_query(query, user_role: str = None, user_campus: str = None):
-    """Apply campus scoping to prayer requests queries"""
-    return apply_campus_filter(query, 'prayer_requests', user_role, user_campus)
-
 # Region scoping functions
 def apply_region_filter(query, resource: str, user_role: str = None, user_region_id: int = None):
     """
