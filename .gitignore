@@ -55,3 +55,7 @@ backups/
 *.local
 .env.local
 
+
+# Local secrets - never commit
+RAILWAY_ENV.txt
+RAILWAY_ENV_VALUES.txt
