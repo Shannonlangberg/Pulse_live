@@ -94,7 +94,8 @@
       "full_name": "Adi Ehut Lande",
       "role": "campus_pastor",
       "campus": "cemani",
-      "active": true
+      "active": false,
+      "note": "Retired duplicate - Cemani access now via allowed_campuses on adi.lande"
     },
     "lala.lande.cemani": {
       "username": "lala.lande.cemani",
@@ -102,7 +103,8 @@
       "full_name": "Lala Nokita Dewi",
       "role": "campus_pastor",
       "campus": "cemani",
-      "active": true
+      "active": false,
+      "note": "Retired duplicate - Cemani access now via allowed_campuses on lala.lande"
     }
   },
   "metadata": {

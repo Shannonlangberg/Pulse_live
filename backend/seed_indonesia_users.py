@@ -114,26 +114,20 @@ def seed_indonesia_users(db_path=None):
             active = 1 if user_data.get('active', True) else 0
             
             # Check if user exists
-            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+            cursor.execute("SELECT id, active FROM users WHERE username = ?", (username,))
             user_exists = cursor.fetchone()
-            
+
             if user_exists:
-                # Update existing user
-                cursor.execute('''
-                    UPDATE users 
-                    SET password_hash = ?, full_name = ?, email = ?, role = ?, campus = ?, active = ?
-                    WHERE username = ?
-                ''', (
-                    password_hash,
-                    full_name,
-                    email,
-                    role,
-                    campus,
-                    active,
-                    username
-                ))
-                users_updated += 1
-                print(f"[SEED_ID] ✓ Updated: {full_name} ({role} @ {campus})")
+                # Existing users are managed via the app (User Management UI) - never
+                # overwrite their password, role, campus, or details on deploy.
+                # Exception: an explicit "active": false in the JSON deactivates the
+                # account, so retired accounts can be switched off from the seed file.
+                if active == 0 and user_exists[1] != 0:
+                    cursor.execute('UPDATE users SET active = 0 WHERE username = ?', (username,))
+                    users_updated += 1
+                    print(f"[SEED_ID] ✓ Deactivated: {full_name} ({role} @ {campus})")
+                else:
+                    print(f"[SEED_ID] - Skipped (exists): {full_name} ({role} @ {campus})")
             else:
                 # Create new user
                 cursor.execute('''
@@ -158,8 +152,8 @@ def seed_indonesia_users(db_path=None):
         print(f"[SEED_ID] COMPLETED")
         print(f"[SEED_ID] ============================================================")
         print(f"[SEED_ID] ✓ Created:  {users_seeded} new users")
-        print(f"[SEED_ID] ✓ Updated:  {users_updated} existing users")
-        print(f"[SEED_ID] ℹ️  Default password: futures2025")
+        print(f"[SEED_ID] ✓ Deactivated:  {users_updated} retired users")
+        print(f"[SEED_ID] ℹ️  Default password for NEW users only: futures2025")
         print(f"[SEED_ID] ============================================================")
         return True
         
