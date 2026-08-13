@@ -77,6 +77,16 @@ def seed_indonesia_users(db_path=None):
             conn.close()
             return False
         
+        # Self-heal: the custom_permissions column (migration 029) is missing on
+        # some live databases because run_migrations swallows failures. Grants
+        # and the User Management campus picker both need it.
+        cursor.execute("PRAGMA table_info(users)")
+        cols = [r[1] for r in cursor.fetchall()]
+        if 'custom_permissions' not in cols:
+            cursor.execute('ALTER TABLE users ADD COLUMN custom_permissions TEXT DEFAULT NULL')
+            conn.commit()
+            print(f"[SEED_ID] ✓ Added missing users.custom_permissions column")
+
         # Load users from users_indonesia.json
         users_data = {}
         if os.path.exists(users_json_path):
