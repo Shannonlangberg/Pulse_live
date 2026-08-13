@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Bars3Icon,
   XMarkIcon,
@@ -7,56 +7,14 @@ import {
 } from '@heroicons/react/24/outline';
 import EnhancedNavigation from './EnhancedNavigation';
 import TopNavigation from './TopNavigation';
+import { useSession } from '../lib/useSession';
 
 const MainLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
-  const [userRole, setUserRole] = useState('user');
-  const [userName, setUserName] = useState('');
-  const [currentUser, setCurrentUser] = useState(null);
-  const [customPermissions, setCustomPermissions] = useState({});
-  const [railwayBranch, setRailwayBranch] = useState(null);
-  const location = useLocation();
+  const { authenticated, fullName } = useSession();
 
-  // Fetch user session data on component mount
-  useEffect(() => {
-    const fetchSessionData = async () => {
-      try {
-        // Add cache-busting timestamp and no-cache headers
-        const response = await fetch('/api/session', {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-          },
-          credentials: 'include'
-        });
-        const data = await response.json();
-        if (data.authenticated) {
-          setUserRole(data.role || 'user');
-          setUserName(data.full_name || 'User');
-          setCustomPermissions(data.custom_permissions || {});
-          setCurrentUser({
-            id: data.id || 'unknown',
-            username: data.username || 'User',
-            full_name: data.full_name || 'User',
-            role: data.role || 'user',
-            campus: data.campus || 'all_campuses',
-            custom_permissions: data.custom_permissions || {}
-          });
-        }
-        // Set branch info - critical for navigation filtering
-        // The backend will return 'main' or 'beta' based on detection
-        const detectedBranch = data.railway_branch || 'beta';
-        console.log('[MainLayout] Railway Branch:', detectedBranch);
-        setRailwayBranch(detectedBranch);
-      } catch (error) {
-        console.error('Error fetching session data:', error);
-      }
-    };
-
-    fetchSessionData();
-  }, []);
+  const userName = authenticated ? (fullName || 'User') : '';
 
   const handleLogout = async () => {
     try {
@@ -75,8 +33,6 @@ const MainLayout = ({ children }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <EnhancedNavigation
-        userRole={userRole}
-        customPermissions={customPermissions}
         userName={userName}
         onLogout={handleLogout}
         sidebarOpen={sidebarOpen}
@@ -87,8 +43,6 @@ const MainLayout = ({ children }) => {
 
       {/* Top Navigation Bar */}
       <TopNavigation
-        userRole={userRole}
-        customPermissions={customPermissions}
         activeSection={activeSection}
       />
 

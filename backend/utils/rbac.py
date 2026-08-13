@@ -91,10 +91,11 @@ class RBACManager:
             if feature in custom_permissions and custom_permissions[feature] is False:
                 return False
         
-        # Map features to resources for role-based checking
-        # For now, if no custom permission, check role defaults
-        # This will be enhanced based on how features map to resources
-        return True  # Default to allowing if no explicit deny
+        # Fail CLOSED: without an explicit grant, feature access is denied.
+        # (This used to return True, which made every role gate that paired
+        # with it unreachable - see app.py's has_permission for the real
+        # authority now.)
+        return False
     
     def get_user_permissions(self, user_role: str) -> Dict[str, List[str]]:
         """Get all permissions for a specific user role"""

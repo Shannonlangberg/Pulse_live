@@ -1840,6 +1840,117 @@ def save_users_database(data):
         print(f"[DEBUG] Failed to save users to database: {e}")
         return False
 
+# ==================================================================
+# PERMISSIONS — single source of truth
+# ==================================================================
+# Every "can this user do X?" question is answered here and only here.
+# Routes must use current_user.has_permission('<key>') or the helpers
+# below; do not add inline role lists.
+#
+# The four leadership titles are synonyms and always share one entry.
+LEADERSHIP_ROLES = ('senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor')
+ADMIN_ROLES = ('superadmin', 'admin')
+ALL_ACCESS_ROLES = ADMIN_ROLES + LEADERSHIP_ROLES
+
+PERMISSION_KEYS = (
+    'log_stats', 'recall_stats', 'dashboard_access', 'query_access',
+    'edit_access', 'finance_access', 'manage_users', 'manage_campuses',
+    'view_all_campuses', 'data_export', 'database_viewer',
+    'resource_manager', 'homepage_manager',
+)
+
+_FULL_ACCESS = {k: True for k in PERMISSION_KEYS}
+_NO_ACCESS = {k: False for k in PERMISSION_KEYS}
+_CAMPUS_SCOPED = {
+    **_NO_ACCESS,
+    'log_stats': True,
+    'recall_stats': 'own_campus',
+    'dashboard_access': 'own_campus',
+    'query_access': True,
+    'edit_access': True,
+    'database_viewer': True,  # data itself is campus-scoped at the endpoint
+}
+
+ROLE_PERMISSIONS = {
+    'superadmin': dict(_FULL_ACCESS),
+    'admin': dict(_FULL_ACCESS),
+    'senior_leadership': dict(_FULL_ACCESS),
+    'senior_leader': dict(_FULL_ACCESS),
+    'senior_pastor': dict(_FULL_ACCESS),
+    'lead_pastor': dict(_FULL_ACCESS),
+    'campus_pastor': dict(_CAMPUS_SCOPED),
+    'pastor': dict(_CAMPUS_SCOPED),
+    'finance': {**_NO_ACCESS, 'finance_access': True},
+    # Everyone below has no stats/report access by default; grant per-user
+    # via custom_permissions in User Management / Role Manager.
+    'staff': dict(_NO_ACCESS),
+    'user': dict(_NO_ACCESS),
+    'member': dict(_NO_ACCESS),
+    'connect_group_leader': dict(_NO_ACCESS),
+    'dream_team_leader': dict(_NO_ACCESS),
+}
+
+# custom_permissions keys accepted from the UI → permission names they grant
+# or deny. A key set to True grants all the listed permissions; False denies
+# them (unless another True key still grants one, e.g. recall_stats).
+CUSTOM_PERMISSION_KEYS = {
+    'input': ('log_stats', 'recall_stats'),
+    'dashboard': ('dashboard_access', 'recall_stats'),
+    'finance': ('finance_access',),
+    'data_export': ('data_export',),
+    'database_viewer': ('database_viewer',),
+    'resource_manager': ('resource_manager',),
+    'campus_management': ('manage_campuses',),
+    'user_management': ('manage_users',),
+    'homepage_manager': ('homepage_manager',),
+    'query': ('query_access',),
+    'edit': ('edit_access',),
+}
+
+# permission name → custom keys that can affect it (derived once)
+_PERM_TO_CUSTOM_KEYS = {}
+for _ck, _perms in CUSTOM_PERMISSION_KEYS.items():
+    for _p in _perms:
+        _PERM_TO_CUSTOM_KEYS.setdefault(_p, []).append(_ck)
+
+
+def normalize_campus_id(value):
+    """adelaide_city / Adelaide City / adelaide-city -> adelaide_city"""
+    return str(value or '').strip().lower().replace(' ', '_').replace('-', '_')
+
+
+def resolve_permission(role, custom_permissions, permission_type):
+    """Resolve one permission. Returns True, False, or 'own_campus'.
+
+    Order: superadmin bypass -> explicit custom grant -> explicit custom
+    deny -> role default -> False.
+    """
+    if role == 'superadmin':
+        return True
+
+    custom = custom_permissions or {}
+    relevant = _PERM_TO_CUSTOM_KEYS.get(permission_type, ())
+    granted = [k for k in relevant if custom.get(k) is True]
+    denied = [k for k in relevant if custom.get(k) is False]
+    if granted:
+        return True
+    if denied and len(denied) == len([k for k in relevant if custom.get(k) is not None]):
+        # every custom key that mentions this permission says no
+        return False
+
+    return ROLE_PERMISSIONS.get(role, {}).get(permission_type, False)
+
+
+def effective_permissions(role, custom_permissions):
+    """Full resolved permission map for /api/session. 'own_campus' is
+    reported as True with scoping expressed separately via allowed
+    campuses."""
+    out = {}
+    for key in PERMISSION_KEYS:
+        val = resolve_permission(role, custom_permissions, key)
+        out[key] = bool(val)  # 'own_campus' -> True (page access; data is scoped)
+    return out
+
 # User class for Flask-Login
 class User(UserMixin):
     def __init__(self, user_data):
@@ -1887,243 +1998,70 @@ class User(UserMixin):
             return False
         
     def has_permission(self, permission_type, action=None, campus=None):
-        """Check if user has specific permission based on role and custom_permissions
-        
-        Supports both old-style (e.g., 'log_stats') and new RBAC-style (e.g., 'groups', 'view') permissions
-        
-        Custom permissions (from Role Manager) can override role defaults:
-        - 'input: true' grants log_stats and recall_stats
-        - 'dashboard: true' grants dashboard_access and recall_stats
-        - 'finance: true' grants finance_access
+        """Single authority for permission checks.
+
+        Resolution order (see resolve_permission):
+          superadmin -> custom_permissions grant -> custom_permissions deny
+          -> role default -> False.
+        'own_campus' role defaults are True when no campus is asked about,
+        otherwise the campus must be one the user can access.
+        (The legacy `action` argument is accepted and ignored; the RBAC
+        module it used to dispatch to was never wired up.)
         """
-        # If action is provided, use RBAC system
-        if action is not None:
-            try:
-                from utils.rbac import rbac_manager
-                custom_perms = getattr(self, 'custom_permissions', {}) or {}
-                return rbac_manager.has_permission(self.role, permission_type, action, custom_permissions=custom_perms)
-            except Exception as e:
-                logger.error(f"Error checking RBAC permission: {e}")
-                # Fall back to old system if RBAC fails
-        
-        # FIRST: Check custom_permissions (set via Role Manager)
         custom_perms = getattr(self, 'custom_permissions', {}) or {}
-        
-        # Map feature flags to backend permissions
-        if permission_type == 'log_stats':
-            # If user has 'input: true' in custom_permissions, grant log_stats
-            if custom_perms.get('input') is True:
-                logger.info(f"[PERMISSION_CHECK] User granted log_stats via custom_permissions.input=True")
+        perm_value = resolve_permission(self.role, custom_perms, permission_type)
+
+        if perm_value is True:
+            return True
+        if perm_value == 'own_campus':
+            if campus is None:
                 return True
-            # Explicitly denied
-            if custom_perms.get('input') is False:
-                logger.info(f"[PERMISSION_CHECK] User denied log_stats via custom_permissions.input=False")
-                return False
-        
-        if permission_type == 'recall_stats':
-            # If user has 'input: true' or 'dashboard: true', grant recall_stats (needed to view data)
-            if custom_perms.get('input') is True or custom_perms.get('dashboard') is True:
-                logger.info(f"[PERMISSION_CHECK] User granted recall_stats via custom_permissions (input={custom_perms.get('input')}, dashboard={custom_perms.get('dashboard')})")
+            allowed = self.accessible_campus_ids()
+            if allowed is None:
                 return True
-            # Explicitly denied
-            if custom_perms.get('input') is False and custom_perms.get('dashboard') is False:
-                return False
-        
-        if permission_type == 'dashboard_access':
-            # If user has 'dashboard: true', grant dashboard_access
-            if custom_perms.get('dashboard') is True:
-                return True
-            if custom_perms.get('dashboard') is False:
-                return False
-        
-        if permission_type == 'finance_access':
-            # If user has 'finance: true', grant finance_access
-            if custom_perms.get('finance') is True:
-                return True
-            if custom_perms.get('finance') is False:
-                return False
-        
-        if permission_type == 'data_export':
-            # Superadmin/admin always retain data export (quarterly reports, attendance exports);
-            # custom_permissions.data_export only applies to other roles.
-            if self.role in ('superadmin', 'admin'):
-                return True
-            if custom_perms.get('data_export') is True:
-                return True
-            if custom_perms.get('data_export') is False:
-                return False
-        
-        # Define permissions for each role (legacy system)
-        role_permissions = {
-            'superadmin': {
-                'log_stats': True,
-                'recall_stats': True,
-                'dashboard_access': True,
-                'query_access': True,
-                'edit_access': True,
-                'finance_access': True,
-                'manage_users': True,
-                'manage_campuses': True,
-                'view_all_campuses': True,
-                'data_export': True
-            },
-            'admin': {
-                'log_stats': True,
-                'recall_stats': True,
-                'dashboard_access': True,
-                'query_access': True,
-                'edit_access': True,
-                'finance_access': True,
-                'manage_users': True,
-                'manage_campuses': True,
-                'view_all_campuses': True,
-                'data_export': True
-            },
-            'senior_leadership': {
-                'log_stats': True,
-                'recall_stats': True,
-                'dashboard_access': True,
-                'query_access': True,
-                'edit_access': True,
-                'finance_access': True,
-                'manage_users': True,
-                'manage_campuses': True,
-                'view_all_campuses': True,
-                'data_export': True
-            },
-            'senior_leader': {
-                'log_stats': True,
-                'recall_stats': True,
-                'dashboard_access': True,
-                'query_access': True,
-                'edit_access': True,
-                'finance_access': True,
-                'manage_users': True,
-                'manage_campuses': True,
-                'view_all_campuses': True,
-                'data_export': True
-            },
-            'senior_pastor': {
-                'log_stats': True,
-                'recall_stats': True,
-                'dashboard_access': True,
-                'query_access': True,
-                'edit_access': True,
-                'finance_access': True,
-                'manage_users': True,
-                'manage_campuses': True,
-                'view_all_campuses': True,
-                'data_export': True
-            },
-            'lead_pastor': {
-                'log_stats': True,
-                'recall_stats': True,
-                'dashboard_access': True,
-                'query_access': True,
-                'edit_access': True,
-                'finance_access': True,
-                'manage_users': True,
-                'manage_campuses': True,
-                'view_all_campuses': True,
-                'data_export': True
-            },
-            'finance': {
-                'log_stats': False,
-                'recall_stats': False,  # Cannot view dashboards
-                'dashboard_access': False,  # No dashboard access
-                'query_access': False,
-                'finance_access': True,  # Can ONLY submit finance data
-                'manage_users': False,
-                'manage_campuses': False,
-                'view_all_campuses': False,
-                'data_export': False
-            },
-            'campus_pastor': {
-                'log_stats': True,  # Can log stats for their campus
-                'recall_stats': 'own_campus',  # Can only see their own campus
-                'dashboard_access': 'own_campus',
-                'query_access': True,
-                'edit_access': True,
-                'finance_access': False,
-                'manage_users': False,
-                'manage_campuses': False,
-                'view_all_campuses': False,
-                'data_export': False
-            },
-            'pastor': {
-                'log_stats': True,  # Can log stats
-                'recall_stats': 'own_campus',
-                'dashboard_access': 'own_campus',
-                'query_access': True,
-                'edit_access': True,
-                'finance_access': False,
-                'manage_users': False,
-                'manage_campuses': False,
-                'view_all_campuses': False,
-                'data_export': False
-            }
-        }
-        
-        perms = role_permissions.get(self.role, {})
-        perm_value = perms.get(permission_type, False)
-        
-        # Log permission check for debugging
-        if permission_type == 'log_stats':
-            logger.info(f"[PERMISSION_CHECK] User role: '{self.role}', permission_type: '{permission_type}', perm_value: {perm_value}, campus: {campus}, user_campus: {getattr(self, 'campus', None)}")
-        
-        # Handle campus-specific permissions
-        if permission_type == 'log_stats':
-            if perm_value is True:
-                return True
-            elif perm_value == 'own_campus':
-                # For own_campus, allow if no campus specified or if it matches user's campus
-                user_campus = getattr(self, 'campus', None)
-                if campus is None or user_campus == 'all_campuses':
-                    return True
-                # Normalize both for comparison (adelaide_city, Adelaide City, adelaide city -> same)
-                def _nc(s):
-                    return str(s or '').strip().lower().replace(' ', '_').replace('-', '_')
-                result = _nc(campus) == _nc(user_campus)
-                logger.info(f"[PERMISSION_CHECK] own_campus check: campus={campus}, user_campus={user_campus}, result={result}")
-                return result
-            # If role not found in permissions, default to False but log it
-            if self.role not in role_permissions:
-                logger.warning(f"[PERMISSION_CHECK] Role '{self.role}' not found in role_permissions. Available roles: {list(role_permissions.keys())}")
-            return False
-            
-        elif permission_type == 'recall_stats':
-            # Check role-based permissions (custom_permissions already checked above)
-            if perm_value is True:
-                return True
-            elif perm_value == 'own_campus':
-                return campus is None or campus == self.campus or self.campus == 'all_campuses'
-            return False
-            
-        elif permission_type == 'dashboard_access':
-            if perm_value is True:
-                return True
-            elif perm_value == 'own_campus':
-                return campus is None or campus == self.campus or self.campus == 'all_campuses'
-            return perm_value
-            
-        elif permission_type == 'query_access':
-            return perm_value is True
-            
-        elif permission_type == 'data_export':
-            return perm_value is True
-        
-        # For all other permissions, just return the boolean value
-        else:
-            return perm_value is True
-        
+            return normalize_campus_id(campus) in allowed
+        if self.role not in ROLE_PERMISSIONS:
+            logger.warning(f"[PERMISSION_CHECK] Unknown role '{self.role}' for user {getattr(self, 'username', '?')} - denying '{permission_type}'")
+        return False
+
+    def accessible_campus_ids(self):
+        """Campus ids this user may act on. None means every campus.
+
+        Order: custom allowed_campuses -> all-access roles/view_all_campuses
+        -> the user's own assigned campus.
+        """
+        custom_perms = getattr(self, 'custom_permissions', {}) or {}
+        allowed = custom_perms.get('allowed_campuses')
+        if isinstance(allowed, list):
+            real = [normalize_campus_id(c) for c in allowed
+                    if normalize_campus_id(c) and normalize_campus_id(c) != 'all_campuses']
+            if real:
+                return set(real)
+        if self.role in ALL_ACCESS_ROLES:
+            return None
+        if resolve_permission(self.role, custom_perms, 'view_all_campuses') is True:
+            return None
+        own = normalize_campus_id(getattr(self, 'campus', None))
+        if not own or own == 'all_campuses':
+            return None
+        return {own}
+
+    def can_access_campus(self, campus):
+        """True if the user may read/write data for this campus id/name."""
+        allowed = self.accessible_campus_ids()
+        return allowed is None or normalize_campus_id(campus) in allowed
+
     def get_accessible_campuses(self):
-        """Get list of campuses this user can access for data recall"""
-        if self.has_permission('recall_stats'):
-            if self.campus == 'all_campuses':
-                return ['all_campuses', 'paradise', 'adelaide_city', 'salisbury', 'south', 'mount_barker']
-            else:
-                return [self.campus]
-        return []
+        """Campus id list for data recall (legacy helper)."""
+        if not self.has_permission('recall_stats'):
+            return []
+        allowed = self.accessible_campus_ids()
+        if allowed is None:
+            try:
+                return ['all_campuses'] + [c['id'] for c in get_active_campuses() if c.get('id') != 'all_campuses']
+            except Exception:
+                return ['all_campuses']
+        return sorted(allowed)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -2437,37 +2375,20 @@ def get_campuses_for_user():
             
         campuses_db = load_campuses_database()
         accessible_campuses = []
-        
-        # Finance team and admin roles can access all campuses
-        if current_user.role in ['finance', 'admin', 'senior_leader']:
-            for campus_id, campus_data in campuses_db.get('campuses', {}).items():
-                if campus_data.get('active', False) and campus_id != 'all_campuses':
-                    accessible_campuses.append({
-                        'id': campus_id,
-                        'name': campus_data.get('display_name', campus_data.get('name', campus_id)),
-                        'full_name': campus_data.get('name', campus_id)
-                    })
-        elif current_user.role == 'campus_pastor':
-            # Campus pastors only see their own campus
-            user_campus = current_user.campus
-            if user_campus in campuses_db.get('campuses', {}):
-                campus_data = campuses_db['campuses'][user_campus]
-                if campus_data.get('active', False):
-                    accessible_campuses.append({
-                        'id': user_campus,
-                        'name': campus_data.get('display_name', campus_data.get('name', user_campus)),
-                        'full_name': campus_data.get('name', user_campus)
-                    })
-        else:
-            # Other roles get all campuses by default (except all_campuses)
-            for campus_id, campus_data in campuses_db.get('campuses', {}).items():
-                if campus_data.get('active', False) and campus_id != 'all_campuses':
-                    accessible_campuses.append({
-                        'id': campus_id,
-                        'name': campus_data.get('display_name', campus_data.get('name', campus_id)),
-                        'full_name': campus_data.get('name', campus_id)
-                    })
-        
+
+        # Single rule set: custom allowed_campuses -> role/campus scope
+        allowed = current_user.accessible_campus_ids()
+        for campus_id, campus_data in campuses_db.get('campuses', {}).items():
+            if not campus_data.get('active', False) or campus_id == 'all_campuses':
+                continue
+            if allowed is not None and normalize_campus_id(campus_id) not in allowed:
+                continue
+            accessible_campuses.append({
+                'id': campus_id,
+                'name': campus_data.get('display_name', campus_data.get('name', campus_id)),
+                'full_name': campus_data.get('name', campus_id)
+            })
+
         return {
             'campuses': sorted(accessible_campuses, key=lambda x: x['name'])
         }
@@ -2524,7 +2445,7 @@ def admin_required(f):
     @wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
-        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if current_user.role not in ALL_ACCESS_ROLES:
             flash('Administrator or Senior Leadership access required.', 'error')
             return redirect(url_for('serve_index'))
         return f(*args, **kwargs)
@@ -2547,7 +2468,7 @@ def admin_required_json(f):
             return jsonify({'error': 'Authentication required. Please sign in.'}), 401
         
         # Check if user has admin role (including superadmin)
-        if role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if role not in ALL_ACCESS_ROLES:
             logger.warning(f"Non-admin access attempt to {request.path} by user {username} (role: {role})")
             return jsonify({'error': 'Administrator access required'}), 403
         
@@ -3475,7 +3396,7 @@ def detect_cross_location_comparison(question: str) -> tuple:
     question_lower = question.lower()
     
     # Check if user has permission for cross-location comparison
-    if not hasattr(current_user, 'is_authenticated') or not current_user or not current_user.is_authenticated or not current_user.has_permission('cross_location_comparison'):
+    if not hasattr(current_user, 'is_authenticated') or not current_user or not current_user.is_authenticated or not current_user.has_permission('dashboard_access'):
         return False, [], None, None
     
     # Look for cross-location comparison keywords
@@ -3697,7 +3618,7 @@ def query_data_internal(data: Dict[str, Any]) -> Dict[str, Any]:
                 # Campus pastors get their assigned campus by default
                 campus = getattr(current_user, 'campus', 'main')
                 logger.info(f"[QUERY] No campus mentioned - using campus pastor's campus: {campus}")
-            elif current_user.role in ['senior_pastor', 'lead_pastor', 'admin']:
+            elif current_user.role in ALL_ACCESS_ROLES:
                 # Senior leadership gets all campuses by default
                 campus = 'all_campuses'
                 logger.info(f"[QUERY] No campus mentioned - using all campuses for senior leadership")
@@ -10809,18 +10730,11 @@ def import_from_sheets():
     when detail salvation columns are empty.
     """
     try:
-        from utils.rbac import rbac_manager
         from datetime import datetime
 
-        # Permission check - same as database_viewer but exclude campus_pastor (import affects all campuses)
-        user_role = getattr(current_user, 'role', 'member')
-        custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
-        if custom_perms.get('database_viewer') is False:
-            return jsonify({"error": "Access denied - Database Viewer has been disabled for your account"}), 403
-        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']
-        has_role_access = user_role in allowed_roles
-        has_custom_access = rbac_manager.has_feature_access(user_role, 'database_viewer', custom_permissions=custom_perms)
-        if not (has_role_access or has_custom_access):
+        # Import affects all campuses - restricted to data_export holders
+        # (admin/leadership by default)
+        if not current_user.has_permission('data_export'):
             return jsonify({"error": "Access denied - insufficient permissions"}), 403
 
         if not client:
@@ -11618,10 +11532,11 @@ def session_info():
             'beacon_management': os.getenv('BEACON_MGMT_ENABLED', 'false').lower() == 'true',
         }
         
-        # Get user's actual custom permissions (do NOT merge with feature flags)
-        # The frontend needs the raw custom_permissions to properly filter navigation
+        # Raw custom permissions (legacy consumers) plus the RESOLVED permission
+        # set - the frontend should gate nav/pages on `permissions` only.
         user_custom_perms = getattr(current_user, 'custom_permissions', {})
-        
+        allowed_ids = current_user.accessible_campus_ids()
+
         response = jsonify({
             "authenticated": True,
             "user": current_user.username,
@@ -11631,6 +11546,8 @@ def session_info():
             "full_name": current_user.full_name,
             "region_id": getattr(current_user, 'region_id', None),  # Include region_id for frontend filtering
             "custom_permissions": user_custom_perms,  # Return ONLY user's custom permissions, not merged feature flags
+            "permissions": effective_permissions(current_user.role, user_custom_perms or {}),
+            "allowed_campuses": sorted(allowed_ids) if allowed_ids is not None else None,
             "needs_drive_auth": needs_drive_auth,
             "drive_status": drive_status,  # Debug info
             "user_id": current_user.id,  # Debug info
@@ -11846,7 +11763,7 @@ def process_voice():
                     logger.info(f"No campus mentioned - using campus pastor's campus: {campus}")
                 else:
                     campus = None  # No assigned campus - will prompt user
-            elif current_user.role in ['senior_pastor', 'lead_pastor', 'admin']:
+            elif current_user.role in ALL_ACCESS_ROLES:
                 # Senior leadership gets all campuses by default for queries
                 # For stat logging, they'll still need to specify
                 campus = None  # Will be handled differently for queries vs logging
@@ -12028,7 +11945,7 @@ def process_voice():
     if campus is None or campus == "None" or campus == "null":
         # For queries, apply smart defaulting based on user role
         if is_query and current_user.is_authenticated:
-            if current_user.role in ['senior_pastor', 'lead_pastor', 'admin']:
+            if current_user.role in ALL_ACCESS_ROLES:
                 campus = 'all_campuses'
                 logger.info(f"Query with no campus - defaulting to all_campuses for senior leadership")
             elif current_user.role == 'campus_pastor':
@@ -12285,59 +12202,37 @@ def get_campus_memory(campus: str):
         "total_entries": len(campus_history)
     })
 
+def _campus_rows_for_current_user():
+    """Real campus rows (no virtual all_campuses) the current user may act on.
+
+    One rule set: custom allowed_campuses -> role/campus scope
+    (User.accessible_campus_ids) -> region filter for region-bound users.
+    """
+    rows = [c for c in get_active_campuses() if c['id'] != 'all_campuses']
+    allowed = current_user.accessible_campus_ids()
+    if allowed is not None:
+        return [c for c in rows if normalize_campus_id(c['id']) in allowed]
+    user_region_id = getattr(current_user, 'region_id', None)
+    if current_user.role == 'finance' and user_region_id:
+        return [c for c in rows if c.get('region_id') == user_region_id]
+    return rows
+
+
 @app.route('/api/campuses')
 @login_required
 def get_campuses():
     """Get list of active campuses for dropdowns based on user permissions"""
-    active_campuses = get_active_campuses()
-    
-    # Check for custom campus restrictions first (overrides role defaults)
-    custom_permissions = getattr(current_user, 'custom_permissions', {}) or {}
-    allowed_campuses = custom_permissions.get('allowed_campuses')
-    
-    if allowed_campuses is not None:
-        # Normalize: ignore 'all_campuses' in the list; only real campus ids count
-        allowed_real = [x for x in allowed_campuses if str(x).lower() != 'all_campuses']
-        if not allowed_real:
-            # Only 'all_campuses' or empty → no restriction
-            allowed_campuses = None
-        else:
-            allowed_campuses = allowed_real
-    if allowed_campuses is not None:
-        # User has custom campus restrictions (real campuses only; exclude virtual 'all_campuses')
-        allowed_set = {str(x) for x in allowed_campuses}
-        filtered_campuses = [c for c in active_campuses if c['id'] != 'all_campuses' and str(c['id']) in allowed_set]
-        default_campus = filtered_campuses[0]['id'] if len(filtered_campuses) == 1 else ("all_campuses" if len(filtered_campuses) > 1 else "all_campuses")
+    filtered_campuses = _campus_rows_for_current_user()
+    if len(filtered_campuses) == 1:
+        default_campus = filtered_campuses[0]['id']
     else:
-        # No custom restrictions, use role-based filtering
-        if current_user.role == 'admin' or current_user.role == 'senior_leader':
-            # Admin and senior leaders see all campuses
-            filtered_campuses = active_campuses
+        default_campus = filtered_campuses[0]['id'] if filtered_campuses else "all_campuses"
+        if current_user.accessible_campus_ids() is None:
+            # unrestricted users get the virtual all_campuses row for dashboards
+            all_row = [c for c in get_active_campuses() if c['id'] == 'all_campuses']
+            filtered_campuses = all_row + filtered_campuses
             default_campus = "all_campuses"
-        elif current_user.role == 'campus_pastor':
-            # Campus pastors only see their assigned campus
-            filtered_campuses = [c for c in active_campuses if c['id'] == current_user.campus]
-            default_campus = current_user.campus
-        elif current_user.role == 'finance':
-            # Finance users see only campuses in their region (unless superadmin)
-            user_region_id = getattr(current_user, 'region_id', None)
-            if user_region_id and current_user.role != 'superadmin':
-                # Filter to only campuses in user's region
-                filtered_campuses = [c for c in active_campuses if c.get('region_id') == user_region_id]
-                logger.info(f"[CAMPUSES] Finance user {current_user.username} filtered to region_id={user_region_id}: {len(filtered_campuses)} campuses")
-            else:
-                # Superadmin or no region_id - see all campuses
-                filtered_campuses = active_campuses
-            default_campus = filtered_campuses[0]['id'] if len(filtered_campuses) == 1 else "all_campuses"
-        elif current_user.role == 'pastor':
-            # Pastors see all campuses (for logging purposes)
-            filtered_campuses = active_campuses
-            default_campus = "all_campuses"
-        else:
-            # Default to all campuses for unknown roles
-            filtered_campuses = active_campuses
-            default_campus = "all_campuses"
-    
+
     return jsonify({
         "campuses": [{
             'id': c['id'], 
@@ -12356,41 +12251,7 @@ def _campus_picklist_for_report_scoping():
     excluding the virtual ``all_campuses`` row. Used to scope quarterly attendance reports for
     users without ``data_export`` (e.g. campus pastors).
     """
-    active_campuses = get_active_campuses()
-    custom_permissions = getattr(current_user, 'custom_permissions', {}) or {}
-    allowed_campuses = custom_permissions.get('allowed_campuses')
-
-    if allowed_campuses is not None:
-        allowed_real = [x for x in allowed_campuses if str(x).lower() != 'all_campuses']
-        if not allowed_real:
-            allowed_campuses = None
-        else:
-            allowed_campuses = allowed_real
-    if allowed_campuses is not None:
-        allowed_set = {str(x) for x in allowed_campuses}
-        filtered_campuses = [
-            c for c in active_campuses
-            if c['id'] != 'all_campuses' and str(c['id']) in allowed_set
-        ]
-    else:
-        if current_user.role in ('admin', 'senior_leader'):
-            filtered_campuses = [c for c in active_campuses if c['id'] != 'all_campuses']
-        elif current_user.role == 'campus_pastor':
-            filtered_campuses = [c for c in active_campuses if c['id'] == current_user.campus]
-        elif current_user.role == 'finance':
-            user_region_id = getattr(current_user, 'region_id', None)
-            if user_region_id and current_user.role != 'superadmin':
-                filtered_campuses = [
-                    c for c in active_campuses
-                    if c.get('region_id') == user_region_id and c['id'] != 'all_campuses'
-                ]
-            else:
-                filtered_campuses = [c for c in active_campuses if c['id'] != 'all_campuses']
-        elif current_user.role == 'pastor':
-            filtered_campuses = [c for c in active_campuses if c['id'] != 'all_campuses']
-        else:
-            filtered_campuses = [c for c in active_campuses if c['id'] != 'all_campuses']
-    return filtered_campuses
+    return _campus_rows_for_current_user()
 
 
 def _resolve_requested_campus_to_pick_id(raw: str, pick: list) -> str | None:
@@ -12859,7 +12720,7 @@ def test_route():
 @login_required
 def get_admin_campuses():
     """Get all campuses and their service times for admin management"""
-    if not current_user.has_permission('system_settings'):
+    if not current_user.has_permission('manage_campuses'):
         return jsonify({"error": "Insufficient permissions"}), 403
     
     try:
@@ -12876,7 +12737,7 @@ def get_admin_campuses():
 @login_required
 def add_campus():
     """Add a new campus with service times"""
-    if not current_user.has_permission('system_settings'):
+    if not current_user.has_permission('manage_campuses'):
         return jsonify({"error": "Insufficient permissions"}), 403
     
     try:
@@ -12919,7 +12780,7 @@ def add_campus():
 @login_required
 def update_campus(campus_name):
     """Update service times for an existing campus"""
-    if not current_user.has_permission('system_settings'):
+    if not current_user.has_permission('manage_campuses'):
         return jsonify({"error": "Insufficient permissions"}), 403
     
     try:
@@ -12961,7 +12822,7 @@ def update_campus(campus_name):
 @login_required
 def delete_campus(campus_name):
     """Delete a campus"""
-    if not current_user.has_permission('system_settings'):
+    if not current_user.has_permission('manage_campuses'):
         return jsonify({"error": "Insufficient permissions"}), 403
     
     try:
@@ -13001,7 +12862,7 @@ def get_weekly_submission_status():
         print(f"[WEEKLY_SUBMISSION] Request received. User: {current_user.username}, Role: {current_user.role}")
         
         # Only admins and lead pastors can see this
-        if current_user.role not in ['superadmin', 'admin', 'lead_pastor', 'senior_pastor', 'senior_leader']:
+        if current_user.role not in ALL_ACCESS_ROLES:
             print(f"[WEEKLY_SUBMISSION] Unauthorized - user role: {current_user.role}")
             return jsonify({'error': 'Unauthorized'}), 403
         
@@ -13131,10 +12992,8 @@ def get_regions():
 def get_campuses_v2():
     """Get all campuses with region information (admin management - respect Role Manager)"""
     try:
-        if current_user.role in ['superadmin', 'admin']:
-            custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
-            if custom_perms.get('campus_management') is False:
-                return jsonify({"error": "Access denied - Campuses management has been disabled for your account"}), 403
+        if not current_user.has_permission('manage_campuses'):
+            return jsonify({"error": "Access denied - Campuses management has been disabled for your account"}), 403
         conn = get_db()
         cursor = conn.cursor()
         
@@ -13611,7 +13470,6 @@ def get_database_viewer():
     """
     try:
         from models import AttendanceRecord, CampusV2, Region
-        from utils.rbac import rbac_manager
         
         # Check user role and custom permissions
         user_role = getattr(current_user, 'role', 'member')
@@ -13621,17 +13479,7 @@ def get_database_viewer():
         logger.info(f"[DATABASE_VIEWER] User role: {user_role}, custom_perms: {custom_perms}")
         
         # Respect explicit denial from Role Manager (overrides role)
-        if custom_perms.get('database_viewer') is False:
-            print(f"[DATABASE_VIEWER] Access denied - database_viewer explicitly disabled in Role Manager")
-            logger.warning(f"[DATABASE_VIEWER] Access denied for user_id={current_user.id} - database_viewer disabled in custom_permissions")
-            return jsonify({"error": "Access denied - Database Viewer has been disabled for your account"}), 403
-        
-        # Check if user has access via role or custom permissions
-        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor']
-        has_role_access = user_role in allowed_roles
-        has_custom_access = rbac_manager.has_feature_access(user_role, 'database_viewer', custom_permissions=custom_perms)
-        
-        if not (has_role_access or has_custom_access):
+        if not current_user.has_permission('database_viewer'):
             print(f"[DATABASE_VIEWER] Access denied for role: {user_role}, custom_perms: {custom_perms}")
             logger.warning(f"[DATABASE_VIEWER] Access denied for role: {user_role}")
             return jsonify({"error": "Access denied - insufficient permissions"}), 403
@@ -13643,13 +13491,15 @@ def get_database_viewer():
         end_date_str = request.args.get('end_date', '')
         limit = int(request.args.get('limit', 100))  # Default to last 100 records
         
-        # Campus pastors can only see their own campus - force filter
+        # Campus-scoped users only see campuses they can access
         user_campus = getattr(current_user, 'campus', None)
-        if user_role == 'campus_pastor' and user_campus and user_campus != 'all_campuses':
-            # Override campus filter for campus pastors
-            campus_filter = user_campus
-            print(f"[DATABASE_VIEWER] Campus pastor detected - forcing filter to their campus: {campus_filter}")
-            logger.info(f"[DATABASE_VIEWER] Campus pastor detected - forcing filter to their campus: {campus_filter}")
+        allowed_ids = current_user.accessible_campus_ids()
+        if allowed_ids is not None:
+            if campus_filter and campus_filter != 'all' and normalize_campus_id(campus_filter) not in allowed_ids:
+                return jsonify({"error": "Access denied - you don't have access to this campus"}), 403
+            if not campus_filter or campus_filter == 'all':
+                campus_filter = None  # scoped below by allowed_ids
+            logger.info(f"[DATABASE_VIEWER] Campus-scoped user - allowed campuses: {allowed_ids}")
         
         print(f"[DATABASE_VIEWER] Fetching records with filters: region={region_filter}, campus={campus_filter}, start={start_date_str}, end={end_date_str}, limit={limit}")
         logger.info(f"[DATABASE_VIEWER] Fetching records with filters: region={region_filter}, campus={campus_filter}, start={start_date_str}, end={end_date_str}, limit={limit}")
@@ -13673,7 +13523,11 @@ def get_database_viewer():
             else:
                 print(f"[DATABASE_VIEWER] Warning: Campus not found for campus_id: {campus_filter}")
                 logger.warning(f"[DATABASE_VIEWER] Warning: Campus not found for campus_id: {campus_filter}")
-        
+        elif allowed_ids is not None:
+            # Campus-scoped user with no specific campus selected - restrict to their campuses
+            scoped_rows = CampusV2.query.filter(CampusV2.campus_id.in_(list(allowed_ids))).all()
+            query = query.filter(AttendanceRecord.campus_id.in_([c.id for c in scoped_rows]))
+
         if start_date_str:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
             query = query.filter(AttendanceRecord.date >= start_date)
@@ -13779,18 +13633,11 @@ def export_database_viewer_csv():
         import csv
         import io
         from models import AttendanceRecord, CampusV2, Region
-        from utils.rbac import rbac_manager
         
         # Check user role and custom permissions (same as database_viewer endpoint)
         user_role = getattr(current_user, 'role', 'member')
         custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
-        if custom_perms.get('database_viewer') is False:
-            logger.warning(f"[EXPORT_CSV] Access denied - database_viewer disabled in Role Manager for user_id={current_user.id}")
-            return jsonify({"error": "Access denied - Database Viewer has been disabled for your account"}), 403
-        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor']
-        has_role_access = user_role in allowed_roles
-        has_custom_access = rbac_manager.has_feature_access(user_role, 'database_viewer', custom_permissions=custom_perms)
-        if not (has_role_access or has_custom_access):
+        if not current_user.has_permission('database_viewer'):
             logger.warning(f"[EXPORT_CSV] Access denied for role: {user_role}")
             return jsonify({"error": "Access denied - insufficient permissions"}), 403
         
@@ -13800,14 +13647,16 @@ def export_database_viewer_csv():
         start_date_str = request.args.get('start_date', '')
         end_date_str = request.args.get('end_date', '')
         
-        # Campus pastors can only see their own campus - force filter
+        # Campus-scoped users only export campuses they can access
         user_campus = getattr(current_user, 'campus', None)
-        if user_role == 'campus_pastor' and user_campus and user_campus != 'all_campuses':
-            # Override campus filter for campus pastors
-            campus_filter = user_campus
-            print(f"[EXPORT_CSV] Campus pastor detected - forcing filter to their campus: {campus_filter}")
-            logger.info(f"[EXPORT_CSV] Campus pastor detected - forcing filter to their campus: {campus_filter}")
-        
+        allowed_ids = current_user.accessible_campus_ids()
+        if allowed_ids is not None:
+            if campus_filter and campus_filter != 'all' and normalize_campus_id(campus_filter) not in allowed_ids:
+                return jsonify({"error": "Access denied - you don't have access to this campus"}), 403
+            if not campus_filter or campus_filter == 'all':
+                campus_filter = None
+            logger.info(f"[EXPORT_CSV] Campus-scoped user - allowed campuses: {allowed_ids}")
+
         # Build query (same logic as database_viewer)
         query = AttendanceRecord.query
         
@@ -13826,6 +13675,9 @@ def export_database_viewer_csv():
             else:
                 print(f"[EXPORT_CSV] Warning: Campus not found for campus_id: {campus_filter}")
                 logger.warning(f"[EXPORT_CSV] Warning: Campus not found for campus_id: {campus_filter}")
+        elif allowed_ids is not None:
+            scoped_rows = CampusV2.query.filter(CampusV2.campus_id.in_(list(allowed_ids))).all()
+            query = query.filter(AttendanceRecord.campus_id.in_([c.id for c in scoped_rows]))
         
         if start_date_str:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
@@ -13983,26 +13835,24 @@ def update_attendance_record(record_id):
         print(f"[UPDATE_RECORD] User role: {user_role}, attempting to update record {record_id}")
         logger.info(f"[UPDATE_RECORD] User role: {user_role}, record_id: {record_id}")
         
-        # Check permissions - admins/leadership can edit any, campus_pastor can edit their campus only
-        allowed_roles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor']
-        
-        if user_role not in allowed_roles:
+        # Permission: edit_access (admins/leadership by default; campus-scoped
+        # roles and custom grants included), then campus ownership below.
+        if not current_user.has_permission('edit_access'):
             print(f"[UPDATE_RECORD] Access denied for role: {user_role}")
             return jsonify({"error": "Access denied - insufficient permissions"}), 403
-        
+
         # Find the record
         record = AttendanceRecord.query.get(record_id)
-        
+
         if not record:
             print(f"[UPDATE_RECORD] Record {record_id} not found")
             return jsonify({"error": "Record not found"}), 404
-        
-        # Campus pastors can only edit their own campus records
-        if user_role == 'campus_pastor':
-            campus_obj = CampusV2.query.get(record.campus_id)
-            if not campus_obj or campus_obj.campus_id != user_campus:
-                print(f"[UPDATE_RECORD] Campus pastor access denied - user campus: {user_campus}, record campus: {campus_obj.campus_id if campus_obj else 'unknown'}")
-                return jsonify({"error": "Access denied - you can only edit records for your campus"}), 403
+
+        # Campus-scoped users can only edit records for campuses they can access
+        campus_obj = CampusV2.query.get(record.campus_id)
+        if not current_user.can_access_campus(campus_obj.campus_id if campus_obj else None):
+            print(f"[UPDATE_RECORD] Campus access denied - user campus: {user_campus}, record campus: {campus_obj.campus_id if campus_obj else 'unknown'}")
+            return jsonify({"error": "Access denied - you can only edit records for your campus"}), 403
         
         # Get update data from request
         data = request.get_json()
@@ -14105,10 +13955,10 @@ def update_attendance_record(record_id):
 def get_recent_entries():
     """Get recent entries for the user's campus (last 30 days) - NOW USING DATABASE"""
     try:
-        # Get campus from query parameter or user's default campus
+        # Campus from query parameter; when absent, show ALL campuses the user
+        # can access (scoped below) rather than just their assigned one, so
+        # multi-campus users (allowed_campuses) see everything they manage.
         campus = request.args.get('campus', '').strip()
-        if not campus and hasattr(current_user, 'campus'):
-            campus = current_user.campus
         
         # Calculate date range (last 30 days)
         end_date = datetime.now().date()
@@ -14119,27 +13969,27 @@ def get_recent_entries():
         try:
             from models import AttendanceRecord, CampusV2
             
-            # Check user role - superadmin/admin can see all campuses
+            # Scope by the user's accessible campuses (custom allowed_campuses,
+            # role, or own campus). None = unrestricted.
             user_role = getattr(current_user, 'role', 'member')
-            can_see_all = user_role in ['superadmin', 'admin', 'senior_leader', 'senior_pastor', 'lead_pastor']
-            
+            allowed_ids = current_user.accessible_campus_ids()
+
+            if campus and campus != 'all_campuses' and not current_user.can_access_campus(campus):
+                return jsonify({"error": f"You don't have access to entries for {campus}"}), 403
+
             if not campus or campus == 'all_campuses':
-                # Show all campuses (for superadmin) or user's accessible campuses
-                if can_see_all:
-                    logger.info(f"[RECENT_ENTRIES] Fetching ALL campuses entries (user role: {user_role})")
-                    records = AttendanceRecord.query.filter(
-                        AttendanceRecord.date >= start_date,
-                        AttendanceRecord.date <= end_date
-                    ).order_by(AttendanceRecord.date.desc()).all()
-                    logger.info(f"[RECENT_ENTRIES] Found {len(records)} records across all campuses")
-                else:
-                    # Regular users - use their default campus
-                    if hasattr(current_user, 'campus'):
-                        campus = current_user.campus
-                    else:
-                        logger.warning(f"[RECENT_ENTRIES] No campus specified and user has no default campus")
-                        return jsonify({"entries": []}), 200
-            
+                logger.info(f"[RECENT_ENTRIES] Fetching entries for accessible campuses (role: {user_role}, allowed: {allowed_ids})")
+                query = AttendanceRecord.query.filter(
+                    AttendanceRecord.date >= start_date,
+                    AttendanceRecord.date <= end_date
+                )
+                if allowed_ids is not None:
+                    campus_rows = CampusV2.query.filter(CampusV2.campus_id.in_(list(allowed_ids))).all()
+                    query = query.filter(AttendanceRecord.campus_id.in_([c.id for c in campus_rows]))
+                records = query.order_by(AttendanceRecord.date.desc()).all()
+                campus = None
+                logger.info(f"[RECENT_ENTRIES] Found {len(records)} records")
+
             # If specific campus requested
             if campus and campus != 'all_campuses':
                 logger.info(f"[RECENT_ENTRIES] Looking for entries from {start_date} to {end_date} for campus '{campus}'")
@@ -14831,10 +14681,12 @@ def quick_input():
         if not date_str:
             return jsonify({"error": "Date is required"}), 400
         
-        # Check if user has permission to log stats
+        # Check if user has permission to log stats FOR THIS CAMPUS
         if not current_user.has_permission('log_stats'):
             return jsonify({"error": "You don't have permission to log stats"}), 403
-        
+        if not current_user.can_access_campus(campus):
+            return jsonify({"error": f"You don't have access to log stats for {campus}"}), 403
+
         # Normalize campus_id
         normalized_campus_id = campus.lower().replace(' ', '_')
         logger.info(f"[QUICK_INPUT] Normalized campus_id: '{normalized_campus_id}' from campus: '{campus}'")
@@ -14909,13 +14761,11 @@ def quick_input_update():
         if not date_str:
             return jsonify({"error": "Date is required"}), 400
         
-        # Check if user has permission to log stats
+        # Check if user has permission to update stats FOR THESE CAMPUSES
         if not current_user.has_permission('log_stats'):
             return jsonify({"error": "You don't have permission to update stats"}), 403
-        
-        # Check if user has permission to log stats
-        if not current_user.has_permission('log_stats'):
-            return jsonify({"error": "You don't have permission to update stats"}), 403
+        if not current_user.can_access_campus(campus) or not current_user.can_access_campus(original_campus):
+            return jsonify({"error": f"You don't have access to update stats for {campus}"}), 403
         
         # Prepare data for save_attendance_record - pass recordId (most reliable), originalCampus/originalDate for lookup
         save_data = {
@@ -15367,7 +15217,12 @@ def demo_status():
 
 @app.route('/api/test_dashboard')
 def test_dashboard():
-    """Test endpoint for dashboard data without authentication"""
+    """Test endpoint for dashboard data (requires login + dashboard access)"""
+    # Dashboard access: authenticated + permitted + campus-scoped
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Authentication required"}), 401
+    if not current_user.has_permission('dashboard_access'):
+        return jsonify({"error": "You don't have dashboard access"}), 403
     try:
         # Get dashboard data using existing function
         dashboard_data = get_dashboard_data('all_campuses', 'last_12_months')
@@ -15407,7 +15262,7 @@ def get_q1_campus_report(campus):
     """Get Q1 report for a specific campus"""
     try:
         # Check if user has access to this campus
-        if not current_user.has_permission('recall_data', campus):
+        if not current_user.has_permission('recall_stats', campus=campus):
             return jsonify({'success': False, 'error': 'Access denied. You do not have permission to view this campus data.'}), 403
         
         year = request.args.get('year', datetime.now().year)
@@ -15434,7 +15289,7 @@ def get_q1_leadership_report():
     """Get Q1 leadership report for all campuses"""
     try:
         # Only users with admin access can access this
-        if not current_user.has_permission('admin_access'):
+        if not current_user.has_permission('data_export'):
             return jsonify({'success': False, 'error': 'Access denied. Admin access required.'}), 403
         
         year = request.args.get('year', datetime.now().year)
@@ -15511,9 +15366,18 @@ def get_any_time_frame_leadership_report():
 
 @app.route('/api/dashboard_data_public')
 def get_dashboard_data_public():
-    """Public endpoint for dashboard data without any authentication"""
+    """Dashboard data for the web app (requires login; name is historical)"""
+    # Dashboard access: authenticated + permitted + campus-scoped
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Authentication required"}), 401
+    if not current_user.has_permission('dashboard_access'):
+        return jsonify({"error": "You don't have dashboard access"}), 403
     try:
         campus = request.args.get('campus', 'all_campuses')
+        if campus != 'all_campuses' and not current_user.can_access_campus(campus):
+            return jsonify({"error": "You don't have access to this campus"}), 403
+        if campus == 'all_campuses' and current_user.accessible_campus_ids() is not None:
+            return jsonify({"error": "Select a specific campus - your access is campus-scoped"}), 403
         date_filter = request.args.get('date_filter', 'last_12_months')
         custom_start_date = request.args.get('custom_start_date', '')
         custom_end_date = request.args.get('custom_end_date', '')
@@ -15537,8 +15401,17 @@ def get_dashboard_data_public():
 @app.route('/api/campus_dashboard_data')
 def get_campus_dashboard_data():
     """Campus-specific dashboard data with enhanced metrics"""
+    # Dashboard access: authenticated + permitted + campus-scoped
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Authentication required"}), 401
+    if not current_user.has_permission('dashboard_access'):
+        return jsonify({"error": "You don't have dashboard access"}), 403
     try:
         campus_id = request.args.get('campus_id', 'all_campuses')
+        if campus_id != 'all_campuses' and not current_user.can_access_campus(campus_id):
+            return jsonify({"error": "You don't have access to this campus"}), 403
+        if campus_id == 'all_campuses' and current_user.accessible_campus_ids() is not None:
+            return jsonify({"error": "Select a specific campus - your access is campus-scoped"}), 403
         date_filter = request.args.get('date_filter', 'last_12_months')
         custom_start_date = request.args.get('custom_start_date', '')
         custom_end_date = request.args.get('custom_end_date', '')
@@ -15614,10 +15487,18 @@ def get_kids_services_breakdown(campus_id):
 
 @app.route('/api/dashboard/data')
 def get_dashboard_api_data():
-    """API endpoint for dashboard data - temporarily without authentication for testing"""
     """API endpoint for dashboard data"""
+    # Dashboard access: authenticated + permitted + campus-scoped
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Authentication required"}), 401
+    if not current_user.has_permission('dashboard_access'):
+        return jsonify({"error": "You don't have dashboard access"}), 403
     try:
         campus = request.args.get('campus', 'all_campuses')
+        if campus != 'all_campuses' and not current_user.can_access_campus(campus):
+            return jsonify({"error": "You don't have access to this campus"}), 403
+        if campus == 'all_campuses' and current_user.accessible_campus_ids() is not None:
+            return jsonify({"error": "Select a specific campus - your access is campus-scoped"}), 403
         date_filter = request.args.get('date_filter', 'last_12_months')
         custom_start_date = request.args.get('custom_start_date', '')
         custom_end_date = request.args.get('custom_end_date', '')
@@ -16665,7 +16546,7 @@ def delete_user_api(user_id):
 def update_user_region_api(user_id):
     """Update a user's region (region_code). Used by Role Manager. Same roles as get_all_users_permissions."""
     try:
-        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if current_user.role not in ALL_ACCESS_ROLES:
             return jsonify({'error': 'Unauthorized'}), 403
         
         data = request.get_json() or {}
@@ -16709,7 +16590,7 @@ def update_user_region_api(user_id):
 def get_all_users_permissions():
     """Get all users with their permissions (admin and leadership only)"""
     try:
-        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if current_user.role not in ALL_ACCESS_ROLES:
             return jsonify({'error': 'Unauthorized'}), 403
         
         conn = get_db()
@@ -16788,7 +16669,7 @@ def get_all_users_permissions():
 def get_user_permissions(user_id):
     """Get specific user permissions"""
     try:
-        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if current_user.role not in ALL_ACCESS_ROLES:
             return jsonify({'error': 'Unauthorized'}), 403
         
         conn = get_db()
@@ -16842,7 +16723,7 @@ def get_user_permissions(user_id):
 def update_user_permissions(user_id):
     """Update user's custom permissions"""
     try:
-        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if current_user.role not in ALL_ACCESS_ROLES:
             return jsonify({'error': 'Unauthorized'}), 403
         
         data = request.get_json()
@@ -17892,7 +17773,10 @@ def export_finance():
     try:
         import csv
         from io import StringIO
-        
+
+        if not (current_user.has_permission('finance_access') or current_user.has_permission('data_export')):
+            return jsonify({"error": "Access denied - finance access required"}), 403
+
         campus = request.args.get('campus', 'all_campuses')
         
         # Get data from Tithe sheet
@@ -19164,7 +19048,7 @@ def serve_react_app(path):
 def get_users():
     """Get all users (admin and leadership roles only)"""
     try:
-        if current_user.role not in ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor']:
+        if current_user.role not in ALL_ACCESS_ROLES:
             return jsonify({'error': 'Unauthorized'}), 403
         
         users_db = load_users_database()
@@ -20167,7 +20051,7 @@ def get_all_homepage_messages():
         custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
         if custom_perms.get('homepage_manager') is False:
             return jsonify({'error': 'Access denied - Homepage Manager has been disabled for your account'}), 403
-        if current_user.role not in ['admin', 'superadmin']:
+        if not current_user.has_permission('homepage_manager'):
             return jsonify({'error': 'Insufficient permissions'}), 403
         
         # Query all messages
@@ -20205,7 +20089,7 @@ def create_homepage_message():
         custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
         if custom_perms.get('homepage_manager') is False:
             return jsonify({'error': 'Access denied - Homepage Manager has been disabled for your account'}), 403
-        if current_user.role not in ['admin', 'superadmin']:
+        if not current_user.has_permission('homepage_manager'):
             return jsonify({'error': 'Insufficient permissions'}), 403
         
         data = request.get_json()
@@ -20252,7 +20136,7 @@ def update_homepage_message(message_id):
         custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
         if custom_perms.get('homepage_manager') is False:
             return jsonify({'error': 'Access denied - Homepage Manager has been disabled for your account'}), 403
-        if current_user.role not in ['admin', 'superadmin']:
+        if not current_user.has_permission('homepage_manager'):
             return jsonify({'error': 'Insufficient permissions'}), 403
         
         data = request.get_json()
@@ -20320,7 +20204,7 @@ def get_training_video_info():
     """Check if training video exists and return info"""
     try:
         # Check if user is admin or superadmin
-        if current_user.role not in ['admin', 'superadmin']:
+        if not current_user.has_permission('homepage_manager'):
             return jsonify({'error': 'Insufficient permissions'}), 403
         
         # Use /data/videos/ for persistent storage (Railway volume mount)
@@ -20347,7 +20231,7 @@ def upload_training_video():
     """Upload training video"""
     try:
         # Check if user is admin or superadmin
-        if current_user.role not in ['admin', 'superadmin']:
+        if not current_user.has_permission('homepage_manager'):
             logger.warning(f"Unauthorized upload attempt by {current_user.username}")
             return jsonify({'error': 'Insufficient permissions'}), 403
         
@@ -20430,7 +20314,7 @@ def delete_homepage_message(message_id):
         custom_perms = getattr(current_user, 'custom_permissions', {}) or {}
         if custom_perms.get('homepage_manager') is False:
             return jsonify({'error': 'Access denied - Homepage Manager has been disabled for your account'}), 403
-        if current_user.role not in ['admin', 'superadmin']:
+        if not current_user.has_permission('homepage_manager'):
             return jsonify({'error': 'Insufficient permissions'}), 403
         
         result = db.session.execute(text("""

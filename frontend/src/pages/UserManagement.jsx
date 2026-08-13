@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserGroupIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { useSession } from '../lib/useSession';
 
 const UserManagement = () => {
   const navigate = useNavigate();
+  const session = useSession();
   const [users, setUsers] = useState([]);
   const [campuses, setCampuses] = useState([]);
   const [regions, setRegions] = useState([]);
@@ -29,16 +31,28 @@ const UserManagement = () => {
   const roles = [
     { value: 'superadmin', label: 'Super Admin' },
     { value: 'admin', label: 'Admin' },
-    { value: 'senior_leader', label: 'Senior Leader' },
+    { value: 'senior_leadership', label: 'Senior Leadership' },
     { value: 'campus_pastor', label: 'Campus Pastor' },
     { value: 'finance', label: 'Finance' },
     { value: 'staff', label: 'Staff' }
   ];
 
-  // Check user authorization first
+  // Authorization is driven by the server-resolved permissions object
+  // from /api/session (via the shared hook) — never by role names.
   useEffect(() => {
-    checkAuthorization();
-  }, []);
+    if (session.loading) return;
+    if (!session.authenticated) {
+      navigate('/login', { replace: true });
+      return;
+    }
+    if (!session.permissions.manage_users) {
+      console.warn('[UserManagement] Unauthorized access attempt (no manage_users permission)');
+      navigate('/profile', { replace: true });
+      return;
+    }
+    setUserRole(session.role || 'member');
+    setCheckingAuth(false);
+  }, [session.loading, session.authenticated, session.permissions.manage_users, session.role, navigate]);
 
   useEffect(() => {
     if (userRole && !checkingAuth) {
@@ -47,43 +61,6 @@ const UserManagement = () => {
       loadRegions();
     }
   }, [userRole, checkingAuth]);
-
-  const checkAuthorization = async () => {
-    try {
-      const response = await fetch('/api/session', {
-        credentials: 'include',
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const role = data.role || 'member';
-        
-        // Only allow admin and leadership roles to access User Management
-        const allowedRoles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'];
-        
-        if (!allowedRoles.includes(role)) {
-          // Redirect unauthorized users to their profile
-          console.warn('[UserManagement] Unauthorized access attempt by role:', role);
-          navigate('/profile', { replace: true });
-          return;
-        }
-        
-        setUserRole(role);
-        setCheckingAuth(false);
-      } else {
-        // Session failed - redirect to login
-        navigate('/login', { replace: true });
-      }
-    } catch (err) {
-      console.error('[UserManagement] Authorization check failed:', err);
-      navigate('/profile', { replace: true });
-    }
-  };
 
   const loadCampuses = async () => {
     try {
@@ -230,8 +207,22 @@ const UserManagement = () => {
     });
   };
 
+  // Saves allowed_campuses by MERGING into the user's existing
+  // custom_permissions object — feature overrides set in Role Manager
+  // (input, dashboard, edit, ...) are preserved, never clobbered.
   const saveCampusPermissions = async (userId, existingPermissions = {}) => {
-    const perms = { ...(existingPermissions || {}) };
+    let existing = existingPermissions;
+    if (typeof existing === 'string') {
+      try {
+        existing = JSON.parse(existing);
+      } catch {
+        existing = {};
+      }
+    }
+    if (!existing || typeof existing !== 'object') {
+      existing = {};
+    }
+    const perms = { ...existing };
     if (restrictCampusAccess && allowedCampuses && allowedCampuses.length > 0) {
       perms.allowed_campuses = [...allowedCampuses];
     } else {
@@ -629,6 +620,9 @@ const UserManagement = () => {
                     </option>
                   ))}
                 </select>
+                <p className="mt-1 text-xs text-slate-400">
+                  Staff have no stats access by default - grant via Role Manager or campus access.
+                </p>
               </div>
 
               {/* Campus */}
@@ -673,11 +667,14 @@ const UserManagement = () => {
                 </p>
               </div>
 
-              {/* Campus visibility — cross-region */}
+              {/* Campus access — cross-region (saved as custom_permissions.allowed_campuses) */}
               <div className="rounded-lg border border-slate-600 bg-slate-700/30 p-4">
-                <label className="block text-sm font-medium text-slate-300 mb-3">
-                  What can this user see?
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Campus access
                 </label>
+                <p className="text-xs text-slate-400 mb-3">
+                  Which campuses this user can input stats and view dashboards for.
+                </p>
                 <div className="flex flex-col gap-2 mb-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input

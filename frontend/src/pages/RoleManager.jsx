@@ -1,318 +1,73 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ShieldCheckIcon, 
-  CheckIcon, 
+import {
+  ShieldCheckIcon,
+  CheckIcon,
   XMarkIcon,
   ArrowPathIcon,
   MagnifyingGlassIcon,
-  Squares2X2Icon,
-  UserGroupIcon,
   MapPinIcon,
   ChevronDownIcon,
   ChevronUpIcon
 } from '@heroicons/react/24/outline';
+import { useSession } from '../lib/useSession';
+
+// The ONLY custom_permissions keys the backend honors.
+// Everything else was dead weight and has been removed.
+const FEATURES = [
+  { key: 'input', label: 'Stats input', icon: '✍️', description: 'Log weekly attendance stats' },
+  { key: 'dashboard', label: 'Dashboards', icon: '📊', description: 'View campus dashboards' },
+  { key: 'data_export', label: 'Reports & exports', icon: '📥', description: 'Reports page and data exports' },
+  { key: 'database_viewer', label: 'Database viewer', icon: '🗄️', description: 'Raw attendance records and Attendance Data page' },
+  { key: 'finance', label: 'Finance', icon: '💰', description: 'Finance features' },
+  { key: 'user_management', label: 'User management', icon: '👤', description: 'Users page and this Role Manager' },
+  { key: 'campus_management', label: 'Campus management', icon: '🏢', description: 'Add/edit campuses' },
+  { key: 'resource_manager', label: 'Resource manager', icon: '📦', description: 'Manage team resources' },
+  { key: 'homepage_manager', label: 'Homepage manager', icon: '📢', description: 'Homepage announcements' },
+  { key: 'query', label: 'AI/voice queries', icon: '🎙️', description: 'Ask questions of the stats data' },
+  { key: 'edit', label: 'Edit stat entries', icon: '✏️', description: 'Edit previously submitted stats' }
+];
 
 const RoleManager = () => {
   const navigate = useNavigate();
+  const session = useSession();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [permissions, setPermissions] = useState({}); // { userId: { feature: true/false } }
+  const [permissions, setPermissions] = useState({}); // { userId: { feature: true/false, allowed_campuses?: [...] } }
   const [hasChanges, setHasChanges] = useState(false);
   const [originalPermissions, setOriginalPermissions] = useState({});
   const [campuses, setCampuses] = useState([]);
   const [regions, setRegions] = useState([]);
   const [expandedUsers, setExpandedUsers] = useState({}); // { userId: true/false } for campus selection
-  const [userRole, setUserRole] = useState(null);
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
 
-  // Define all features grouped by category (matching EnhancedNavigation groups)
-  const pageFeatures = {
-    core: {
-      name: 'Core',
-      items: [
-    { key: 'home', label: 'Home', icon: '🏠' },
-    { key: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { key: 'input', label: 'Input/Stats', icon: '✍️' },
-      ]
-    },
-    engagement: {
-      name: 'Engagement',
-      items: [
-    { key: 'people', label: 'People', icon: '👥' },
-    { key: 'heartbeat', label: 'Heartbeat', icon: '💓' },
-    { key: 'connect_groups', label: 'Connect Groups', icon: '👨‍👩‍👧‍👦' },
-    { key: 'prayer', label: 'Prayer & Praise', icon: '🙏' },
-        { key: 'serving', label: 'Serving', icon: '🤝' },
-      ]
-    },
-    content: {
-      name: 'Content',
-      items: [
-    { key: 'pulse_tv', label: 'Pulse TV', icon: '📺' },
-    { key: 'events', label: 'Events', icon: '📅' },
-        { key: 'resources', label: 'Resources', icon: '📚' },
-        { key: 'devotions', label: 'Devotions', icon: '📖' }
-      ]
-    },
-    finance: {
-      name: 'Finance',
-      items: [
-        { key: 'finance', label: 'Finance', icon: '💰' },
-        { key: 'giving', label: 'Giving Analytics', icon: '📈' },
-      ]
-    },
-    communications: {
-      name: 'Communications',
-      items: [
-    { key: 'communication', label: 'Communications', icon: '📧' },
-      ]
-    }
-  };
-
-  // Flatten for backward compatibility
-  const allPageFeatures = Object.values(pageFeatures).flatMap(group => group.items);
-
-  // Settings/Admin pages (not part of main navigation)
-  const settingsFeatures = [
-    { key: 'user_management', label: 'Users', icon: '👤', description: 'User management page' },
-    { key: 'user_management', label: 'Role Manager', icon: '🛡️', description: 'Role & permissions matrix' },
-    { key: 'database_viewer', label: 'Database Viewer', icon: '🗄️', description: 'View attendance records database' },
-    { key: 'homepage_manager', label: 'Homepage Manager', icon: '📢', description: 'Homepage announcements' },
-    { key: 'campus_management', label: 'Campuses', icon: '🏢', description: 'Campus management' },
-    { key: 'beacon_management', label: 'Beacons', icon: '📡', description: 'Bluetooth beacons' },
-    { key: 'resource_manager', label: 'Resource Manager', icon: '📦', description: 'Team resources' },
-    { key: 'tv_manager', label: 'TV Manager', icon: '🎬', description: 'Pulse TV content' },
-    { key: 'events_manager', label: 'Events Manager', icon: '🎪', description: 'Events admin' },
-    { key: 'notifications', label: 'Notifications', icon: '🔔', description: 'Push notifications' },
-    { key: 'data_export', label: 'Data Export', icon: '📥', description: 'Export data' },
-    { key: 'region_access', label: 'Region Access', icon: '🌍', description: 'Regional settings' },
-    { key: 'pathway_manager', label: 'Journey Manager', icon: '🛤️', description: 'Discipleship pathways' }
-  ];
-
-  const allFeatures = [...allPageFeatures, ...settingsFeatures];
-
-  // Role default permissions mapping (based on MainLayout navigation roles)
-  const roleDefaults = {
-    'superadmin': {
-      // All pages accessible
-      home: true, dashboard: true, input: true, finance: true, giving: true,
-      people: true, heartbeat: true, connect_groups: true, prayer: true,
-      resources: true, pulse_tv: true, events: true, serving: true,
-      communication: true, devotions: true,
-      // All settings accessible
-      data_export: true, user_management: true, campus_management: true,
-      region_access: true, homepage_manager: true, beacon_management: true, 
-      pathway_manager: true, resource_manager: true,
-      tv_manager: true, events_manager: true, notifications: true
-    },
-    'admin': {
-      // All pages accessible
-      home: true, dashboard: true, input: true, finance: true, giving: true,
-      people: true, heartbeat: true, connect_groups: true, prayer: true,
-      resources: true, pulse_tv: true, events: true, serving: true,
-      communication: true, devotions: true,
-      // All settings accessible
-      data_export: true, user_management: true, campus_management: true,
-      region_access: true, homepage_manager: true, beacon_management: true, 
-      pathway_manager: true, resource_manager: true,
-      tv_manager: true, events_manager: true, notifications: true
-    },
-    'senior_leadership': {
-      // All pages accessible
-      home: true, dashboard: true, input: true, finance: true, giving: true,
-      people: true, heartbeat: true, connect_groups: true, prayer: true,
-      resources: true, pulse_tv: true, events: true, serving: true,
-      communication: true, devotions: true,
-      // Most settings accessible (not homepage_manager)
-      data_export: true, user_management: true, campus_management: true,
-      region_access: true, beacon_management: true, pathway_manager: true, 
-      resource_manager: true, homepage_manager: false,
-      tv_manager: true, events_manager: true, notifications: true
-    },
-    'senior_leader': {
-      // All pages accessible
-      home: true, dashboard: true, input: true, finance: true, giving: true,
-      people: true, heartbeat: true, connect_groups: true, prayer: true,
-      resources: true, pulse_tv: true, events: true, serving: true,
-      communication: true, devotions: true,
-      // Most settings accessible (not homepage_manager)
-      data_export: true, user_management: true, campus_management: true,
-      region_access: true, beacon_management: true, pathway_manager: true, 
-      resource_manager: true, homepage_manager: false,
-      tv_manager: true, events_manager: true, notifications: true
-    },
-    'senior_pastor': {
-      // All pages accessible
-      home: true, dashboard: true, input: true, finance: true, giving: true,
-      people: true, heartbeat: true, connect_groups: true, prayer: true,
-      resources: true, pulse_tv: true, events: true, serving: true,
-      communication: true, devotions: true,
-      // All settings accessible
-      data_export: true, user_management: true, campus_management: true,
-      region_access: true, beacon_management: true, pathway_manager: true, 
-      resource_manager: true, homepage_manager: true,
-      tv_manager: true, events_manager: true, notifications: true
-    },
-    'lead_pastor': {
-      // All pages accessible
-      home: true, dashboard: true, input: true, finance: true, giving: true,
-      people: true, heartbeat: true, connect_groups: true, prayer: true,
-      resources: true, pulse_tv: true, events: true, serving: true,
-      communication: true, devotions: true,
-      // All settings accessible
-      data_export: true, user_management: true, campus_management: true,
-      region_access: true, beacon_management: true, pathway_manager: true, 
-      resource_manager: true, homepage_manager: true,
-      tv_manager: true, events_manager: true, notifications: true
-    },
-    'campus_pastor': {
-      // Pages they CAN see
-      home: true, dashboard: true, input: true, 
-      people: true, heartbeat: true, connect_groups: true, prayer: true,
-      resources: true, pulse_tv: true, events: true, serving: true,
-      communication: true, devotions: true,
-      // Pages they CANNOT see
-      finance: false, giving: false,
-      // Settings pages they CANNOT see (only My Profile)
-      data_export: false, user_management: false, campus_management: false,
-      region_access: false, homepage_manager: false, beacon_management: false, 
-      pathway_manager: false, resource_manager: false,
-      tv_manager: false, events_manager: false, notifications: false
-    },
-    'pastor': {
-      // Limited page access
-      home: true, dashboard: true, input: true,
-      people: false, heartbeat: false, connect_groups: false, prayer: true,
-      resources: false, pulse_tv: true, events: true, serving: true,
-      communication: false, devotions: true,
-      finance: false, giving: false,
-      // No settings access (only My Profile)
-      data_export: false, user_management: false, campus_management: false,
-      region_access: false, beacon_management: false, pathway_manager: false, 
-      resource_manager: false, homepage_manager: false,
-      tv_manager: false, events_manager: false, notifications: false
-    },
-    'finance': {
-      // Finance-specific access
-      home: true, finance: true, giving: true, resources: true,
-      // Limited other access
-      dashboard: false, input: false,
-      people: false, heartbeat: false, connect_groups: false, prayer: false,
-      pulse_tv: false, events: false, serving: false,
-      communication: false, devotions: false,
-      // No settings access (only My Profile)
-      data_export: false, user_management: false, campus_management: false,
-      region_access: false, beacon_management: false, pathway_manager: false, 
-      resource_manager: false, homepage_manager: false,
-      tv_manager: false, events_manager: false, notifications: false
-    },
-    'staff': {
-      // Minimal access - Home and Resources only
-      home: true, resources: true,
-      dashboard: false, input: false, finance: false, giving: false,
-      people: false, heartbeat: false, connect_groups: false, prayer: false,
-      pulse_tv: false, events: false, serving: false,
-      communication: false, devotions: false,
-      // No settings access (only My Profile)
-      data_export: false, user_management: false, campus_management: false,
-      region_access: false, beacon_management: false, pathway_manager: false, 
-      resource_manager: false, homepage_manager: false,
-      tv_manager: false, events_manager: false, notifications: false
-    },
-    'connect_group_leader': {
-      // Limited access - home, groups, events
-      home: true, connect_groups: true, pulse_tv: true, events: true,
-      dashboard: false, input: false, finance: false, giving: false,
-      people: false, heartbeat: false, prayer: false,
-      resources: false, serving: false,
-      communication: false, devotions: false,
-      // No settings access (only My Profile)
-      data_export: false, user_management: false, campus_management: false,
-      region_access: false, beacon_management: false, pathway_manager: false, 
-      resource_manager: false, homepage_manager: false,
-      tv_manager: false, events_manager: false, notifications: false
-    },
-    'member': {
-      // Basic member access
-      home: true, dashboard: true, input: true, pulse_tv: true, events: true, devotions: true,
-      finance: false, giving: false,
-      people: false, heartbeat: false, connect_groups: false, prayer: false,
-      resources: false, serving: false,
-      communication: false,
-      // No settings access (only My Profile)
-      data_export: false, user_management: false, campus_management: false,
-      region_access: false, beacon_management: false, pathway_manager: false, 
-      resource_manager: false, homepage_manager: false,
-      tv_manager: false, events_manager: false, notifications: false
-    },
-    'user': {
-      // Alias for member - same defaults (used in nav roles)
-      home: true, dashboard: true, input: true, pulse_tv: true, events: true, devotions: true,
-      finance: false, giving: false,
-      people: false, heartbeat: false, connect_groups: false, prayer: false,
-      resources: false, serving: false,
-      communication: false,
-      data_export: false, user_management: false, campus_management: false,
-      region_access: false, beacon_management: false, pathway_manager: false,
-      resource_manager: false, homepage_manager: false,
-      tv_manager: false, events_manager: false, notifications: false
-    }
-  };
-
-  // Check user authorization first
+  // Authorization is driven by the server-resolved permissions object,
+  // never by role names.
   useEffect(() => {
-    checkAuthorization();
-  }, []);
+    if (session.loading) return;
+    if (!session.authenticated) {
+      navigate('/login', { replace: true });
+      return;
+    }
+    if (!session.permissions.manage_users) {
+      console.warn('[RoleManager] Unauthorized access attempt (no manage_users permission)');
+      navigate('/profile', { replace: true });
+      return;
+    }
+    setAuthorized(true);
+  }, [session.loading, session.authenticated, session.permissions.manage_users, navigate]);
 
   useEffect(() => {
-    if (userRole && !checkingAuth) {
+    if (authorized) {
       loadUsers();
       loadCampuses();
       loadRegions();
     }
-  }, [userRole, checkingAuth]);
-
-  const checkAuthorization = async () => {
-    try {
-      const response = await fetch('/api/session', {
-        credentials: 'include',
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const role = data.role || 'member';
-        
-        // Only allow admin and leadership roles to access Role Manager
-        const allowedRoles = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'];
-        
-        if (!allowedRoles.includes(role)) {
-          // Redirect unauthorized users to their profile
-          console.warn('[RoleManager] Unauthorized access attempt by role:', role);
-          navigate('/profile', { replace: true });
-          return;
-        }
-        
-        setUserRole(role);
-        setCheckingAuth(false);
-      } else {
-        // Session failed - redirect to login
-        navigate('/login', { replace: true });
-      }
-    } catch (err) {
-      console.error('[RoleManager] Authorization check failed:', err);
-      navigate('/profile', { replace: true });
-    }
-  };
+  }, [authorized]);
 
   const loadRegions = async () => {
     try {
@@ -323,7 +78,6 @@ const RoleManager = () => {
         const data = await response.json();
         const regionsList = data.regions || [];
         setRegions(regionsList);
-        console.log('[RoleManager] Loaded regions:', regionsList.length, regionsList);
       } else {
         console.error('[RoleManager] Failed to load regions:', response.status);
       }
@@ -339,9 +93,7 @@ const RoleManager = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        const campusesList = data.campuses || [];
-        setCampuses(campusesList);
-        console.log('[RoleManager] Loaded campuses:', campusesList.length, campusesList);
+        setCampuses(data.campuses || []);
       } else {
         console.error('[RoleManager] Failed to load campuses:', response.status, response.statusText);
       }
@@ -371,10 +123,6 @@ const RoleManager = () => {
       data.users.forEach(user => {
         // Ensure custom_permissions is always an object, not null or undefined
         let userPerms = user.custom_permissions;
-        if (!userPerms || typeof userPerms !== 'object') {
-          userPerms = {};
-        }
-        // Handle if it's a string (shouldn't happen but be safe)
         if (typeof userPerms === 'string') {
           try {
             userPerms = JSON.parse(userPerms);
@@ -382,12 +130,15 @@ const RoleManager = () => {
             userPerms = {};
           }
         }
+        if (!userPerms || typeof userPerms !== 'object') {
+          userPerms = {};
+        }
         perms[user.id] = userPerms;
         original[user.id] = JSON.parse(JSON.stringify(userPerms));
-        console.log(`[RoleManager] Loaded permissions for ${user.full_name || user.username}:`, userPerms);
       });
       setPermissions(perms);
       setOriginalPermissions(original);
+      setHasChanges(false);
     } catch (err) {
       console.error('Error loading users:', err);
       setError('Failed to load users. Please refresh the page.');
@@ -396,43 +147,39 @@ const RoleManager = () => {
     }
   };
 
+  // Toggle cycles: (role default / unset) -> true -> false -> true -> ...
+  // CRITICAL: we ALWAYS write the explicit boolean into custom_permissions.
+  // Keys are never deleted for "matching a role default" — that behaviour
+  // silently no-op'ed grants. The only way back to "role default" is the
+  // per-user "Clear overrides" button.
   const togglePermission = (userId, feature) => {
     setPermissions(prev => {
-      const newPerms = { ...prev };
-      if (!newPerms[userId]) {
-        newPerms[userId] = {};
-      }
-      
-      // Get the effective current value (custom permission or role default)
-      const effectiveValue = getPermissionValue(userId, feature);
-      
-      // If there's already a custom permission set, toggle it
-      // If not, we need to set the opposite of the role default
-      const hasCustomPermission = newPerms[userId].hasOwnProperty(feature);
-      
-      if (hasCustomPermission) {
-        // Toggle existing custom permission
-        newPerms[userId][feature] = !effectiveValue;
+      const newPerms = { ...prev, [userId]: { ...(prev[userId] || {}) } };
+      const current = newPerms[userId][feature];
+
+      if (current === true) {
+        newPerms[userId][feature] = false;
       } else {
-        // Set custom permission to opposite of role default
-        newPerms[userId][feature] = !effectiveValue;
+        // unset or explicitly false -> explicit true
+        newPerms[userId][feature] = true;
       }
-      
-      // If setting to the same as role default, remove the custom permission
-      const user = users.find(u => u.id === userId);
-      const roleDefault = user && roleDefaults[user.role] ? roleDefaults[user.role][feature] === true : false;
-      if (newPerms[userId][feature] === roleDefault) {
-        delete newPerms[userId][feature];
-        // Clean up empty objects
-        if (Object.keys(newPerms[userId]).length === 0) {
-          delete newPerms[userId];
-        }
-      }
-      
-      // Check if there are changes
-      const hasChanges = JSON.stringify(newPerms) !== JSON.stringify(originalPermissions);
-      setHasChanges(hasChanges);
-      
+
+      setHasChanges(JSON.stringify(newPerms) !== JSON.stringify(originalPermissions));
+      return newPerms;
+    });
+  };
+
+  // Reset a user to role defaults: save {} — but ALWAYS preserve
+  // allowed_campuses if present (campus scoping is not a feature override).
+  const clearOverrides = (userId) => {
+    setPermissions(prev => {
+      const newPerms = { ...prev };
+      const existing = prev[userId] || {};
+      newPerms[userId] = existing.allowed_campuses
+        ? { allowed_campuses: existing.allowed_campuses }
+        : {};
+
+      setHasChanges(JSON.stringify(newPerms) !== JSON.stringify(originalPermissions));
       return newPerms;
     });
   };
@@ -443,15 +190,15 @@ const RoleManager = () => {
       setError('');
       setSuccess('');
 
-      // Save permissions for each user that has changes
+      // Save permissions for each user that has changes.
+      // The whole custom_permissions object is POSTed, so allowed_campuses
+      // (kept in the same object) always travels with it unchanged.
       const savePromises = users.map(async (user) => {
         const userPerms = permissions[user.id] || {};
         const originalPerms = originalPermissions[user.id] || {};
-        
+
         // Only save if permissions changed
         if (JSON.stringify(userPerms) !== JSON.stringify(originalPerms)) {
-          console.log(`[RoleManager] Saving permissions for ${user.full_name || user.username}:`, userPerms);
-          
           const response = await fetch(`/api/users/${user.id}/permissions`, {
             method: 'POST',
             headers: {
@@ -465,23 +212,17 @@ const RoleManager = () => {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(`Failed to save permissions for ${user.full_name || user.username}: ${errorData.error || response.statusText}`);
           }
-          
-          const result = await response.json();
-          console.log(`[RoleManager] Successfully saved permissions for ${user.full_name || user.username}:`, result);
+
+          await response.json();
         }
       });
 
       await Promise.all(savePromises);
 
       // Reload users to get the latest permissions from database
-      console.log('[RoleManager] Reloading users after save...');
       await loadUsers();
-      
-      // Update original permissions to match what was just saved
-      setOriginalPermissions(JSON.parse(JSON.stringify(permissions)));
-      setHasChanges(false);
       setSuccess('✅ Permissions saved successfully! Users must REFRESH their browser (Cmd/Ctrl + Shift + R) to see changes.');
-      
+
       // Clear success message after 8 seconds (longer to give time to read)
       setTimeout(() => setSuccess(''), 8000);
     } catch (err) {
@@ -499,71 +240,36 @@ const RoleManager = () => {
     setSuccess('');
   };
 
-  const getPermissionValue = (userId, feature) => {
+  // Returns true / false for an explicit override, or null when unset
+  // (i.e. the backend resolves it from the user's role default — the
+  // per-user effective value is not available from this API, so we show
+  // "role default" honestly instead of pretending to know).
+  const getOverrideValue = (userId, feature) => {
     const userPerms = permissions[userId] || {};
-    // If custom permission is set, use it; otherwise check role default
-    if (userPerms.hasOwnProperty(feature)) {
+    if (Object.prototype.hasOwnProperty.call(userPerms, feature)) {
       return userPerms[feature] === true;
     }
-    // Check role default
-    const user = users.find(u => u.id === userId);
-    if (user && roleDefaults[user.role]) {
-      return roleDefaults[user.role][feature] === true;
-    }
-    return false;
+    return null;
   };
 
-  const getRoleDefault = (role, feature) => {
-    return roleDefaults[role] && roleDefaults[role][feature] === true;
+  const hasFeatureOverrides = (userId) => {
+    const userPerms = permissions[userId] || {};
+    return Object.keys(userPerms).some(k => k !== 'allowed_campuses');
   };
 
-  const bulkEnableForRole = (role, features) => {
+  const bulkSetForRole = (role, value) => {
     setPermissions(prev => {
       const newPerms = { ...prev };
       const roleUsers = users.filter(u => u.role === role);
-      
+
       roleUsers.forEach(user => {
-        if (!newPerms[user.id]) {
-          newPerms[user.id] = {};
-        }
-        features.forEach(feature => {
-          newPerms[user.id][feature] = true;
+        newPerms[user.id] = { ...(newPerms[user.id] || {}) };
+        FEATURES.forEach(feature => {
+          newPerms[user.id][feature.key] = value;
         });
       });
-      
-      const hasChanges = JSON.stringify(newPerms) !== JSON.stringify(originalPermissions);
-      setHasChanges(hasChanges);
-      return newPerms;
-    });
-  };
 
-  const bulkDisableForRole = (role, features) => {
-    setPermissions(prev => {
-      const newPerms = { ...prev };
-      const roleUsers = users.filter(u => u.role === role);
-      
-      roleUsers.forEach(user => {
-        if (!newPerms[user.id]) {
-          newPerms[user.id] = {};
-        }
-        features.forEach(feature => {
-          newPerms[user.id][feature] = false;
-        });
-      });
-      
-      const hasChanges = JSON.stringify(newPerms) !== JSON.stringify(originalPermissions);
-      setHasChanges(hasChanges);
-      return newPerms;
-    });
-  };
-
-  const clearCustomPermissions = (userId) => {
-    setPermissions(prev => {
-      const newPerms = { ...prev };
-      newPerms[userId] = {};
-      
-      const hasChanges = JSON.stringify(newPerms) !== JSON.stringify(originalPermissions);
-      setHasChanges(hasChanges);
+      setHasChanges(JSON.stringify(newPerms) !== JSON.stringify(originalPermissions));
       return newPerms;
     });
   };
@@ -577,30 +283,25 @@ const RoleManager = () => {
 
   const toggleCampusAccess = (userId, campusId) => {
     setPermissions(prev => {
-      const newPerms = { ...prev };
-      if (!newPerms[userId]) {
-        newPerms[userId] = {};
-      }
-      
+      const newPerms = { ...prev, [userId]: { ...(prev[userId] || {}) } };
+
       // Get current allowed campuses
       const currentAllowed = newPerms[userId].allowed_campuses || [];
       const isAllowed = currentAllowed.includes(campusId);
-      
+
       // Toggle campus access
       if (isAllowed) {
         newPerms[userId].allowed_campuses = currentAllowed.filter(id => id !== campusId);
       } else {
         newPerms[userId].allowed_campuses = [...currentAllowed, campusId];
       }
-      
-      // If empty array, remove the key
+
+      // Empty array = no restriction, so remove the key entirely
       if (newPerms[userId].allowed_campuses.length === 0) {
         delete newPerms[userId].allowed_campuses;
       }
-      
-      const hasChanges = JSON.stringify(newPerms) !== JSON.stringify(originalPermissions);
-      setHasChanges(hasChanges);
-      
+
+      setHasChanges(JSON.stringify(newPerms) !== JSON.stringify(originalPermissions));
       return newPerms;
     });
   };
@@ -627,7 +328,7 @@ const RoleManager = () => {
   });
 
   // Show loading while checking authorization
-  if (checkingAuth) {
+  if (session.loading || !authorized) {
     return (
       <div className="min-h-screen bg-slate-900 p-6 flex items-center justify-center">
         <div className="text-center">
@@ -658,7 +359,7 @@ const RoleManager = () => {
                 Role Manager
               </h1>
               <p className="text-slate-400 text-sm sm:text-base">
-                Manage custom permissions for each user. Toggle features on/off to override role defaults.
+                Grant or revoke features per user. Every toggle saves an explicit override on top of the user's role defaults.
               </p>
             </div>
             <div className="flex gap-2 sm:gap-3 flex-wrap">
@@ -695,8 +396,8 @@ const RoleManager = () => {
                   if (role) {
                     const roleUsers = users.filter(u => u.role === role);
                     if (roleUsers.length > 0) {
-                      if (confirm(`Enable all page features for all ${role} users?`)) {
-                        bulkEnableForRole(role, allPageFeatures.map(f => f.key));
+                      if (confirm(`Grant ALL features (explicit overrides) to every ${role} user?`)) {
+                        bulkSetForRole(role, true);
                       }
                     }
                   }
@@ -704,7 +405,7 @@ const RoleManager = () => {
                 }}
                 className="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm"
               >
-                <option value="">Enable Pages for Role...</option>
+                <option value="">Grant all features for role...</option>
                 {[...new Set(users.map(u => u.role))].map(role => (
                   <option key={role} value={role}>{role}</option>
                 ))}
@@ -715,8 +416,8 @@ const RoleManager = () => {
                   if (role) {
                     const roleUsers = users.filter(u => u.role === role);
                     if (roleUsers.length > 0) {
-                      if (confirm(`Enable all settings features for all ${role} users?`)) {
-                        bulkEnableForRole(role, settingsFeatures.map(f => f.key));
+                      if (confirm(`Revoke ALL features (explicit overrides) from every ${role} user?`)) {
+                        bulkSetForRole(role, false);
                       }
                     }
                   }
@@ -724,7 +425,7 @@ const RoleManager = () => {
                 }}
                 className="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm"
               >
-                <option value="">Enable Settings for Role...</option>
+                <option value="">Revoke all features for role...</option>
                 {[...new Set(users.map(u => u.role))].map(role => (
                   <option key={role} value={role}>{role}</option>
                 ))}
@@ -768,12 +469,11 @@ const RoleManager = () => {
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-white mb-2">How the Role Manager Works</h3>
               <div className="space-y-2 text-sm text-slate-300">
-                <p>• <strong>Main Pages</strong>: Core app navigation pages (Home, Dashboard, People, etc.)</p>
-                <p>• <strong>Settings Sub-Pages</strong>: Admin tools visible in Settings section (Users, Role Manager, Campuses, etc.)</p>
-                <p>• <strong>Toggle any cell</strong> to grant or revoke access for a specific user - overrides their role defaults</p>
-                <p>• <strong>Blue dot</strong> indicates a custom permission override</p>
+                <p>• <strong>Em-dash (—)</strong>: no override — the user gets their role's default for that feature</p>
+                <p>• <strong>Click a cell</strong> to set an explicit grant (✓), click again for an explicit deny (✗)</p>
+                <p>• <strong>Blue dot</strong> marks an explicit override. Overrides always win over role defaults</p>
+                <p>• <strong>Clear overrides</strong> returns a user to pure role defaults (campus access is kept)</p>
                 <p className="pt-2 text-yellow-300">⚠️ <strong>IMPORTANT:</strong> After saving, users must refresh their browser (Cmd/Ctrl + Shift + R) to see changes!</p>
-                <p className="text-blue-300"><strong>Note:</strong> Campus Pastors should typically only see "My Profile" in Settings by default.</p>
               </div>
             </div>
           </div>
@@ -792,36 +492,14 @@ const RoleManager = () => {
             <table className="w-full">
               <thead className="bg-slate-700/50 sticky top-0 z-10">
                 <tr>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-slate-300 sticky left-0 bg-slate-700/50 z-20 min-w-[200px]">
-                    User
-                  </th>
-                  {/* Page Features Headers by Group */}
-                  {Object.entries(pageFeatures).map(([groupKey, group]) => (
-                  <th 
-                      key={groupKey}
-                      colSpan={group.items.length} 
-                    className="px-4 py-3 text-center text-xs font-semibold text-slate-300 bg-gradient-to-r from-blue-600/20 to-blue-500/20 border-l border-r border-slate-600"
-                  >
-                      📱 {group.name}
-                  </th>
-                  ))}
-                  {/* Settings Features Header */}
-                  <th 
-                    colSpan={settingsFeatures.length} 
-                    className="px-4 py-3 text-center text-xs font-semibold text-slate-300 bg-gradient-to-r from-purple-600/20 to-purple-500/20 border-r border-slate-600"
-                  >
-                    ⚙️ Settings Sub-Pages
-                  </th>
-                </tr>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 sticky left-0 bg-slate-700/50 z-20">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 sticky left-0 bg-slate-700/50 z-20 min-w-[200px]">
                     Name / Username / Role
                   </th>
-                  {allFeatures.map(feature => (
+                  {FEATURES.map(feature => (
                     <th
                       key={feature.key}
                       className="px-2 py-3 text-center text-xs font-semibold text-slate-400 min-w-[100px]"
-                      title={feature.label}
+                      title={feature.description}
                     >
                       <div className="flex flex-col items-center gap-1">
                         <span className="text-lg">{feature.icon}</span>
@@ -829,12 +507,15 @@ const RoleManager = () => {
                       </div>
                     </th>
                   ))}
+                  <th className="px-2 py-3 text-center text-xs font-semibold text-slate-400 min-w-[100px]">
+                    Reset
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700/50">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={allFeatures.length + 1} className="px-6 py-12 text-center text-slate-400">
+                    <td colSpan={FEATURES.length + 2} className="px-6 py-12 text-center text-slate-400">
                       {searchTerm ? 'No users found matching your search' : 'No users found'}
                     </td>
                   </tr>
@@ -866,45 +547,66 @@ const RoleManager = () => {
                           </div>
                           </div>
                         </td>
-                        {allFeatures.map((feature) => {
-                          const hasAccess = getPermissionValue(user.id, feature.key);
-                          const isCustom = permissions[user.id] && permissions[user.id].hasOwnProperty(feature.key);
-                          const roleDefault = getRoleDefault(user.role, feature.key);
+                        {FEATURES.map((feature) => {
+                          const override = getOverrideValue(user.id, feature.key);
+                          const isCustom = override !== null;
                           return (
                             <td key={feature.key} className="px-2 py-4 text-center">
                               <div className="flex flex-col items-center gap-1">
                                 <button
                                   onClick={() => togglePermission(user.id, feature.key)}
                                   className={`inline-flex items-center justify-center w-10 h-10 rounded-lg transition-all relative ${
-                                    hasAccess
+                                    override === true
                                       ? 'bg-green-500/20 text-green-400 border-2 border-green-500/50 hover:bg-green-500/30'
-                                      : 'bg-slate-700/50 text-slate-500 border-2 border-slate-600 hover:bg-slate-700/70'
+                                      : override === false
+                                        ? 'bg-red-500/10 text-red-400 border-2 border-red-500/40 hover:bg-red-500/20'
+                                        : 'bg-slate-700/50 text-slate-500 border-2 border-slate-600 hover:bg-slate-700/70'
                                   }`}
-                                  title={`${hasAccess ? 'Disable' : 'Enable'} ${feature.label} for ${user.full_name || user.username}${!isCustom ? ` (Role default: ${roleDefault ? 'enabled' : 'disabled'})` : ' (Custom)'}`}
+                                  title={
+                                    isCustom
+                                      ? `${feature.label}: explicit ${override ? 'grant' : 'deny'} for ${user.full_name || user.username}. Click to change.`
+                                      : `${feature.label}: no override — using ${user.role} role default. Click to grant.`
+                                  }
                                 >
-                                  {hasAccess ? (
+                                  {override === true ? (
                                     <CheckIcon className="w-5 h-5" />
-                                  ) : (
+                                  ) : override === false ? (
                                     <XMarkIcon className="w-5 h-5" />
+                                  ) : (
+                                    <span className="text-lg leading-none">—</span>
                                   )}
                                   {isCustom && (
-                                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-slate-800" title="Custom permission"></span>
+                                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-slate-800" title="Explicit override"></span>
                                   )}
                                 </button>
                                 {!isCustom && (
-                                  <span className={`text-[8px] ${roleDefault ? 'text-green-400' : 'text-slate-600'}`} title="Role default">
-                                    {roleDefault ? '✓' : '✗'}
+                                  <span className="text-[8px] text-slate-500" title="No override — backend applies this user's role default">
+                                    role default
                                   </span>
                                 )}
                               </div>
                             </td>
                           );
                         })}
+                        <td className="px-2 py-4 text-center">
+                          <button
+                            onClick={() => clearOverrides(user.id)}
+                            disabled={!hasFeatureOverrides(user.id)}
+                            className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                              hasFeatureOverrides(user.id)
+                                ? 'bg-slate-700 text-slate-200 border-slate-500 hover:bg-slate-600'
+                                : 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed'
+                            }`}
+                            title="Remove every feature override so this user gets pure role defaults. Campus access restrictions are preserved. Remember to Save."
+                          >
+                            Clear overrides
+                          </button>
+                        </td>
                       </tr>
                       {/* Campus and Region Selection Row */}
                       {expandedUsers[user.id] && (
                         <tr key={`${user.id}-campuses`} className="bg-slate-750/30">
-                          <td colSpan={allFeatures.length + 1} className="px-3 sm:px-4 py-4">
+                          <td colSpan={FEATURES.length + 2} className="px-3 sm:px-4 py-4">
                             <div className="space-y-4 sm:space-y-5">
                               {/* Region Selection - responsive card */}
                               <div className="bg-slate-800/80 border border-slate-700/50 rounded-xl p-4 sm:p-5">
@@ -1033,10 +735,8 @@ const RoleManager = () => {
                                               type="button"
                                               onClick={() => {
                                                 setPermissions(prev => {
-                                                  const newPerms = { ...prev };
-                                                  if (!newPerms[user.id]) newPerms[user.id] = {};
+                                                  const newPerms = { ...prev, [user.id]: { ...(prev[user.id] || {}) } };
                                                   delete newPerms[user.id].allowed_campuses;
-                                                  if (Object.keys(newPerms[user.id]).length === 0) delete newPerms[user.id];
                                                   setHasChanges(JSON.stringify(newPerms) !== JSON.stringify(originalPermissions));
                                                   return newPerms;
                                                 });
@@ -1076,29 +776,22 @@ const RoleManager = () => {
               <div className="w-8 h-8 rounded-lg bg-green-500/20 border-2 border-green-500/50 flex items-center justify-center">
                 <CheckIcon className="w-5 h-5 text-green-400" />
               </div>
-              <span className="text-slate-300">Has Access</span>
+              <span className="text-slate-300">Explicit grant</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-red-500/10 border-2 border-red-500/40 flex items-center justify-center">
+                <XMarkIcon className="w-5 h-5 text-red-400" />
+              </div>
+              <span className="text-slate-300">Explicit deny</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-slate-700/50 border-2 border-slate-600 flex items-center justify-center">
-                <XMarkIcon className="w-5 h-5 text-slate-500" />
+                <span className="text-slate-500">—</span>
               </div>
-              <span className="text-slate-300">No Access</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-green-500/20 border-2 border-green-500/50 flex items-center justify-center relative">
-                <CheckIcon className="w-5 h-5 text-green-400" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-slate-800"></span>
-              </div>
-              <span className="text-slate-300">Custom Permission</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-slate-700/50 border-2 border-slate-600 flex items-center justify-center">
-                <span className="text-[8px] text-green-400">✓</span>
-              </div>
-              <span className="text-slate-300">Role Default</span>
+              <span className="text-slate-300">Role default (no override)</span>
             </div>
             <div className="text-slate-400 text-xs ml-auto">
-              💡 Custom permissions override role defaults. Blue dot = custom override.
+              💡 Overrides are always saved explicitly. Use "Clear overrides" to return a user to role defaults.
             </div>
           </div>
         </div>
@@ -1108,4 +801,3 @@ const RoleManager = () => {
 };
 
 export default RoleManager;
-

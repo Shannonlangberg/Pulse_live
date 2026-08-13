@@ -113,26 +113,44 @@ def seed_indonesia_users(db_path=None):
             campus = user_data.get('campus', 'all_campuses')
             active = 1 if user_data.get('active', True) else 0
             
+            allowed_campuses = user_data.get('allowed_campuses')
+
             # Check if user exists
-            cursor.execute("SELECT id, active FROM users WHERE username = ?", (username,))
+            cursor.execute("SELECT id, active, custom_permissions FROM users WHERE username = ?", (username,))
             user_exists = cursor.fetchone()
 
             if user_exists:
                 # Existing users are managed via the app (User Management UI) - never
                 # overwrite their password, role, campus, or details on deploy.
-                # Exception: an explicit "active": false in the JSON deactivates the
-                # account, so retired accounts can be switched off from the seed file.
+                # Exceptions:
+                #  - an explicit "active": false in the JSON deactivates the account
+                #  - "allowed_campuses" is merged in ONCE, only while the user's
+                #    custom_permissions doesn't have the key yet (UI stays authoritative)
                 if active == 0 and user_exists[1] != 0:
                     cursor.execute('UPDATE users SET active = 0 WHERE username = ?', (username,))
                     users_updated += 1
                     print(f"[SEED_ID] ✓ Deactivated: {full_name} ({role} @ {campus})")
+                elif allowed_campuses:
+                    try:
+                        current_perms = json.loads(user_exists[2]) if user_exists[2] else {}
+                    except (ValueError, TypeError):
+                        current_perms = {}
+                    if 'allowed_campuses' not in current_perms:
+                        current_perms['allowed_campuses'] = allowed_campuses
+                        cursor.execute('UPDATE users SET custom_permissions = ? WHERE username = ?',
+                                       (json.dumps(current_perms), username))
+                        users_updated += 1
+                        print(f"[SEED_ID] ✓ Granted campus access {allowed_campuses}: {full_name}")
+                    else:
+                        print(f"[SEED_ID] - Skipped (exists): {full_name} ({role} @ {campus})")
                 else:
                     print(f"[SEED_ID] - Skipped (exists): {full_name} ({role} @ {campus})")
             else:
                 # Create new user
+                custom_permissions = json.dumps({'allowed_campuses': allowed_campuses}) if allowed_campuses else None
                 cursor.execute('''
-                    INSERT INTO users (username, password_hash, full_name, email, role, campus, active)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO users (username, password_hash, full_name, email, role, campus, active, custom_permissions)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     username,
                     password_hash,
@@ -140,7 +158,8 @@ def seed_indonesia_users(db_path=None):
                     email,
                     role,
                     campus,
-                    active
+                    active,
+                    custom_permissions
                 ))
                 users_seeded += 1
                 print(f"[SEED_ID] ✓ Created: {full_name} ({role} @ {campus})")

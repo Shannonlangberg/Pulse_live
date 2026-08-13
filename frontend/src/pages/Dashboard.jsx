@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import CampusSelector from './CampusSelector';
 import CampusDashboard from './CampusDashboard';
+import { useSession } from '../lib/useSession';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -31,21 +31,11 @@ ChartJS.register(
 );
 
 const Dashboard = () => {
-  const navigate = useNavigate();
+  const session = useSession();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [campus, setCampus] = useState('');
-  const [campuses, setCampuses] = useState([
-    { id: 'all_campuses', name: 'All Campuses' },
-    { id: 'paradise', name: 'Paradise Campus' },
-    { id: 'adelaide_city', name: 'Adelaide City Campus' },
-    { id: 'salisbury', name: 'Salisbury Campus' },
-    { id: 'south', name: 'South Campus' },
-    { id: 'mt_barker', name: 'Mt Barker Campus' },
-    { id: 'clare_valley', name: 'Clare Valley Campus' },
-    { id: 'victor_harbour', name: 'Victor Harbor Campus' },
-    { id: 'copper_coast', name: 'Copper Coast Campus' }
-  ]);
+  const [campuses, setCampuses] = useState([]);
   const [showPreviousYear, setShowPreviousYear] = useState(true);
   const [dateFilter, setDateFilter] = useState('last_12_months');
   const [customStartDate, setCustomStartDate] = useState('');
@@ -62,13 +52,23 @@ const Dashboard = () => {
   const [selectedCampus, setSelectedCampus] = useState(null);
   const [showCampusSelector, setShowCampusSelector] = useState(false);
 
+  // Read session from the shared hook instead of fetching /api/session here
   useEffect(() => {
-    fetchUserSession();
-  }, []);
+    if (session.loading || !session.authenticated) return;
+    setCurrentUser({
+      id: session.userId || 'unknown',
+      username: session.username || 'User',
+      full_name: session.fullName || 'User',
+      role: session.role || 'user',
+      campus: session.campus || 'all_campuses'
+    });
+    setUserRole(session.role || 'user');
+    setUserCampus(session.campus || 'all_campuses');
+  }, [session.loading, session.authenticated, session.role, session.campus]);
 
   useEffect(() => {
-    // Show campus selector for senior leadership or if no campus is selected
-    if (userRole && (userRole === 'superadmin' || userRole === 'senior_leader' || userRole === 'admin' || userRole === 'senior_pastor' || userRole === 'lead_pastor')) {
+    // Show campus selector for users who can see every campus, or if no campus is selected
+    if (userRole && session.permissions.view_all_campuses) {
       setShowCampusSelector(true);
     } else if (userRole && userCampus && userCampus !== 'all_campuses' && campuses.length > 0) {
       // Auto-select campus for campus pastors and other users with a campus
@@ -120,89 +120,30 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, [campus, isRefreshing]);
 
-  const fetchUserSession = async () => {
-    try {
-      const response = await fetch('/api/session', {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-        },
-        credentials: 'include'
-      });
-      const data = await response.json();
-      if (data.authenticated) {
-        const role = data.role || 'user';
-        
-        // Redirect staff members - they don't have access to Dashboard
-        if (role === 'staff') {
-          navigate('/resources');
-          return;
-        }
-        
-        setCurrentUser({
-          id: data.id || 'unknown',
-          username: data.username || 'User',
-          full_name: data.full_name || 'User',
-          role: role,
-          campus: data.campus || 'all_campuses'
-        });
-        setUserRole(role);
-        setUserCampus(data.campus || 'all_campuses');
-        
-        if (role === 'campus_pastor' && data.campus && data.campus !== 'all_campuses') {
-          setCampus(data.campus);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user session:', error);
-    }
-  };
-
   const fetchCampuses = async () => {
     try {
-      const response = await fetch('/api/campuses/public');
+      // /api/campuses is already scoped server-side to the campuses this user
+      // may act on, and returns a per-user `default` campus id.
+      const response = await fetch('/api/campuses', {
+        credentials: 'include',
+        cache: 'no-store'
+      });
       const result = await response.json();
       const campusesList = result.campuses || [];
-      
+
       if (Array.isArray(campusesList)) {
-        if (userRole === 'campus_pastor' && userCampus && userCampus !== 'all_campuses') {
-          // Normalize campus ID for matching
-          const normalizedUserCampus = userCampus.toLowerCase().trim().replace(/\s+/g, '_');
-          
-          // Try multiple matching strategies
-          const userCampusData = campusesList.find(c => {
-            const campusId = (c.id || '').toLowerCase().trim();
-            const campusName = (c.name || '').toLowerCase().trim();
-            return campusId === normalizedUserCampus || 
-                   campusId === userCampus.toLowerCase().trim() ||
-                   campusName === userCampus.toLowerCase().trim() ||
-                   campusName.includes(userCampus.toLowerCase().trim()) ||
-                   campusId.includes(normalizedUserCampus);
-          });
-          
-          if (userCampusData) {
-            setCampuses([userCampusData]);
-            setCampus(userCampusData.id); // Use the actual campus ID from the found campus
-          } else {
-            // If campus not found, log for debugging
-            console.warn(`[Dashboard] Campus pastor campus "${userCampus}" not found in campuses list. Available:`, campusesList.map(c => `${c.id} (${c.name})`));
-            // Still set campuses so user can see what's available
-            setCampuses(campusesList);
-          }
-        } else {
-          setCampuses(campusesList);
-          if (!campus && campusesList.length > 0) {
-            const defaultCampus = campusesList.find(c => c.id === 'all_campuses') || campusesList[0];
-            setCampus(defaultCampus.id);
-          }
+        setCampuses(campusesList);
+        if (!campus && campusesList.length > 0) {
+          // Prefer the server-provided default (correct per-user; campus-scoped
+          // users never default to all_campuses, which the API would 403).
+          const defaultCampus =
+            (result.default && campusesList.find(c => c.id === result.default)) ||
+            campusesList[0];
+          setCampus(result.default || defaultCampus.id);
         }
       }
     } catch (error) {
       console.error('Error fetching campuses:', error);
-      if (!campus) {
-        setCampus('all_campuses');
-      }
     }
   };
 
@@ -229,9 +170,16 @@ const Dashboard = () => {
         params.append('show_previous_year', 'true');
       }
       
-      const response = await fetch(`/api/dashboard_data_public?${params}`);
+      const response = await fetch(`/api/dashboard_data_public?${params}`, {
+        credentials: 'include'
+      });
       const result = await response.json();
-      setData(result);
+      if (!response.ok) {
+        console.error('[Dashboard] dashboard_data_public error:', result?.error || response.status);
+        setData(null);
+      } else {
+        setData(result);
+      }
       setLastRefresh(new Date());
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -266,7 +214,7 @@ const Dashboard = () => {
     try {
       setAiLoading(true);
       const selectedCampus = campus === 'all_campuses' ? 'all_campuses' : campus;
-      const response = await fetch(`/api/dashboard_data_public?campus=${selectedCampus}&date_filter=last_7_days`);
+      const response = await fetch(`/api/dashboard_data_public?campus=${selectedCampus}&date_filter=last_7_days`, { credentials: 'include' });
       const data = await response.json();
       
       const campusName = campus === 'all_campuses' ? 'All Campuses' : (Array.isArray(campuses) ? campuses.find(c => c.id === campus)?.name : 'Selected Campus') || 'Selected Campus';
@@ -303,7 +251,7 @@ const Dashboard = () => {
     try {
       setAiLoading(true);
       const selectedCampus = campus === 'all_campuses' ? 'all_campuses' : campus;
-      const response = await fetch(`/api/dashboard_data_public?campus=${selectedCampus}&date_filter=last_12_months`);
+      const response = await fetch(`/api/dashboard_data_public?campus=${selectedCampus}&date_filter=last_12_months`, { credentials: 'include' });
 
       const data = await response.json();
       
@@ -347,7 +295,7 @@ const Dashboard = () => {
     try {
       setAiLoading(true);
       const selectedCampus = campus === 'all_campuses' ? 'all_campuses' : campus;
-      const response = await fetch(`/api/dashboard_data_public?campus=${selectedCampus}&date_filter=last_30_days`);
+      const response = await fetch(`/api/dashboard_data_public?campus=${selectedCampus}&date_filter=last_30_days`, { credentials: 'include' });
 
       const data = await response.json();
       
@@ -395,7 +343,7 @@ const Dashboard = () => {
     try {
       setAiLoading(true);
       const selectedCampus = campus === 'all_campuses' ? 'all_campuses' : campus;
-      const response = await fetch(`/api/dashboard_data_public?campus=${selectedCampus}&date_filter=year_to_date`);
+      const response = await fetch(`/api/dashboard_data_public?campus=${selectedCampus}&date_filter=year_to_date`, { credentials: 'include' });
       const data = await response.json();
       
       const campusName = campus === 'all_campuses' ? 'All Campuses' : (Array.isArray(campuses) ? campuses.find(c => c.id === campus)?.name : 'Selected Campus') || 'Selected Campus';
@@ -468,7 +416,25 @@ const Dashboard = () => {
     }
   };
 
-  if (loading) {
+  // Permission gate — driven by the server-resolved permissions object.
+  // No role-name checks, no redirects: just a clear panel.
+  if (!session.loading && !session.permissions.dashboard_access) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl">🔒</span>
+          </div>
+          <div className="text-white text-2xl font-bold mb-2">You don't have dashboard access</div>
+          <div className="text-white/60 text-lg">
+            Ask an administrator to grant dashboard access via the Role Manager if you need it.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading || session.loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">

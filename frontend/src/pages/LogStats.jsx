@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusIcon, CalendarIcon, XMarkIcon, PencilIcon } from '@heroicons/react/24/outline';
 import DynamicBackground from '../components/DynamicBackground';
+import { useSession } from '../lib/useSession';
 
 const LogStats = () => {
   const navigate = useNavigate();
+  const session = useSession();
   const [selectedRegion, setSelectedRegion] = useState('');
   const [regions, setRegions] = useState([]);
   const [selectedCampus, setSelectedCampus] = useState('');
@@ -115,49 +117,15 @@ const LogStats = () => {
   const totalKidsAttendance = calculateTotalKidsAttendance();
   const totalKidsOverall = totalKidsAttendance + (parseInt(quickInputStats['Kids Leaders']) || 0);
 
-  // Check user permissions and redirect if no access
+  // Check user permissions and redirect if no access.
+  // permissions.log_stats is fully resolved server-side (role defaults + overrides).
   useEffect(() => {
-    const checkPermissions = async () => {
-      try {
-        const response = await fetch('/api/session', {
-          credentials: 'include',
-          cache: 'no-store'
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.authenticated) {
-            const customPerms = data.custom_permissions || {};
-            const role = data.role || 'member';
-            
-            // Check if user has input access via custom_permissions or role
-            // Priority: custom_permissions.input > role defaults
-            let hasInputAccess = false;
-            
-            if (customPerms.input === true) {
-              // Explicitly granted via custom_permissions
-              hasInputAccess = true;
-            } else if (customPerms.input === false) {
-              // Explicitly denied via custom_permissions
-              hasInputAccess = false;
-            } else {
-              // Not set in custom_permissions, check role defaults
-              hasInputAccess = ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 
-                               'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'member'].includes(role);
-            }
-            
-            // Redirect if user doesn't have input access
-            if (!hasInputAccess) {
-              console.log('[LogStats] User does not have input access, redirecting to home');
-              navigate('/');
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error checking user permissions:', error);
-      }
-    };
-    checkPermissions();
-  }, [navigate]);
+    if (session.loading || !session.authenticated) return;
+    if (!session.permissions.log_stats) {
+      console.log('[LogStats] User does not have stats input access, redirecting to home');
+      navigate('/');
+    }
+  }, [session.loading, session.authenticated, session.permissions.log_stats, navigate]);
 
   useEffect(() => {
     // Load regions - Dec 17, 2025 deployment

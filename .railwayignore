@@ -1,0 +1,7 @@
+RAILWAY_ENV.txt
+RAILWAY_ENV_VALUES.txt
+.git
+frontend/node_modules
+frontend/dist
+backend/futures_link.db
+backend/instance

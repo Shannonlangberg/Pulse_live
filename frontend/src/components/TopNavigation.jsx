@@ -14,35 +14,34 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
+import { useSession } from '../lib/useSession';
 
+// Visibility is driven ONLY by the server-resolved `permissions` object
+// from /api/session. Omitted gate = always visible.
 const TOP_NAV_PORTAL_ITEMS = [
   {
     name: 'Input',
     href: '/stats',
     icon: ClipboardIcon,
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'],
-    featureKey: 'input'
+    gate: (p) => p.log_stats
   },
   {
     name: 'Dashboard',
     href: '/dashboard',
     icon: DocumentChartBarIcon,
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'],
-    featureKey: 'dashboard'
+    gate: (p) => p.dashboard_access
   },
   {
     name: 'Ministry stats',
     href: '/ministry-stats',
     icon: PresentationChartLineIcon,
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
-    featureKey: 'dashboard'
+    gate: (p) => p.dashboard_access || p.data_export
   },
   {
     name: 'Resources',
     href: '/resources',
-    icon: BookOpenIcon,
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
-    featureKey: 'resources'
+    icon: BookOpenIcon
+    // Always visible — backend gates the content
   }
 ];
 
@@ -50,87 +49,67 @@ const TOP_NAV_SETTINGS_ITEMS = [
   {
     name: 'My Profile',
     href: '/profile',
-    icon: UserCircleIcon,
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
-    featureKey: null
+    icon: UserCircleIcon
+    // Always visible
   },
   {
     name: 'Users',
     href: '/users',
     icon: UserGroupIcon,
-    roles: ['superadmin', 'admin'],
-    featureKey: null
+    gate: (p) => p.manage_users
   },
   {
     name: 'Role Manager',
     href: '/role-manager',
     icon: ShieldCheckIcon,
-    roles: ['superadmin', 'admin'],
-    featureKey: null
+    gate: (p) => p.manage_users
   },
   {
     name: 'Database Viewer',
     href: '/database-viewer',
     icon: TableCellsIcon,
-    roles: ['superadmin', 'admin'],
-    featureKey: 'database_viewer'
+    gate: (p) => p.database_viewer
   },
   {
     name: 'Homepage Manager',
     href: '/homepage-manager',
     icon: MegaphoneIcon,
-    roles: ['superadmin', 'admin'],
-    featureKey: 'homepage_manager'
+    gate: (p) => p.homepage_manager
   },
   {
     name: 'Campuses',
     href: '/campuses',
     icon: BuildingOfficeIcon,
-    roles: ['superadmin', 'admin'],
-    featureKey: 'campus_management'
+    gate: (p) => p.manage_campuses
   },
   /* Hidden until operational: Beacons, TV Manager, Events Manager, Notifications */
   {
     name: 'Resource Manager',
     href: '/resources/manage',
     icon: BookOpenIcon,
-    roles: ['superadmin', 'admin'],
-    featureKey: 'resource_manager'
+    gate: (p) => p.resource_manager
   },
   {
     name: 'Attendance Data',
     href: '/attendance-data',
     icon: DocumentChartBarIcon,
-    roles: ['superadmin', 'admin'],
-    featureKey: 'data_export'
+    gate: (p) => p.database_viewer
   },
   {
     name: 'Reports',
     href: '/reports',
     icon: PresentationChartLineIcon,
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
-    featureKey: 'data_export'
+    gate: (p) => p.data_export || p.dashboard_access
   }
 ];
 
-function filterTopNavItems(items, userRole, customPermissions) {
-  const isAdminRole = userRole === 'superadmin' || userRole === 'admin';
-  return items.filter((item) => {
-    if (item.featureKey === 'data_export' && isAdminRole) {
-      return item.roles.includes(userRole);
-    }
-    if (item.featureKey && Object.prototype.hasOwnProperty.call(customPermissions, item.featureKey)) {
-      return customPermissions[item.featureKey] === true;
-    }
-    if (!item.roles.includes(userRole)) {
-      return false;
-    }
-    return true;
-  });
+function filterTopNavItems(items, permissions) {
+  return items.filter((item) => !item.gate || item.gate(permissions) === true);
 }
 
-const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
+const TopNavigation = ({ activeSection }) => {
   const location = useLocation();
+  const { permissions } = useSession();
   const scrollRef = useRef(null);
   const [hasOverflow, setHasOverflow] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -138,13 +117,13 @@ const TopNavigation = ({ userRole, customPermissions, activeSection }) => {
 
   const filteredItems = useMemo(() => {
     if (activeSection === 'portal') {
-      return filterTopNavItems(TOP_NAV_PORTAL_ITEMS, userRole, customPermissions);
+      return filterTopNavItems(TOP_NAV_PORTAL_ITEMS, permissions);
     }
     if (activeSection === 'settings') {
-      return filterTopNavItems(TOP_NAV_SETTINGS_ITEMS, userRole, customPermissions);
+      return filterTopNavItems(TOP_NAV_SETTINGS_ITEMS, permissions);
     }
     return [];
-  }, [activeSection, userRole, customPermissions]);
+  }, [activeSection, permissions]);
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current;

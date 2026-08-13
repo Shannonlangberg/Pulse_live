@@ -18,145 +18,131 @@ import {
   MegaphoneIcon,
   PresentationChartLineIcon
 } from '@heroicons/react/24/outline';
+import { useSession } from '../lib/useSession';
 
-// Simplified main sections for left sidebar
+// Simplified main sections for left sidebar.
+// Visibility is driven ONLY by the server-resolved `permissions` object
+// from /api/session — never by role names.
 const MAIN_SECTIONS = {
   home: {
     id: 'home',
     name: 'Home',
     icon: HomeIcon,
-    href: '/',
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance']
+    href: '/'
+    // Always visible
   },
   portal: {
     id: 'portal',
     name: 'Portal',
     icon: Squares2X2Icon,
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
     hasSubPages: true
+    // Always visible (contains Resources which everyone can see)
   },
   settings: {
     id: 'settings',
     name: 'Settings',
     icon: Cog6ToothIcon,
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
     hasSubPages: true
+    // Always visible (contains My Profile which everyone can see)
   }
 };
 
-// Portal sub-pages
+// Portal sub-pages — `gate` receives the resolved permissions object.
+// Omitted gate = always visible.
 const PORTAL_ITEMS = [
-  { 
-    name: 'Input', 
-    href: '/stats', 
-    icon: ClipboardIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'],
-    featureKey: 'input'
+  {
+    name: 'Input',
+    href: '/stats',
+    icon: ClipboardIcon,
+    gate: (p) => p.log_stats
   },
-  { 
-    name: 'Dashboard', 
-    href: '/dashboard', 
-    icon: DocumentChartBarIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user'],
-    featureKey: 'dashboard'
+  {
+    name: 'Dashboard',
+    href: '/dashboard',
+    icon: DocumentChartBarIcon,
+    gate: (p) => p.dashboard_access
   },
-  { 
-    name: 'Ministry stats', 
-    href: '/ministry-stats', 
-    icon: PresentationChartLineIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
-    featureKey: 'dashboard'
+  {
+    name: 'Ministry stats',
+    href: '/ministry-stats',
+    icon: PresentationChartLineIcon,
+    gate: (p) => p.dashboard_access || p.data_export
   },
   {
     name: 'Resources',
-    href: '/resources', 
-    icon: BookOpenIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
-    featureKey: 'resources'
+    href: '/resources',
+    icon: BookOpenIcon
+    // Always visible — backend gates the content
   }
 ];
 
 // Settings sub-pages
-// IMPORTANT: Campus Pastors and Staff should ONLY see "My Profile" by default
-// All other settings pages require admin/leadership roles OR custom permissions override
 const SETTINGS_ITEMS = [
-  { 
-    name: 'My Profile', 
-    href: '/profile', 
-    icon: UserCircleIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
-    featureKey: null  // Always visible for all roles - cannot be overridden
+  {
+    name: 'My Profile',
+    href: '/profile',
+    icon: UserCircleIcon
+    // Always visible for all users
   },
-  { 
-    name: 'Users', 
-    href: '/users', 
-    icon: UserGroupIcon, 
-    roles: ['superadmin', 'admin'],
-    featureKey: null  // Admin-only, cannot be overridden by custom permissions
+  {
+    name: 'Users',
+    href: '/users',
+    icon: UserGroupIcon,
+    gate: (p) => p.manage_users
   },
-  { 
-    name: 'Role Manager', 
-    href: '/role-manager', 
-    icon: ShieldCheckIcon, 
-    roles: ['superadmin', 'admin'],
-    featureKey: null  // Admin-only, cannot be overridden by custom permissions
+  {
+    name: 'Role Manager',
+    href: '/role-manager',
+    icon: ShieldCheckIcon,
+    gate: (p) => p.manage_users
   },
-  { 
-    name: 'Database Viewer', 
-    href: '/database-viewer', 
-    icon: TableCellsIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor'],
-    featureKey: 'database_viewer'
+  {
+    name: 'Database Viewer',
+    href: '/database-viewer',
+    icon: TableCellsIcon,
+    gate: (p) => p.database_viewer
   },
-  { 
-    name: 'Ministry stats', 
-    href: '/ministry-stats', 
-    icon: PresentationChartLineIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
-    featureKey: 'dashboard'
+  {
+    name: 'Ministry stats',
+    href: '/ministry-stats',
+    icon: PresentationChartLineIcon,
+    gate: (p) => p.dashboard_access || p.data_export
   },
-  { 
-    name: 'Homepage Manager', 
-    href: '/homepage-manager', 
-    icon: MegaphoneIcon, 
-    roles: ['superadmin', 'admin'],
-    featureKey: 'homepage_manager'
+  {
+    name: 'Homepage Manager',
+    href: '/homepage-manager',
+    icon: MegaphoneIcon,
+    gate: (p) => p.homepage_manager
   },
-  { 
-    name: 'Campuses', 
-    href: '/campuses', 
-    icon: BuildingOfficeIcon, 
-    roles: ['superadmin', 'admin'],
-    featureKey: 'campus_management'
+  {
+    name: 'Campuses',
+    href: '/campuses',
+    icon: BuildingOfficeIcon,
+    gate: (p) => p.manage_campuses
   },
   /* Hidden until operational: Beacons, TV Manager, Events Manager, Notifications */
-  { 
-    name: 'Resource Manager', 
-    href: '/resources/manage', 
-    icon: BookOpenIcon, 
-    roles: ['superadmin', 'admin'],
-    featureKey: 'resource_manager'
+  {
+    name: 'Resource Manager',
+    href: '/resources/manage',
+    icon: BookOpenIcon,
+    gate: (p) => p.resource_manager
   },
-  { 
-    name: 'Attendance Data', 
-    href: '/attendance-data', 
-    icon: DocumentChartBarIcon, 
-    roles: ['superadmin', 'admin'],
-    featureKey: 'data_export'
+  {
+    name: 'Attendance Data',
+    href: '/attendance-data',
+    icon: DocumentChartBarIcon,
+    gate: (p) => p.database_viewer
   },
-  { 
-    name: 'Reports', 
-    href: '/reports', 
-    icon: PresentationChartLineIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor'],
-    featureKey: 'data_export'
+  {
+    name: 'Reports',
+    href: '/reports',
+    icon: PresentationChartLineIcon,
+    gate: (p) => p.data_export || p.dashboard_access
   }
 ];
 
-const EnhancedNavigation = ({ 
-  userRole, 
-  customPermissions, 
-  userName, 
+const EnhancedNavigation = ({
+  userName,
   onLogout,
   sidebarOpen,
   setSidebarOpen,
@@ -165,6 +151,7 @@ const EnhancedNavigation = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { role, permissions } = useSession();
   const [showMobileSubMenu, setShowMobileSubMenu] = useState(false);
   const [mobileSubMenuSection, setMobileSubMenuSection] = useState(null);
 
@@ -175,8 +162,8 @@ const EnhancedNavigation = ({
       setActiveSection('home');
     } else if (path === '/stats' || path === '/dashboard' || path === '/resources') {
       setActiveSection('portal');
-    } else if (path.startsWith('/users') || path.startsWith('/role-manager') || 
-               path.startsWith('/campuses') || path.startsWith('/profile') || 
+    } else if (path.startsWith('/users') || path.startsWith('/role-manager') ||
+               path.startsWith('/campuses') || path.startsWith('/profile') ||
                path.startsWith('/beacons') || path.startsWith('/resources/manage') ||
                path.startsWith('/tv/manage') || path.startsWith('/events/manage') ||
                path.startsWith('/notifications') || path.startsWith('/export') || path.startsWith('/reports') || path.startsWith('/ministry-stats') || path.startsWith('/attendance-data') ||
@@ -198,35 +185,12 @@ const EnhancedNavigation = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [showMobileSubMenu]);
 
-  // Filter sections based on role
-  const getFilteredSections = () => {
-    return Object.values(MAIN_SECTIONS).filter(section => {
-      return section.roles.includes(userRole);
-    });
-  };
+  // Main sections are always visible
+  const filteredSections = useMemo(() => Object.values(MAIN_SECTIONS), []);
 
-  const filteredSections = useMemo(() => getFilteredSections(), [userRole]);
-
-  // Filter items based on role and permissions
+  // Filter items on server-resolved permissions only
   const getFilteredItems = (items) => {
-    const isAdminRole = userRole === 'superadmin' || userRole === 'admin';
-    return items.filter(item => {
-      // Admins always see data-export settings items (Reports, Attendance Data)
-      if (item.featureKey === 'data_export' && isAdminRole) {
-        return item.roles.includes(userRole);
-      }
-      // Check custom permissions first (overrides role defaults)
-      if (item.featureKey && customPermissions.hasOwnProperty(item.featureKey)) {
-        return customPermissions[item.featureKey] === true;
-      }
-      
-      // Then check role permission
-      if (!item.roles.includes(userRole)) {
-        return false;
-      }
-      
-      return true;
-    });
+    return items.filter((item) => !item.gate || item.gate(permissions) === true);
   };
 
   // Get subpages for a section
@@ -249,7 +213,7 @@ const EnhancedNavigation = ({
       // On mobile: show submenu modal
       // On desktop: activate section and navigate
       const isMobile = window.innerWidth < 1024; // lg breakpoint
-      
+
       if (isMobile) {
         setMobileSubMenuSection(section);
         setShowMobileSubMenu(true);
@@ -257,8 +221,8 @@ const EnhancedNavigation = ({
       } else {
         // Desktop behavior
         setActiveSection(section.id);
-        
-        // Default navigation - check available items for user's role
+
+        // Default navigation - navigate to first item the user can see
         if (section.id === 'portal') {
           const portalItems = getFilteredItems(PORTAL_ITEMS);
           // Navigate to first available portal item, or resources as fallback
@@ -270,7 +234,7 @@ const EnhancedNavigation = ({
         } else if (section.id === 'settings') {
           navigate('/profile');
         }
-        
+
         setSidebarOpen(false);
       }
     }
@@ -282,7 +246,8 @@ const EnhancedNavigation = ({
     setMobileSubMenuSection(null);
   };
 
-  const getRoleDisplayName = (role) => {
+  // Purely cosmetic role label — never used for gating
+  const getRoleDisplayName = (roleName) => {
     const names = {
       'superadmin': 'Super Administrator',
       'admin': 'Administrator',
@@ -296,14 +261,14 @@ const EnhancedNavigation = ({
       'staff': 'Staff',
       'user': 'User'
     };
-    return names[role] || role;
+    return names[roleName] || roleName || '';
   };
 
   return (
     <>
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -311,14 +276,14 @@ const EnhancedNavigation = ({
 
       {/* Mobile Sub-Menu Modal */}
       {showMobileSubMenu && mobileSubMenuSection && (
-        <div 
+        <div
           className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 lg:hidden"
           onClick={() => {
             setShowMobileSubMenu(false);
             setMobileSubMenuSection(null);
           }}
         >
-          <div 
+          <div
             className="bg-slate-900 border border-slate-700/50 rounded-3xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
@@ -347,9 +312,9 @@ const EnhancedNavigation = ({
             <div className="flex-1 overflow-y-auto p-4 space-y-2 modal-scroll">
               {getSubPages(mobileSubMenuSection.id).map((item) => {
                 const ItemIcon = item.icon;
-                const isActive = location.pathname === item.href || 
+                const isActive = location.pathname === item.href ||
                                 (item.href !== '/' && location.pathname.startsWith(item.href + '/'));
-                
+
                 return (
                   <button
                     key={item.name}
@@ -387,9 +352,9 @@ const EnhancedNavigation = ({
           {/* Logo/Brand */}
           <div className="flex h-16 items-center justify-between px-6 border-b border-slate-700/50 flex-shrink-0">
             <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-              <img 
-                src="/static/logo.png?v=3" 
-                alt="Futures PULSE Logo" 
+              <img
+                src="/static/logo.png?v=3"
+                alt="Futures PULSE Logo"
                 className="h-8 w-auto object-contain"
               />
               <span className="text-white font-semibold text-lg">Futures PULSE</span>
@@ -407,15 +372,15 @@ const EnhancedNavigation = ({
             {filteredSections.map((section) => {
               const isActive = activeSection === section.id;
               const SectionIcon = section.icon;
-              
+
               return (
                 <button
                   key={section.id}
                   onClick={() => handleSectionClick(section)}
                   className={`
                     w-full flex items-center justify-between px-4 py-4 text-base font-medium rounded-xl transition-all duration-200
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/20' 
+                    ${isActive
+                      ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/20'
                       : 'text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent'
                     }
                   `}
@@ -434,14 +399,14 @@ const EnhancedNavigation = ({
 
           {/* Footer with User Info and Logout */}
           <div className="p-4 border-t border-slate-700/50 space-y-3 flex-shrink-0 bg-slate-900">
-            <Link 
+            <Link
               to="/profile"
               className="block px-4 py-2 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors"
             >
               <div className="text-sm text-slate-300 font-medium truncate">{userName}</div>
-              <div className="text-xs text-slate-500">{getRoleDisplayName(userRole)}</div>
+              <div className="text-xs text-slate-500">{getRoleDisplayName(role)}</div>
             </Link>
-            
+
             <button
               onClick={onLogout}
               className="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-red-300 hover:text-red-200 hover:bg-red-900/20"
@@ -457,4 +422,3 @@ const EnhancedNavigation = ({
 };
 
 export default EnhancedNavigation;
-

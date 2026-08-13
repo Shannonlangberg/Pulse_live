@@ -78,7 +78,8 @@
       "full_name": "Adi Ehut Lande",
       "role": "campus_pastor",
       "campus": "solo",
-      "active": true
+      "active": true,
+      "allowed_campuses": ["solo", "cemani"]
     },
     "lala.lande": {
       "username": "lala.lande",
@@ -86,7 +87,8 @@
       "full_name": "Lala Nokita Dewi",
       "role": "campus_pastor",
       "campus": "solo",
-      "active": true
+      "active": true,
+      "allowed_campuses": ["solo", "cemani"]
     },
     "adi.lande.cemani": {
       "username": "adi.lande.cemani",
