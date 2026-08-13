@@ -5,10 +5,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   publicDir: 'public',
-  define: {
-    // Make Railway environment variables available to Vite
-    'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY': JSON.stringify(process.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51SVOK61uLgcfkEmJo3nyVnfVhKu1kchnuhtkcmsAyfAEXHEKV8KbQtNdqyu5Q3UIFWXpyr0lpNE94aVYdzEOyDXZ00TQfprQ3N')
-  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -17,8 +13,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'],
-          three: ['three']
+          vendor: ['react', 'react-dom']
         }
       }
     }

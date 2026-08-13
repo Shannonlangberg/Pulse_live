@@ -67,15 +67,8 @@ const PORTAL_ITEMS = [
     roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],
     featureKey: 'dashboard'
   },
-  { 
-    name: 'Finance Input', 
-    href: '/finance', 
-    icon: ClipboardIcon, 
-    roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'finance'],
-    featureKey: 'finance'
-  },
-  { 
-    name: 'Resources', 
+  {
+    name: 'Resources',
     href: '/resources', 
     icon: BookOpenIcon, 
     roles: ['superadmin', 'admin', 'senior_leadership', 'senior_leader', 'senior_pastor', 'lead_pastor', 'campus_pastor', 'pastor', 'user', 'staff', 'finance'],

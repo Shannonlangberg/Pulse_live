@@ -11,18 +11,11 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.0.18",
-    "@react-three/drei": "^9.88.17",
-    "@react-three/fiber": "^8.15.11",
-    "@stripe/stripe-js": "^2.4.0",
-    "@stripe/react-stripe-js": "^2.4.0",
     "chart.js": "^4.4.0",
-    "date-fns": "^2.30.0",
-    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
-    "three": "^0.158.0"
+    "react-router-dom": "^6.20.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.37",

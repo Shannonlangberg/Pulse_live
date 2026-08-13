@@ -38,13 +38,6 @@ const TOP_NAV_PORTAL_ITEMS = [
     featureKey: 'dashboard'
   },
   {
-    name: 'Finance Input',
-    href: '/finance',
-    icon: ClipboardIcon,
-    roles: ['superadmin', 'admin', 'finance'],
-    featureKey: 'finance'
-  },
-  {
     name: 'Resources',
     href: '/resources',
     icon: BookOpenIcon,

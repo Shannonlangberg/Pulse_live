@@ -5,8 +5,6 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import LogStats from './pages/LogStats';
 import DatabaseViewer from './pages/DatabaseViewer';
-import Finance from './pages/Finance';
-import GivingAnalytics from './pages/GivingAnalytics';
 import CampusManagement from './pages/CampusManagement';
 import UserManagement from './pages/UserManagement';
 import RoleManager from './pages/RoleManager';
@@ -15,44 +13,9 @@ import Reports from './pages/Reports';
 import MinistryStatsExplorer from './pages/MinistryStatsExplorer';
 import PlatformSettings from './pages/PlatformSettings';
 import MyProfile from './pages/MyProfile';
-import Passport from './pages/Passport';
 import Resources from './pages/Resources';
 import ResourceManager from './pages/ResourceManager';
-import Heartbeat from './pages/Heartbeat';
-import People from './pages/People';
-import Families from './pages/people/Families';
-import PastoralCare from './pages/people/PastoralCare';
-import NewPeople from './pages/people/NewPeople';
-import NewChristians from './pages/people/NewChristians';
-import Attendance from './pages/people/Attendance';
-import Lists from './pages/Lists';
-import PersonHealthReport from './pages/PersonHealthReport';
-import PastoralCareAppointments from './pages/PastoralCareAppointments';
-import Prayer from './pages/Prayer';
-import PrayerWrapper from './pages/people/PrayerWrapper';
-import BeaconManagement from './pages/BeaconManagement';
-import PathwayManager from './pages/PathwayManager';
 import Landing from './pages/Landing';
-import ConnectGroups from './pages/ConnectGroups';
-import ConnectGroupLeader from './pages/ConnectGroupLeader';
-import GroupsWrapper from './pages/GroupsWrapper';
-import Groups from './pages/Groups';
-import Give from './pages/Give';
-import TV from './pages/TV';
-import TVSeries from './pages/TVSeries';
-import TVWatch from './pages/TVWatch';
-import TVManager from './pages/TVManager';
-import Events from './pages/Events';
-import EventsEnhanced from './pages/EventsEnhanced';
-import EventsManager from './pages/EventsManager';
-import NotificationManager from './pages/NotificationManager';
-import ServingDashboard from './pages/ServingDashboard';
-import CommunicationDashboard from './pages/CommunicationDashboard';
-import SMSActivity from './pages/SMSActivity';
-import EmailEditor from './pages/EmailEditor';
-import ViewEmail from './pages/ViewEmail';
-import DevotionsAdmin from './pages/DevotionsAdmin';
-import DevotionPlanManager from './pages/DevotionPlanManager';
 import HomepageManager from './pages/HomepageManager';
 import AttendanceDataViewer from './pages/AttendanceDataViewer';
 
@@ -368,16 +331,7 @@ function App() {
             <Login onLogin={handleLogin} />
           } 
         />
-        
-        {/* Connect Group Leader Portal - Standalone (no MainLayout) */}
-        <Route path="/connect-group-leader" element={<ConnectGroupLeader />} />
-        
-        {/* Public Give Page - No auth required */}
-        <Route path="/give" element={<Give />} />
-        
-        {/* View Email - Can be accessed without auth (will redirect to login) */}
-        <Route path="/view-email/:token" element={<ViewEmail />} />
-        
+
         <Route
           path="/*"
           element={
@@ -388,55 +342,18 @@ function App() {
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/stats" element={<LogStats />} />
                   <Route path="/database-viewer" element={<DatabaseViewer />} />
-                  <Route path="/finance" element={<Finance />} />
-                  <Route path="/giving-analytics" element={<GivingAnalytics />} />
-                  <Route path="/passport" element={<Passport />} />
                   <Route path="/resources" element={<Resources />} />
                   <Route path="/resources/manage" element={<ResourceManager />} />
-                  <Route path="/heartbeat" element={<Heartbeat />} />
-                  <Route path="/people" element={<People />} />
-                  <Route path="/people/families" element={<Families />} />
-                  <Route path="/people/heartbeat" element={<Heartbeat />} />
-                  <Route path="/people/pastoral-care" element={<PastoralCare />} />
-                  <Route path="/people/new-people" element={<NewPeople />} />
-                  <Route path="/people/new-christians" element={<NewChristians />} />
-                  <Route path="/people/attendance" element={<Attendance />} />
-                  <Route path="/lists" element={<Lists />} />
-                  <Route path="/groups" element={<GroupsWrapper />} />
-                  <Route path="/groups/regular" element={<GroupsWrapper />} />
-                  <Route path="/connect-groups" element={<Navigate to="/groups" replace />} />
-                  <Route path="/persons/:personId" element={<PersonHealthReport />} />
-                  <Route path="/pastoral-care" element={<PastoralCareAppointments />} />
-                  <Route path="/prayer" element={<Prayer />} />
                   <Route path="/campuses" element={<CampusManagement />} />
                   <Route path="/users" element={<UserManagement />} />
                   <Route path="/platform-settings" element={<PlatformSettings />} />
-                  <Route path="/notifications" element={<NotificationManager />} />
                   <Route path="/role-manager" element={<RoleManager />} />
                   <Route path="/export" element={<DataExport />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/ministry-stats" element={<MinistryStatsExplorer />} />
                   <Route path="/attendance-data" element={<AttendanceDataViewer />} />
-                  <Route path="/beacons" element={<BeaconManagement />} />
-                  <Route path="/journeys" element={<PathwayManager />} />
-                  <Route path="/pathways" element={<Navigate to="/journeys" replace />} />
                   <Route path="/profile" element={<MyProfile />} />
                   <Route path="/settings" element={<Navigate to="/profile" replace />} />
-                  <Route path="/tv" element={<TV />} />
-                  <Route path="/tv/series/:id" element={<TVSeries />} />
-                  <Route path="/tv/watch/:episodeId" element={<TVWatch />} />
-                  <Route path="/tv/manage" element={<TVManager />} />
-                  <Route path="/events" element={<Events />} />
-                  <Route path="/events/enhanced" element={<EventsEnhanced />} />
-                  <Route path="/events/manage" element={<EventsManager />} />
-                  <Route path="/serving" element={<ServingDashboard />} />
-                  <Route path="/communication" element={<CommunicationDashboard />} />
-                  <Route path="/communication/sms-activity" element={<SMSActivity />} />
-                  <Route path="/communication/email-editor" element={<EmailEditor />} />
-                  <Route path="/communication/email-editor/:campaignId" element={<EmailEditor />} />
-                  <Route path="/devotions" element={<DevotionsAdmin />} />
-                  <Route path="/devotions/plans" element={<DevotionPlanManager />} />
-                  <Route path="/devotions/plans/:planId" element={<DevotionPlanManager />} />
                   <Route path="/homepage-manager" element={<HomepageManager />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
