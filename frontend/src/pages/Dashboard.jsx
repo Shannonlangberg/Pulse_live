@@ -67,41 +67,24 @@ const Dashboard = () => {
   }, [session.loading, session.authenticated, session.role, session.campus]);
 
   useEffect(() => {
-    // Show campus selector for users who can see every campus, or if no campus is selected
-    if (userRole && session.permissions.view_all_campuses) {
+    // /api/campuses is already scoped to this user (role, assigned campus,
+    // and any allowed_campuses override). Users with more than one campus get
+    // the selector; a single campus goes straight to its dashboard.
+    if (!userRole || campuses.length === 0) return;
+    const realCampuses = campuses.filter(c => c.id !== 'all_campuses');
+    if (session.permissions.view_all_campuses || realCampuses.length > 1) {
       setShowCampusSelector(true);
-    } else if (userRole && userCampus && userCampus !== 'all_campuses' && campuses.length > 0) {
-      // Auto-select campus for campus pastors and other users with a campus
-      // Normalize campus ID for matching (lowercase, handle spaces/underscores)
-      const normalizedUserCampus = userCampus.toLowerCase().trim().replace(/\s+/g, '_');
-      
-      // Try to find campus with multiple matching strategies
-      const foundCampus = campuses.find(c => {
-        const campusId = (c.id || '').toLowerCase().trim();
-        const campusName = (c.name || '').toLowerCase().trim();
-        return campusId === normalizedUserCampus || 
-               campusId === userCampus.toLowerCase().trim() ||
-               campusName === userCampus.toLowerCase().trim() ||
-               campusName.includes(userCampus.toLowerCase().trim()) ||
-               campusId.includes(normalizedUserCampus);
+    } else if (realCampuses.length === 1) {
+      const only = realCampuses[0];
+      setSelectedCampus({
+        id: only.id,
+        name: only.name || only.display_name || userCampus,
+        isRollup: false
       });
-      
-      if (foundCampus) {
-        setSelectedCampus({
-          id: foundCampus.id,
-          name: foundCampus.name || foundCampus.display_name || userCampus,
-          isRollup: false
-        });
-      } else {
-        // If campus not found, log for debugging and show selector
-        console.warn(`[Dashboard] Campus not found for user: ${userCampus}. Available campuses:`, campuses.map(c => c.id));
-        setShowCampusSelector(true);
-      }
-    } else if (userRole && campuses.length > 0 && (!userCampus || userCampus === 'all_campuses')) {
-      // If user has no specific campus but campuses are loaded, show selector
+    } else {
       setShowCampusSelector(true);
     }
-  }, [userRole, userCampus, campuses]);
+  }, [userRole, userCampus, campuses, session.permissions.view_all_campuses]);
 
   useEffect(() => {
     if (campus) {

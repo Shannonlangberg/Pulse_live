@@ -12,30 +12,11 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
   const hasFullAccess = userRole === 'superadmin' || userRole === 'admin' || userRole === 'senior_leader' || userRole === 'senior_pastor' || userRole === 'lead_pastor';
   const canSeeTracker = userRole === 'superadmin' || userRole === 'admin' || userRole === 'lead_pastor' || userRole === 'senior_pastor' || userRole === 'senior_leader';
   
-  // Filter campuses based on user role, assigned campus, and selected region.
-  // /api/campuses already applies Role Manager allowed_campuses, so we only filter by role/region here.
+  // /api/campuses is already scoped to this user (role, assigned campus, and
+  // any allowed_campuses override) - never re-filter by the user's single
+  // assigned campus here, or multi-campus users lose their other campuses.
   const getAccessibleCampuses = () => {
-    let accessibleCampuses = campuses;
-    if (!hasFullAccess) {
-      if (userCampus && userCampus !== 'all_campuses') {
-        const normalizedUserCampus = userCampus.toLowerCase().trim().replace(/\s+/g, '_');
-        accessibleCampuses = campuses.filter(c => {
-          const campusId = (c.id || '').toLowerCase().trim();
-          const campusName = (c.name || '').toLowerCase().trim();
-          return campusId === normalizedUserCampus ||
-                 campusId === userCampus.toLowerCase().trim() ||
-                 campusName === userCampus.toLowerCase().trim() ||
-                 campusName.includes(userCampus.toLowerCase().trim()) ||
-                 campusId.includes(normalizedUserCampus);
-        });
-        if (accessibleCampuses.length === 0) {
-          console.warn(`[CampusSelector] Campus pastor campus "${userCampus}" not found. Available:`, campuses.map(c => `${c.id} (${c.name})`));
-          return campuses;
-        }
-      }
-      // Else: no single assigned campus (e.g. staff with allowed_campuses from Role Manager).
-      // campuses list is already scoped by /api/campuses, so use it.
-    }
+    let accessibleCampuses = campuses.filter(c => c.id !== 'all_campuses');
     if (selectedRegion) {
       accessibleCampuses = accessibleCampuses.filter(c => c.region_id === selectedRegion.id);
     }
@@ -475,9 +456,11 @@ const CampusSelector = ({ onCampusSelect, userRole, userCampus }) => {
               <div>
                 <h3 className="text-2xl font-semibold text-fc-midnight">Your Access Level</h3>
                 <p className="text-fc-brown text-lg">
-                  {userRole === 'superadmin' || userRole === 'senior_leader' || userRole === 'admin' || userRole === 'senior_pastor' || userRole === 'lead_pastor'
+                  {hasFullAccess
                     ? 'Full access to all campus dashboards'
-                    : 'Access to your assigned campus dashboard'
+                    : campuses.filter(c => c.id !== 'all_campuses').length > 1
+                      ? `Access to ${campuses.filter(c => c.id !== 'all_campuses').length} campus dashboards`
+                      : 'Access to your assigned campus dashboard'
                   }
                 </p>
               </div>
