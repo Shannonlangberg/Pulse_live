@@ -1713,12 +1713,20 @@ def load_users_database():
     try:
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, username, password_hash, full_name, email, role, campus, active, custom_permissions, region_id
-            FROM users
-            WHERE active = 1
-        ''')
-        
+        try:
+            cursor.execute('''
+                SELECT id, username, password_hash, full_name, email, role, campus, active, custom_permissions, region_id, last_login, created_at
+                FROM users
+                WHERE active = 1
+            ''')
+        except Exception:
+            # Older DB copies may lack last_login/created_at
+            cursor.execute('''
+                SELECT id, username, password_hash, full_name, email, role, campus, active, custom_permissions, region_id
+                FROM users
+                WHERE active = 1
+            ''')
+
         users = {}
         for row in cursor.fetchall():
             username = row[1]
@@ -1728,7 +1736,7 @@ def load_users_database():
                 custom_permissions = json.loads(custom_perms) if custom_perms else None
             except:
                 custom_permissions = None
-            
+
             users[username] = {
                 'id': row[0],
                 'username': row[1],
@@ -1739,7 +1747,9 @@ def load_users_database():
                 'campus': row[6] or '',
                 'active': bool(row[7]),
                 'custom_permissions': custom_permissions,
-                'region_id': row[9] if len(row) > 9 else None
+                'region_id': row[9] if len(row) > 9 else None,
+                'last_login': row[10] if len(row) > 10 else None,
+                'created_date': row[11] if len(row) > 11 else None
             }
         
         conn.close()

@@ -166,9 +166,12 @@ const LogStats = () => {
     }, 0);
   };
 
-  const totalAttendance = calculateTotalAttendance();
+  // Mirrors the backend formula (save_attendance_record):
+  // Total Attendance = adult services + Saints + kids + kids leaders
+  const serviceAttendance = calculateTotalAttendance();
   const totalKidsAttendance = calculateTotalKidsAttendance();
   const totalKidsOverall = totalKidsAttendance + (parseInt(quickInputStats['Kids Leaders']) || 0);
+  const totalAttendance = serviceAttendance + (parseInt(quickInputStats['Saints']) || 0) + totalKidsOverall;
 
   // Check user permissions and redirect if no access.
   // permissions.log_stats is fully resolved server-side (role defaults + overrides).
@@ -927,8 +930,8 @@ const LogStats = () => {
                     <NumberField key={serviceTime} statKey={serviceTime} label={serviceTime} formRef={quickInputFormRef} quickInputStats={quickInputStats} updateStat={updateStat} />
                   ))}
                   <div className="flex items-center justify-between pt-4">
-                    <span className="fc-label !mb-0">Total Attendance</span>
-                    <span className="font-mono text-2xl text-fc-midnight">{totalAttendance}</span>
+                    <span className="fc-label !mb-0">Service Total (Adults)</span>
+                    <span className="font-mono text-2xl text-fc-midnight">{serviceAttendance}</span>
                   </div>
                 </SectionCard>
 
@@ -1090,9 +1093,14 @@ const LogStats = () => {
             {/* Sticky bottom bar: running attendance total */}
             <div className="fixed left-0 right-0 bottom-0 z-[60] bg-fc-cream/95 backdrop-blur-sm border-t border-fc-cream2">
               <div className="max-w-5xl mx-auto px-6 sm:px-8 py-3 flex items-center justify-between gap-5">
-                <div>
-                  <div className="fc-label !mb-1">Attendance</div>
-                  <div className="font-mono text-2xl text-fc-midnight leading-none">{totalAttendance}</div>
+                <div className="flex items-baseline gap-4">
+                  <div>
+                    <div className="fc-label !mb-1">Total Attendance</div>
+                    <div className="font-mono text-2xl text-fc-midnight leading-none">{totalAttendance}</div>
+                  </div>
+                  <div className="hidden sm:block text-xs text-fc-brown leading-tight">
+                    {serviceAttendance} services + {parseInt(quickInputStats['Saints']) || 0} saints + {totalKidsOverall} kids &amp; leaders
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-fc-brown">
                   <CloudIcon className="w-4 h-4" /> Saved
