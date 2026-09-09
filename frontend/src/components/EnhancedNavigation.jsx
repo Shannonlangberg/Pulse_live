@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
+  ClockIcon,
   HomeIcon,
   Cog6ToothIcon,
   XMarkIcon,
@@ -85,6 +86,12 @@ const SETTINGS_ITEMS = [
     // Always visible for all users
   },
   {
+    name: 'Service Times',
+    href: '/service-times',
+    icon: ClockIcon,
+    gate: (p) => p.log_stats
+  },
+  {
     name: 'Users',
     href: '/users',
     icon: UserGroupIcon,
@@ -164,6 +171,7 @@ const EnhancedNavigation = ({
       setActiveSection('portal');
     } else if (path.startsWith('/users') || path.startsWith('/role-manager') ||
                path.startsWith('/campuses') || path.startsWith('/profile') ||
+               path.startsWith('/service-times') ||
                path.startsWith('/beacons') || path.startsWith('/resources/manage') ||
                path.startsWith('/tv/manage') || path.startsWith('/events/manage') ||
                path.startsWith('/notifications') || path.startsWith('/export') || path.startsWith('/reports') || path.startsWith('/ministry-stats') || path.startsWith('/attendance-data') ||

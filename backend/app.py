@@ -13220,39 +13220,61 @@ def get_service_times():
 
 @app.route('/api/service-times', methods=['POST'])
 @login_required
-@admin_required
 def update_service_times():
-    """Update service times for a campus (admin only)"""
+    """Update service times for a campus.
+
+    Campus pastors (anyone with log_stats) may manage the times for campuses
+    they can access; admins/leadership can manage any campus. Persists to
+    campuses_v2.service_times - the store Stats Input and dashboards read.
+    """
     try:
         data = request.get_json()
-        campus = data.get('campus')
+        campus = (data.get('campus') or '').strip()
         service_times = data.get('service_times', [])
-        
-        if not campus or not service_times:
+
+        if not campus or not isinstance(service_times, list):
             return jsonify({"error": "Campus and service_times are required"}), 400
-        
-        # Validate service times format
+
+        if not current_user.has_permission('log_stats'):
+            return jsonify({"error": "You don't have permission to manage service times"}), 403
+        if not current_user.can_access_campus(campus):
+            return jsonify({"error": f"You don't have access to manage {campus}"}), 403
+
+        # Clean the list: strings only, trimmed, de-duplicated, order kept
         valid_times = []
         for time_str in service_times:
-            # Basic validation - could be enhanced
-            if isinstance(time_str, str) and len(time_str) > 0:
-                valid_times.append(time_str)
-        
+            if isinstance(time_str, str) and time_str.strip() and time_str.strip() not in valid_times:
+                valid_times.append(time_str.strip())
+
         if not valid_times:
-            return jsonify({"error": "No valid service times provided"}), 400
-        
-        # Update the configuration (in a real app, this would be saved to database)
-        campus_key = display_campus_name(campus)
-        CAMPUS_SERVICE_TIMES[campus_key] = valid_times
-        
+            return jsonify({"error": "At least one service time is required"}), 400
+        if len(valid_times) > 12:
+            return jsonify({"error": "Too many service times (max 12)"}), 400
+
+        campus_norm = normalize_campus_id(campus)
+        campus_obj = CampusV2.query.filter_by(campus_id=campus_norm).first()
+        if not campus_obj:
+            return jsonify({"error": f"Campus not found: {campus}"}), 404
+
+        campus_obj.service_times = json.dumps(valid_times)
+        db.session.commit()
+
+        # Keep the in-memory fallback map in sync for this process
+        try:
+            CAMPUS_SERVICE_TIMES[display_campus_name(campus)] = valid_times
+        except Exception:
+            pass
+
+        logger.info(f"[SERVICE_TIMES] {current_user.username} set {campus_norm} -> {valid_times}")
         return jsonify({
             "success": True,
-            "campus": campus_key,
+            "campus": campus_norm,
             "service_times": valid_times,
-            "message": f"Service times updated for {campus_key}"
+            "message": f"Service times updated for {campus_obj.display_name or campus_norm}"
         })
-        
+
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Error updating service times: {e}")
         return jsonify({"error": "Failed to update service times"}), 500
 

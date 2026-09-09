@@ -16,6 +16,7 @@ import MyProfile from './pages/MyProfile';
 import Resources from './pages/Resources';
 import ResourceManager from './pages/ResourceManager';
 import Landing from './pages/Landing';
+import ServiceTimes from './pages/ServiceTimes';
 import HomepageManager from './pages/HomepageManager';
 import AttendanceDataViewer from './pages/AttendanceDataViewer';
 
@@ -113,6 +114,7 @@ function App() {
                   <Route path="/ministry-stats" element={<MinistryStatsExplorer />} />
                   <Route path="/attendance-data" element={<AttendanceDataViewer />} />
                   <Route path="/profile" element={<MyProfile />} />
+                  <Route path="/service-times" element={<ServiceTimes />} />
                   <Route path="/settings" element={<Navigate to="/profile" replace />} />
                   <Route path="/homepage-manager" element={<HomepageManager />} />
                   <Route path="*" element={<Navigate to="/" replace />} />

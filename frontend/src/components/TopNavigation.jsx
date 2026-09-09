@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
+  ClockIcon,
   ClipboardIcon,
   DocumentChartBarIcon,
   BookOpenIcon,
@@ -51,6 +52,12 @@ const TOP_NAV_SETTINGS_ITEMS = [
     href: '/profile',
     icon: UserCircleIcon
     // Always visible
+  },
+  {
+    name: 'Service Times',
+    href: '/service-times',
+    icon: ClockIcon,
+    gate: (p) => p.log_stats
   },
   {
     name: 'Users',
