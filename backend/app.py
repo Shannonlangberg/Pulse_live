@@ -867,6 +867,14 @@ def save_attendance_record(data, user_id=None):
         if existing:
             record = existing
             record.updated_at = datetime.utcnow()
+            # Allow an edit to move the record to a new date (e.g. Monday's
+            # entry redated to Sunday) - but never onto another record.
+            if date_val and existing.date != date_val:
+                clash = AttendanceRecord.query.filter_by(campus_id=campus.id, date=date_val).first()
+                if clash and clash.id != existing.id:
+                    return False, None, f"A record already exists for {campus.display_name} on {date_val}"
+                logger.info(f"[SAVE_ATTENDANCE] Moving record {existing.id} from {existing.date} to {date_val}")
+                record.date = date_val
         else:
             record = AttendanceRecord(
                 campus_id=campus.id,
@@ -880,9 +888,21 @@ def save_attendance_record(data, user_id=None):
         record.total_people_in_campus = int(data.get('Total People in Campus', 0) or 0)
         record.adult_service_breakdown = json.dumps(adult_breakdown) if adult_breakdown else None
         
-        # Calculate kids_attendance from service breakdown
+        # Kids attendance: the per-service breakdown is the source of truth.
+        # Never trust a separately sent "Kids Attendance" total when a breakdown
+        # is present - old app builds sent kids INCLUDING leaders there, which
+        # the total formula below then double-counted (Salisbury 2026-09-27).
         kids_total = sum(kids_breakdown.values()) if kids_breakdown else 0
-        record.kids_attendance = int(data.get('Kids Attendance', kids_total) or kids_total or 0)
+        if kids_breakdown:
+            sent_kids = data.get('Kids Attendance')
+            if sent_kids not in (None, '') and int(sent_kids or 0) != kids_total:
+                logger.warning(f"[SAVE_ATTENDANCE] Ignoring sent Kids Attendance={sent_kids}; using breakdown sum {kids_total}")
+            record.kids_attendance = kids_total
+        elif 'Kids Attendance' in data:
+            record.kids_attendance = int(data.get('Kids Attendance') or 0)
+        elif not existing:
+            record.kids_attendance = 0
+        # else: partial update with no kids fields - preserve the stored value
         record.kids_leaders = int(data.get('Kids Leaders', 0) or 0)
         record.new_kids = int(data.get('New Kids', 0) or 0)
         record.new_kids_salvations = int(data.get('New Kids Salvations', 0) or 0)
@@ -14588,6 +14608,14 @@ def save_attendance_record(data, user_id=None):
         if existing:
             record = existing
             record.updated_at = datetime.utcnow()
+            # Allow an edit to move the record to a new date (e.g. Monday's
+            # entry redated to Sunday) - but never onto another record.
+            if date_val and existing.date != date_val:
+                clash = AttendanceRecord.query.filter_by(campus_id=campus.id, date=date_val).first()
+                if clash and clash.id != existing.id:
+                    return False, None, f"A record already exists for {campus.display_name} on {date_val}"
+                logger.info(f"[SAVE_ATTENDANCE] Moving record {existing.id} from {existing.date} to {date_val}")
+                record.date = date_val
         else:
             record = AttendanceRecord(
                 campus_id=campus.id,
@@ -14601,9 +14629,21 @@ def save_attendance_record(data, user_id=None):
         record.total_people_in_campus = int(data.get('Total People in Campus', 0) or 0)
         record.adult_service_breakdown = json.dumps(adult_breakdown) if adult_breakdown else None
         
-        # Calculate kids_attendance from service breakdown
+        # Kids attendance: the per-service breakdown is the source of truth.
+        # Never trust a separately sent "Kids Attendance" total when a breakdown
+        # is present - old app builds sent kids INCLUDING leaders there, which
+        # the total formula below then double-counted (Salisbury 2026-09-27).
         kids_total = sum(kids_breakdown.values()) if kids_breakdown else 0
-        record.kids_attendance = int(data.get('Kids Attendance', kids_total) or kids_total or 0)
+        if kids_breakdown:
+            sent_kids = data.get('Kids Attendance')
+            if sent_kids not in (None, '') and int(sent_kids or 0) != kids_total:
+                logger.warning(f"[SAVE_ATTENDANCE] Ignoring sent Kids Attendance={sent_kids}; using breakdown sum {kids_total}")
+            record.kids_attendance = kids_total
+        elif 'Kids Attendance' in data:
+            record.kids_attendance = int(data.get('Kids Attendance') or 0)
+        elif not existing:
+            record.kids_attendance = 0
+        # else: partial update with no kids fields - preserve the stored value
         record.kids_leaders = int(data.get('Kids Leaders', 0) or 0)
         record.new_kids = int(data.get('New Kids', 0) or 0)
         record.new_kids_salvations = int(data.get('New Kids Salvations', 0) or 0)
